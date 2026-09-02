@@ -22,8 +22,6 @@ export interface AppVars {
   AI_EXTRA_BODY?: string;
   AI_API_KEY?: string;
   AI_EXTRA_HEADERS?: string;
-  ASK_DAILY_REQUEST_LIMIT?: string;
-  ASK_DAILY_TOKEN_BUDGET?: string;
   /** Test hook: route provider calls to globalThis.__askFakeUpstream. */
   ASK_FAKE_UPSTREAM?: string;
 }

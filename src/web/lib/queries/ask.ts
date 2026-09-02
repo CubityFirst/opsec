@@ -1,12 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
 import { useCallback, useReducer, useRef } from "react";
-import { ASK_MAX_HISTORY_TURNS, type AskConfig, type AskEvent, type AskImage, type AskProposal, type AskStop, type AskUsage } from "@shared/schemas/ask";
+import { ASK_MAX_HISTORY_TURNS, type AskConfig, type AskEvent, type AskImage, type AskProposal, type AskStop } from "@shared/schemas/ask";
 import { api, errorMessage } from "../api";
 import { streamEvents } from "../sse";
-
-export function useAskUsage() {
-  return useQuery({ queryKey: ["ask", "usage"], queryFn: () => api.get<AskUsage>("/api/ask/usage"), staleTime: 10_000 });
-}
 
 export function useAskConfig() {
   return useQuery({ queryKey: ["ask", "config"], queryFn: () => api.get<AskConfig>("/api/ask/config"), staleTime: Infinity });

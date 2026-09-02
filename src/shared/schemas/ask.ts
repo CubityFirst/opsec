@@ -69,14 +69,6 @@ export type AskEvent =
   | { type: "done"; stop: AskStop; iterations: number; usage: { input: number; output: number } }
   | { type: "error"; code: string; message: string };
 
-export interface AskUsage {
-  day: string;
-  requests: number;
-  inputTokens: number;
-  outputTokens: number;
-  budget: { requestsPerDay: number; tokensPerDay: number };
-}
-
 export interface AskConfig {
   label: string;
   model: string;

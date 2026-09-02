@@ -31,8 +31,6 @@ export default defineConfig(async () => {
             AI_EXTRA_HEADERS: '{"x-test-header":"yes"}',
             AI_EXTRA_BODY: '{"parallel_tool_calls":true}',
             ASK_FAKE_UPSTREAM: "1",
-            ASK_DAILY_REQUEST_LIMIT: "1000",
-            ASK_DAILY_TOKEN_BUDGET: "50000000",
           },
           // The real Annex Worker is not available in tests; nothing here performs a login.
           serviceBindings: { ANNEX: async () => new Response("annex unavailable in tests", { status: 503 }) },

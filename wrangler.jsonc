@@ -36,15 +36,12 @@
     // "oidc": OpenID Connect sign-in; also set OIDC_ISSUER, OIDC_CLIENT_ID, ACCESS_ALLOWED_EMAILS and
     //         the secrets OIDC_CLIENT_SECRET + SESSION_SECRET.
     "AUTH_MODE": "open",
-    "AUTH_PROVIDER_LABEL": "SSO",
+    "AUTH_PROVIDER_LABEL": "SSO"
     // Optional vars, all unset by default (add them here or in the dashboard):
     //   oidc mode: OIDC_ISSUER, OIDC_CLIENT_ID, ACCESS_ALLOWED_EMAILS (comma-separated verified emails;
     //              accounts with the `admin` role are always allowed)
     //   Ask:       AI_BASE_URL, AI_MODEL, AI_LABEL, AI_EXTRA_BODY — or configure Ask from the Account
-    //              page after deploying (README → Ask)
-    // Ask spend guard, per signed-in user per UTC day (services/ask/usage.ts).
-    "ASK_DAILY_REQUEST_LIMIT": "200",
-    "ASK_DAILY_TOKEN_BUDGET": "1000000"
+    //              page after deploying (README → Ask). Put spend limits on the provider / AI Gateway.
   },
   // Secrets (npx wrangler secret put ...): SESSION_SECRET (needed to encrypt stored provider keys,
   // and for oidc mode), OIDC_CLIENT_SECRET (oidc mode), AI_API_KEY, AI_EXTRA_HEADERS (optional).
@@ -84,9 +81,7 @@
         "AI_BASE_URL": "https://gateway.ai.cloudflare.com/v1/d843ae90cab33e54f4d284bc65d2fd6a/opsec/compat",
         "AI_MODEL": "openai/gpt-5.6-luna",
         "AI_LABEL": "gpt-5.6-luna via AI Gateway",
-        "AI_EXTRA_BODY": "{\"reasoning_effort\":\"none\"}",
-        "ASK_DAILY_REQUEST_LIMIT": "200",
-        "ASK_DAILY_TOKEN_BUDGET": "1000000"
+        "AI_EXTRA_BODY": "{\"reasoning_effort\":\"none\"}"
       }
     }
   }

@@ -41,7 +41,7 @@ It runs as a single Cloudflare Worker at [opsec.cubityfir.st](https://opsec.cubi
 
 ## Deploy your own
 
-The **Deploy to Cloudflare** button above forks this repository into your GitHub account and creates the Worker, a D1 database and an R2 bucket from `wrangler.jsonc`, then builds and deploys it. The deploy step runs the D1 migrations first (`npm run deploy`), so the instance is ready at its `workers.dev` URL when the build finishes. The button only asks about the handful of vars the template sets (`AUTH_MODE`, the provider label, the Ask spend limits); everything else is optional and can be added later in the dashboard or with Wrangler.
+The **Deploy to Cloudflare** button above forks this repository into your GitHub account and creates the Worker, a D1 database and an R2 bucket from `wrangler.jsonc`, then builds and deploys it. The deploy step runs the D1 migrations first (`npm run deploy`), so the instance is ready at its `workers.dev` URL when the build finishes. The button only asks about the handful of vars the template sets (`AUTH_MODE` and the provider label); everything else is optional and can be added later in the dashboard or with Wrangler.
 
 > **A fresh install has no authentication.** `AUTH_MODE` defaults to `open`: there is no sign-in and every visitor is treated as the owner with admin rights. That is deliberate, because everyone's identity provider is different, but it means an open instance on a public URL is an open address book. Before you put anything real in it, do one of the following.
 
@@ -198,7 +198,7 @@ Wrangler has no AI Gateway commands, so the gateway side is done in the Cloudfla
 
 The request sets `max_completion_tokens` (OpenAI rejects the older `max_tokens` on current models); a server that only understands `max_tokens` can be given it through the extra request fields.
 
-**Spend guard.** Each signed-in user gets a daily allowance, counted per UTC day in the `ask_usage` table: `ASK_DAILY_REQUEST_LIMIT` questions (default 200) and `ASK_DAILY_TOKEN_BUDGET` input+output tokens (default 1,000,000). A request is counted before the provider is called, so a retry loop cannot run away; over the limit `/api/ask` returns 429 `budget_exceeded` until midnight UTC. The Ask page shows today's usage, and `GET /api/ask/usage` returns it. Only the last 20 turns (6,000 characters each) are sent to the model, which bounds input tokens per iteration. Pair this with a spend limit on the provider account and a rate limit on the AI Gateway for defence in depth.
+**Spend control.** Per-request caps below bound a single question; only the last 20 turns (6,000 characters each) are sent to the model. Overall spend is best managed where the bill is: a budget on the provider account, and rate limiting on the AI Gateway when you route through one.
 
 Limits per question: 12 model iterations, 6 tool calls per iteration, 12 KB per tool result, 120 KB of tool results in total, 40 turns of history, one image up to 1568 px on the long edge. Worker logs record only counts and timings, never questions, tool payloads or images.
 

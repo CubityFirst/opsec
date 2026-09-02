@@ -1,5 +1,4 @@
 import { ImagePlusIcon, RotateCcwIcon, SendIcon, SquareIcon, XIcon } from "lucide-react";
-import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import { mentionMarkdown } from "@shared/mentions";
 import { toast } from "sonner";
@@ -7,16 +6,11 @@ import { MessageList } from "@/components/ask/MessageList";
 import { MentionTextarea } from "@/components/MentionTextarea";
 import { Button } from "@/components/ui/button";
 import { prepareImage, type PreparedImage } from "@/lib/image";
-import { useAsk, useAskConfig, useAskUsage } from "@/lib/queries/ask";
+import { useAsk, useAskConfig } from "@/lib/queries/ask";
 
 export function AskPage() {
   const ask = useAsk();
   const config = useAskConfig();
-  const usage = useAskUsage();
-  const qc = useQueryClient();
-  useEffect(() => {
-    if (ask.status !== "streaming") void qc.invalidateQueries({ queryKey: ["ask", "usage"] });
-  }, [ask.status, qc]);
   const [question, setQuestion] = useState("");
   /** Contacts picked with @ in this draft, by display name; expanded to id-carrying links on send. */
   const mentionsRef = useRef(new Map<string, string>());
@@ -55,12 +49,6 @@ export function AskPage() {
           <p className="text-sm text-muted-foreground">
             Ask about your people, history and relationships. {config.data ? `Answering with ${config.data.label}.` : ""}
           </p>
-          {usage.data && (
-            <p className="text-xs text-muted-foreground">
-              Today: {usage.data.requests} of {usage.data.budget.requestsPerDay} questions, {(usage.data.inputTokens + usage.data.outputTokens).toLocaleString()} of{" "}
-              {usage.data.budget.tokensPerDay.toLocaleString()} tokens.
-            </p>
-          )}
         </div>
         {ask.turns.length > 0 && (
           <Button variant="outline" size="sm" onClick={ask.reset}>

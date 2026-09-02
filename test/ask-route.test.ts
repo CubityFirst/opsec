@@ -1,4 +1,3 @@
-import { env } from "cloudflare:test";
 import { afterEach, describe, expect, it } from "vitest";
 import type { AskEvent } from "@shared/schemas/ask";
 import { api, createContact } from "./helpers";
@@ -49,27 +48,6 @@ async function ask(body: unknown, init?: RequestInit): Promise<{ status: number;
 describe("POST /api/ask", () => {
   afterEach(() => {
     delete (globalThis as { __askFakeUpstream?: unknown }).__askFakeUpstream;
-  });
-
-  it("enforces the daily budget before calling the provider and records usage after", async () => {
-    const sub = "budget-user";
-    const day = new Date().toISOString().slice(0, 10);
-    await env.DB.prepare("delete from ask_usage where sub = ?").bind(sub).run();
-    const seen = installUpstream([() => textTurn("Hello there")]);
-    const as = { sub, email: "allowed@example.com", emailVerified: true, name: null, picture: null, roles: [] as string[] };
-    const ok = await api("/api/ask", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ question: "hi" }), as });
-    expect(ok.status).toBe(200);
-    await ok.text();
-    expect(seen).toHaveLength(1);
-    const usage = await (await api("/api/ask/usage", { as })).json<{ requests: number; inputTokens: number; outputTokens: number; budget: { requestsPerDay: number } }>();
-    expect(usage).toMatchObject({ requests: 1, inputTokens: 10, outputTokens: 5, budget: { requestsPerDay: 1000 } });
-
-    await env.DB.prepare("update ask_usage set requests = 1000 where sub = ? and day = ?").bind(sub, day).run();
-    const blocked = await api("/api/ask", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ question: "hi" }), as });
-    expect(blocked.status).toBe(429);
-    expect(await blocked.json()).toMatchObject({ error: { code: "budget_exceeded" } });
-    expect(seen).toHaveLength(1);
-    await env.DB.prepare("delete from ask_usage where sub = ?").bind(sub).run();
   });
 
   it("exposes its configuration", async () => {

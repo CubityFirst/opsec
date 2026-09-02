@@ -15,7 +15,7 @@ export interface ListResult<T> {
 
 export interface ApiErrorBody {
   error: {
-    code: "validation_error" | "not_found" | "conflict" | "payload_too_large" | "budget_exceeded" | "bad_request" | "unauthorized" | "forbidden" | "internal";
+    code: "validation_error" | "not_found" | "conflict" | "payload_too_large" | "bad_request" | "unauthorized" | "forbidden" | "internal";
     message: string;
     issues?: unknown[];
   };

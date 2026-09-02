@@ -248,21 +248,6 @@ export const appSettings = sqliteTable("app_settings", {
   updatedAt: text("updated_at").notNull(),
 });
 
-/** Per-user, per-UTC-day Ask counters for the spend guard (services/ask/usage.ts). */
-export const askUsage = sqliteTable(
-  "ask_usage",
-  {
-    sub: text("sub").notNull(),
-    /** YYYY-MM-DD (UTC). */
-    day: text("day").notNull(),
-    requests: integer("requests").notNull().default(0),
-    inputTokens: integer("input_tokens").notNull().default(0),
-    outputTokens: integer("output_tokens").notNull().default(0),
-    updatedAt: text("updated_at").notNull(),
-  },
-  (t) => [primaryKey({ columns: [t.sub, t.day] })],
-);
-
 /** Signed-in identities, keyed on the OIDC `sub` claim (never on email). */
 export const users = sqliteTable("users", {
   sub: text("sub").primaryKey(),
