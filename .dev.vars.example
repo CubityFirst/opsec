@@ -1,5 +1,10 @@
 ENVIRONMENT=development
-OIDC_CLIENT_SECRET=<annex client secret>
+# Local dev is open access unless you opt into OIDC here (see wrangler.jsonc for the vars).
+# AUTH_MODE=oidc
+# OIDC_ISSUER=https://your-idp.example
+# OIDC_CLIENT_ID=<client id>
+# OIDC_CLIENT_SECRET=<client secret>
+# ACCESS_ALLOWED_EMAILS=you@example.com
 SESSION_SECRET=<long random string>
 AI_API_KEY=none
 AI_EXTRA_HEADERS={"cf-aig-authorization":"Bearer <AI Gateway Run token>"}

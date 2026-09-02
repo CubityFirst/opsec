@@ -1,4 +1,4 @@
-import { EyeOffIcon, LogOutIcon, ShieldCheckIcon } from "lucide-react";
+import { EyeOffIcon, LogOutIcon, ShieldAlertIcon, ShieldCheckIcon } from "lucide-react";
 import { toast } from "sonner";
 import { AiProviderCard } from "@/components/settings/AiProviderCard";
 import { Badge } from "@/components/ui/badge";
@@ -49,8 +49,25 @@ export function AccountPage() {
     <div className="flex max-w-2xl flex-col gap-6">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Account</h1>
-        <p className="text-sm text-muted-foreground">Signed in with Annex. These claims come from the verified id_token.</p>
+        <p className="text-sm text-muted-foreground">
+          {user.authMode === "open" ? "Open access: this instance has no sign-in." : `Signed in with ${user.providerLabel}. These claims come from the verified id_token.`}
+        </p>
       </div>
+
+      {user.authMode === "open" && (
+        <Card className="border-amber-500/40 bg-amber-500/5">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <ShieldAlertIcon className="size-4 text-amber-600" /> Anyone with the URL can use this instance
+            </CardTitle>
+            <CardDescription>
+              AUTH_MODE is “open”: there is no sign-in and every visitor is treated as the owner. Put your own authentication in front (for example Cloudflare
+              Access on the workers.dev hostname) or switch to OpenID Connect by setting AUTH_MODE=oidc with your provider’s issuer, client id, client secret and
+              a SESSION_SECRET. See the README → Deploy your own.
+            </CardDescription>
+          </CardHeader>
+        </Card>
+      )}
 
       <Card>
         <CardHeader>
@@ -103,11 +120,13 @@ export function AccountPage() {
 
       {user.isAdmin && <AiProviderCard />}
 
+      {user.authMode === "oidc" && (
       <div>
         <Button variant="outline" onClick={() => logout.mutate()} disabled={logout.isPending}>
           <LogOutIcon /> Sign out
         </Button>
       </div>
+      )}
     </div>
   );
 }

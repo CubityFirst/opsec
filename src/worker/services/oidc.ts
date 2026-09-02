@@ -14,7 +14,8 @@ export const OIDC_SCOPE = "openid profile email roles";
  */
 export function annexFetch(env: Env): client.CustomFetch {
   const issuerHost = new URL(env.OIDC_ISSUER).host;
-  const binding = env.ENVIRONMENT === "development" ? undefined : env.ANNEX;
+  // Optional service binding for same-zone providers; plain fetch otherwise.
+  const binding = env.ENVIRONMENT === "development" ? undefined : (env as { ANNEX?: Fetcher }).ANNEX;
   return (url, options) => {
     const init = options as RequestInit;
     if (binding && new URL(url).host === issuerHost) return binding.fetch(url, init);

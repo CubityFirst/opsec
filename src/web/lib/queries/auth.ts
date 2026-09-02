@@ -3,7 +3,12 @@ import type { UserPreferencesUpdate } from "@shared/schemas/preferences";
 import type { AuthUser } from "@shared/types";
 import { ApiError, api } from "../api";
 
-export const authKeys = { me: ["auth", "me"] as const };
+export const authKeys = { me: ["auth", "me"] as const, info: ["auth", "info"] as const };
+
+/** Public sign-in facts (mode, provider label); safe to call without a session. */
+export function useAuthInfo() {
+  return useQuery({ queryKey: authKeys.info, queryFn: () => api.get<{ authMode: "open" | "oidc"; providerLabel: string }>("/api/auth/info"), staleTime: Infinity });
+}
 
 /** The signed-in user, or null when there is no valid session. */
 export function useMe() {

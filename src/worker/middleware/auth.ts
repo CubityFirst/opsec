@@ -1,7 +1,7 @@
 import type { MiddlewareHandler } from "hono";
 import type { AppEnv } from "../env";
 import { ApiError } from "../lib/errors";
-import { isAdmin, isAllowed, readSessionCookie, verifySession } from "../lib/session";
+import { OPEN_USER, authMode, isAdmin, isAllowed, readSessionCookie, verifySession } from "../lib/session";
 
 /**
  * Reads and verifies the session cookie; never rejects on its own. A valid
@@ -9,6 +9,12 @@ import { isAdmin, isAllowed, readSessionCookie, verifySession } from "../lib/ses
  * so a later policy change locks existing cookies out immediately.
  */
 export const sessionMiddleware: MiddlewareHandler<AppEnv> = async (c, next) => {
+  if (authMode(c.env) === "open") {
+    c.set("user", OPEN_USER);
+    c.set("actor", OPEN_USER.sub);
+    await next();
+    return;
+  }
   const token = readSessionCookie(c);
   const verified = token ? await verifySession(token, c.env.SESSION_SECRET) : null;
   const user = isAllowed(verified, c.env) ? verified : null;

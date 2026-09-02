@@ -2,6 +2,7 @@ import { LayoutDashboardIcon, LogOutIcon, MenuIcon, SearchIcon, SparklesIcon, Ta
 import { useState } from "react";
 import { NavLink, Outlet, useNavigate } from "react-router";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
@@ -48,6 +49,17 @@ function UserMenu() {
   const navigate = useNavigate();
   if (!user) return null;
   const label = user.name ?? user.email ?? user.sub;
+  if (user.authMode === "open") {
+    return (
+      <Button variant="ghost" className="h-auto w-full min-w-0 justify-start gap-2 px-2 py-1.5" onClick={() => navigate("/account")} title="Open access: no sign-in is configured">
+        <Avatar className="size-7">
+          <AvatarFallback className="text-[0.65rem] uppercase">{initials(label)}</AvatarFallback>
+        </Avatar>
+        <span className="min-w-0 flex-1 truncate text-left text-sm">{label}</span>
+        <Badge variant="outline" className="text-[0.6rem] text-muted-foreground">open</Badge>
+      </Button>
+    );
+  }
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>

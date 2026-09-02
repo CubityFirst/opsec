@@ -31,6 +31,10 @@ export interface AuthUser {
   roles: string[];
   /** roles.includes("admin") */
   isAdmin: boolean;
+  /** "open": no sign-in, single implicit owner; "oidc": OpenID Connect sessions. */
+  authMode: "open" | "oidc";
+  /** Display name of the identity provider (sign-in button, account page). */
+  providerLabel: string;
   preferences: UserPreferences;
 }
 

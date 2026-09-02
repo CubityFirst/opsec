@@ -2,6 +2,7 @@ import { eq } from "drizzle-orm";
 import type { AiProviderView, AiSettingsOut, AiSettingsUpdate, AiTestResult } from "@shared/schemas/ai-settings";
 import { schema, type Db } from "../db";
 import { decryptString, encryptString } from "../lib/crypto";
+import { ApiError } from "../lib/errors";
 import { nowIso } from "../lib/time";
 import { createAskClient, extraBody, extraHeaders, hasProviderKey } from "./ask/client";
 import { classifyAskError } from "./ask/errors";
@@ -20,6 +21,11 @@ interface StoredAi {
   extraHeadersEnc: string;
 }
 
+function secretKey(env: SecretEnv): string {
+  if (!env.SESSION_SECRET) throw new ApiError(400, "bad_request", "SESSION_SECRET is not set, so provider keys cannot be stored. Run `npx wrangler secret put SESSION_SECRET` (any long random string), or use a key-less provider (BYOK gateway / local server).");
+  return env.SESSION_SECRET;
+}
+
 export async function loadStoredProvider(db: Db, env: SecretEnv): Promise<{ provider: AiProvider; updatedAt: string } | null> {
   const row = await db.select().from(schema.appSettings).where(eq(schema.appSettings.key, KEY)).get();
   if (!row) return null;
@@ -30,8 +36,8 @@ export async function loadStoredProvider(db: Db, env: SecretEnv): Promise<{ prov
       model: v.model,
       label: v.label,
       extraBody: v.extraBody,
-      apiKey: v.apiKeyEnc ? await decryptString(env.SESSION_SECRET, v.apiKeyEnc) : "",
-      extraHeaders: v.extraHeadersEnc ? await decryptString(env.SESSION_SECRET, v.extraHeadersEnc) : "",
+      apiKey: v.apiKeyEnc ? await decryptString(secretKey(env), v.apiKeyEnc) : "",
+      extraHeaders: v.extraHeadersEnc ? await decryptString(secretKey(env), v.extraHeadersEnc) : "",
     },
     updatedAt: row.updatedAt,
   };
@@ -64,8 +70,8 @@ export async function saveProvider(db: Db, env: AiEnv & SecretEnv, input: AiSett
     model: p.model,
     label: p.label,
     extraBody: p.extraBody,
-    apiKeyEnc: p.apiKey ? await encryptString(env.SESSION_SECRET, p.apiKey) : "",
-    extraHeadersEnc: p.extraHeaders ? await encryptString(env.SESSION_SECRET, p.extraHeaders) : "",
+    apiKeyEnc: p.apiKey ? await encryptString(secretKey(env), p.apiKey) : "",
+    extraHeadersEnc: p.extraHeaders ? await encryptString(secretKey(env), p.extraHeaders) : "",
   };
   const json = value as unknown as Record<string, unknown>;
   const now = nowIso();

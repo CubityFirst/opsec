@@ -20,6 +20,20 @@ export interface SessionUser {
   roles: string[];
 }
 
+export type AuthMode = "open" | "oidc";
+
+/** "oidc" only when explicitly configured; anything else is open access (see wrangler.jsonc). */
+export function authMode(env: Pick<Env, "AUTH_MODE">): AuthMode {
+  return env.AUTH_MODE === "oidc" ? "oidc" : "open";
+}
+
+/** The single implicit user of an open-access instance. Everything is attributed to it. */
+export const OPEN_USER: SessionUser = { sub: "local", email: null, emailVerified: false, name: "Owner", picture: null, roles: ["admin"] };
+
+export function authInfo(env: Pick<Env, "AUTH_MODE" | "AUTH_PROVIDER_LABEL">): { authMode: AuthMode; providerLabel: string } {
+  return { authMode: authMode(env), providerLabel: env.AUTH_PROVIDER_LABEL || "SSO" };
+}
+
 export function isAdmin(user: SessionUser | null | undefined): boolean {
   return !!user && user.roles.includes("admin");
 }
@@ -41,8 +55,8 @@ export function isAllowed(user: SessionUser | null | undefined, env: Pick<Env, "
 
 export const NOT_ALLOWED_MESSAGE = "This account is not allowed to use opsec▮.";
 
-export function toAuthUser(user: SessionUser, preferences?: unknown): AuthUser {
-  return { ...user, isAdmin: isAdmin(user), preferences: withPreferenceDefaults(preferences) };
+export function toAuthUser(user: SessionUser, preferences: unknown, env: Pick<Env, "AUTH_MODE" | "AUTH_PROVIDER_LABEL">): AuthUser {
+  return { ...user, isAdmin: isAdmin(user), preferences: withPreferenceDefaults(preferences), ...authInfo(env) };
 }
 
 const nowSeconds = () => Math.floor(Date.now() / 1000);

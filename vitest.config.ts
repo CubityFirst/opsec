@@ -21,6 +21,8 @@ export default defineConfig(async () => {
             OIDC_ISSUER: "https://auth.cubityfir.st",
             OIDC_CLIENT_ID: "test-client",
             OIDC_CLIENT_SECRET: "test-secret",
+            AUTH_MODE: "oidc",
+            AUTH_PROVIDER_LABEL: "Test IdP",
             ACCESS_ALLOWED_EMAILS: "allowed@example.com, Also.Allowed@Example.com",
             AI_BASE_URL: "https://ai.test/v1",
             AI_MODEL: "test-model",

@@ -1,5 +1,14 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
+  // ---------------------------------------------------------------------------
+  // Top level = the generic template used by "Deploy to Cloudflare" and by
+  // anyone self-hosting: a workers.dev URL, resources provisioned on first
+  // deploy, and OPEN ACCESS (AUTH_MODE "open"). Add your own authentication
+  // before exposing an instance to the internet; see README → Deploy your own.
+  //
+  // The author's own instance lives in env.prod below (custom domains, OIDC via
+  // a private provider, AI Gateway). Deploy it with `npm run deploy:prod`.
+  // ---------------------------------------------------------------------------
   "name": "opsec",
   "main": "src/worker/index.ts",
   "compatibility_date": "2026-08-22",
@@ -8,45 +17,80 @@
   "assets": {
     "binding": "ASSETS",
     "not_found_handling": "single-page-application",
-    // Every request hits the Worker first so the legacy-host redirect applies to
-    // pages and assets too; the Worker then serves static files via ASSETS.
+    // Every request hits the Worker first (host redirects, auth); the Worker then serves static files via ASSETS.
     "run_worker_first": true
   },
-  "routes": [
-    { "pattern": "opsec.cubityfir.st", "custom_domain": true },
-    { "pattern": "opsec.nexus", "custom_domain": true },
-    // Former hostname: the Worker answers with a 308 to opsec.cubityfir.st (see src/worker/index.ts).
-    { "pattern": "nexus.cubityfir.st", "custom_domain": true }
-  ],
+  "workers_dev": true,
   "d1_databases": [
     {
       "binding": "DB",
-      "database_name": "nexus-db",
-      "database_id": "86818e80-503b-4c67-970a-39d6ca9ab6e0",
+      "database_name": "opsec-db",
+      // No database_id: Wrangler provisions the database on first deploy.
       "migrations_dir": "drizzle"
     }
   ],
-  "r2_buckets": [{ "binding": "BUCKET", "bucket_name": "nexus-files" }],
-  // Annex (auth.cubityfir.st) is a Worker on the same zone. A plain fetch from
-  // this Worker to a same-zone hostname bypasses that hostname's Worker and hits
-  // the origin, so server-to-server OIDC calls (token, JWKS, userinfo) go through
-  // this service binding instead. See src/worker/services/oidc.ts.
-  "services": [{ "binding": "ANNEX", "service": "annex-auth" }],
+  "r2_buckets": [{ "binding": "BUCKET", "bucket_name": "opsec-files" }],
   "vars": {
     "ENVIRONMENT": "production",
-    "OIDC_ISSUER": "https://auth.cubityfir.st",
-    "OIDC_CLIENT_ID": "annx_6d092a4c0a09224a32ab96d0",
-    // Who may use opsec▮: anyone with the `admin` role, plus these verified emails (comma-separated).
-    "ACCESS_ALLOWED_EMAILS": "cubity@cubityfir.st",
-    // Ask tab: any OpenAI-compatible chat-completions provider (see README → Ask).
-    // Secrets: AI_API_KEY ("none" for BYOK/llama.cpp), AI_EXTRA_HEADERS (JSON, e.g. cf-aig-authorization).
-    "AI_BASE_URL": "https://gateway.ai.cloudflare.com/v1/d843ae90cab33e54f4d284bc65d2fd6a/opsec/compat",
-    "AI_MODEL": "openai/gpt-5.6-luna",
-    "AI_LABEL": "gpt-5.6-luna via AI Gateway",
-    "AI_EXTRA_BODY": "{\"reasoning_effort\":\"none\"}",
+    // "open": no sign-in, everyone is an admin (bring your own auth in front, e.g. Cloudflare Access).
+    // "oidc": OpenID Connect sign-in; also set OIDC_ISSUER, OIDC_CLIENT_ID, ACCESS_ALLOWED_EMAILS and
+    //         the secrets OIDC_CLIENT_SECRET + SESSION_SECRET.
+    "AUTH_MODE": "open",
+    "AUTH_PROVIDER_LABEL": "SSO",
+    "OIDC_ISSUER": "",
+    "OIDC_CLIENT_ID": "",
+    // Who may use the app in oidc mode: anyone with the `admin` role, plus these verified emails (comma-separated).
+    "ACCESS_ALLOWED_EMAILS": "",
+    // Ask tab: any OpenAI-compatible chat-completions provider. Leave blank and configure it from the
+    // Account page after deploying, or set AI_BASE_URL/AI_MODEL here plus the secrets AI_API_KEY and
+    // AI_EXTRA_HEADERS (see README → Ask).
+    "AI_BASE_URL": "",
+    "AI_MODEL": "",
+    "AI_LABEL": "",
+    "AI_EXTRA_BODY": "",
     // Ask spend guard, per signed-in user per UTC day (services/ask/usage.ts).
     "ASK_DAILY_REQUEST_LIMIT": "200",
     "ASK_DAILY_TOKEN_BUDGET": "1000000"
+  },
+  // Secrets (npx wrangler secret put ...): SESSION_SECRET (needed to encrypt stored provider keys,
+  // and for oidc mode), OIDC_CLIENT_SECRET (oidc mode), AI_API_KEY, AI_EXTRA_HEADERS (optional).
+
+  "env": {
+    "prod": {
+      "name": "opsec",
+      "routes": [
+        { "pattern": "opsec.cubityfir.st", "custom_domain": true },
+        { "pattern": "opsec.nexus", "custom_domain": true },
+        // Former hostname: the Worker answers with a 308 to opsec.cubityfir.st (see src/worker/index.ts).
+        { "pattern": "nexus.cubityfir.st", "custom_domain": true }
+      ],
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "nexus-db",
+          "database_id": "86818e80-503b-4c67-970a-39d6ca9ab6e0",
+          "migrations_dir": "drizzle"
+        }
+      ],
+      "r2_buckets": [{ "binding": "BUCKET", "bucket_name": "nexus-files" }],
+      // Annex (auth.cubityfir.st) is a Worker on the same zone. A plain fetch from this Worker to a
+      // same-zone hostname bypasses that hostname's Worker and hits the origin, so server-to-server
+      // OIDC calls (token, JWKS, userinfo) go through this service binding. See services/oidc.ts.
+      "services": [{ "binding": "ANNEX", "service": "annex-auth" }],
+      "vars": {
+        "ENVIRONMENT": "production",
+        "AUTH_MODE": "oidc",
+        "AUTH_PROVIDER_LABEL": "Annex",
+        "OIDC_ISSUER": "https://auth.cubityfir.st",
+        "OIDC_CLIENT_ID": "annx_6d092a4c0a09224a32ab96d0",
+        "ACCESS_ALLOWED_EMAILS": "cubity@cubityfir.st",
+        "AI_BASE_URL": "https://gateway.ai.cloudflare.com/v1/d843ae90cab33e54f4d284bc65d2fd6a/opsec/compat",
+        "AI_MODEL": "openai/gpt-5.6-luna",
+        "AI_LABEL": "gpt-5.6-luna via AI Gateway",
+        "AI_EXTRA_BODY": "{\"reasoning_effort\":\"none\"}",
+        "ASK_DAILY_REQUEST_LIMIT": "200",
+        "ASK_DAILY_TOKEN_BUDGET": "1000000"
+      }
+    }
   }
-  // Secrets (npx wrangler secret put ...): OIDC_CLIENT_SECRET, SESSION_SECRET
 }

@@ -9,6 +9,10 @@
 <p align="center"><strong>A personal CRM for the people, pets and organisations in your life.</strong><br>
 One Cloudflare Worker, one SQLite database, no third party holding your contacts.</p>
 
+<p align="center">
+  <a href="https://deploy.workers.cloudflare.com/?url=https://github.com/CubityFirst/opsec"><img src="https://deploy.workers.cloudflare.com/button" alt="Deploy to Cloudflare"></a>
+</p>
+
 ---
 
 ## What it is
@@ -35,6 +39,22 @@ It runs as a single Cloudflare Worker at [opsec.cubityfir.st](https://opsec.cubi
 - **Auth**: "Sign in with Annex" (OpenID Connect, Authorization Code + PKCE) via openid-client; sessions are signed cookies keyed on the `sub` claim; admin features are gated on the `roles` claim
 - **Ask**: the `openai` SDK against any OpenAI-compatible endpoint, streamed to the browser over server-sent events
 
+## Deploy your own
+
+The **Deploy to Cloudflare** button above forks this repository into your GitHub account and creates the Worker, a D1 database and an R2 bucket from `wrangler.jsonc`, then builds and deploys it. The deploy step runs the D1 migrations first (`npm run deploy`), so the instance is ready at its `workers.dev` URL when the build finishes.
+
+> **A fresh install has no authentication.** `AUTH_MODE` defaults to `open`: there is no sign-in and every visitor is treated as the owner with admin rights. That is deliberate, because everyone's identity provider is different, but it means an open instance on a public URL is an open address book. Before you put anything real in it, do one of the following.
+
+1. **Put your own gate in front.** The simplest is [Cloudflare Access](https://developers.cloudflare.com/cloudflare-one/policies/access/) on the Worker's hostname: one policy, any login method, no code changes. Anything that blocks unauthenticated requests before they reach the Worker works.
+2. **Turn on the built-in OpenID Connect sign-in.** Set the vars `AUTH_MODE=oidc`, `OIDC_ISSUER` (the provider's issuer URL, discovery is used), `OIDC_CLIENT_ID`, `AUTH_PROVIDER_LABEL` (the name on the sign-in button) and `ACCESS_ALLOWED_EMAILS`, then the secrets `OIDC_CLIENT_SECRET` and `SESSION_SECRET`. Register `https://<your host>/api/auth/callback` as the redirect URI. Any provider that supports Authorization Code + PKCE and a `roles` claim (for admin gating) works; see [Authentication](#authentication).
+
+After deploying:
+
+- Open **Account → Ask provider** to point Ask at a model provider (the deployment ships with none). Storing an API key there needs the `SESSION_SECRET` secret; a key-less provider such as an AI Gateway with BYOK or a local llama.cpp does not.
+- Optional secrets, set with `npx wrangler secret put <NAME>`: `SESSION_SECRET` (sessions and encryption of stored provider keys), `AI_API_KEY`, `AI_EXTRA_HEADERS`.
+
+To deploy from your own machine instead of the button: clone, `npm install`, `npx wrangler login`, then `npm run deploy`. Wrangler provisions the D1 database and R2 bucket named in `wrangler.jsonc` on the first deploy.
+
 ## Getting started
 
 ```bash
@@ -50,30 +70,14 @@ Open http://localhost:5173 and sign in with Annex. For local sign-in the redirec
 
 ## Authentication
 
-Annex (`https://auth.cubityfir.st`) is a standard OIDC provider. The Worker uses
-[openid-client](https://github.com/panva/openid-client) configured from the discovery
-document (nothing is hardcoded but the issuer and client id, in `wrangler.jsonc`):
+Two modes, chosen by the `AUTH_MODE` var:
 
-- `GET /api/auth/login?next=/path` starts Authorization Code + PKCE (S256) with `state`
-  and `nonce`, scope `openid profile email roles`, and stores the verifier/state/nonce in
-  a short-lived signed cookie.
-- `GET /api/auth/callback` exchanges the code (client secret sent server-side only) and
-  verifies the id_token signature against the JWKS plus `iss`, `aud`, `exp` and `nonce`.
-  The verified claims become a signed `opsec_session` cookie (7 days) and a row in `users`,
-  keyed on `sub`.
-- `GET /api/auth/me` returns the session's claims; `POST /api/auth/logout` clears it.
-- Access policy: only accounts with the `admin` role, or a verified email listed in
-  `ACCESS_ALLOWED_EMAILS` (`wrangler.jsonc` vars), get a session. Others see
-  "This account is not allowed to use opsec▮."
-- Everything else under `/api` requires a session. `DELETE /contacts/:id`, `DELETE /tags/:id`
-  and the dev seed require `roles` to include `admin`.
+- **`open`** (default): no sign-in. Every request runs as a single implicit owner (`sub` = `local`, admin). Use it behind your own gate, or for local development.
+- **`oidc`**: "Sign in with <provider>" using OpenID Connect (Authorization Code + PKCE, `state` and `nonce`, discovery from `OIDC_ISSUER`) via openid-client. Sessions are HS256-signed cookies keyed on the `sub` claim, never on email. Access is limited to accounts with the `admin` role plus verified emails listed in `ACCESS_ALLOWED_EMAILS`; the policy is checked at sign-in and on every request, so revoking someone locks existing cookies out immediately. Destructive routes additionally require the `admin` role. Scopes: `openid profile email roles`.
 
-Registered redirect URIs: `https://opsec.cubityfir.st/api/auth/callback` and `https://opsec.nexus/api/auth/callback` (the old `https://nexus.cubityfir.st/...` one still works via the host redirect). The callback URI is derived from the request origin, so each served hostname needs its own entry in Annex.
+Config for `oidc` mode: vars `OIDC_ISSUER`, `OIDC_CLIENT_ID`, `AUTH_PROVIDER_LABEL`, `ACCESS_ALLOWED_EMAILS`; secrets `OIDC_CLIENT_SECRET`, `SESSION_SECRET`. Redirect URI: `https://<host>/api/auth/callback`.
 
-Annex runs on the same Cloudflare zone, and a Worker's `fetch()` to a same-zone hostname
-bypasses that hostname's Worker, so token/JWKS/userinfo calls go through the `ANNEX`
-service binding (`services` in `wrangler.jsonc`). Secrets: `OIDC_CLIENT_SECRET` and
-`SESSION_SECRET`, set with `npx wrangler secret put <NAME>`.
+The author's instance (`env.prod` in `wrangler.jsonc`) signs in through Annex, a private provider on the same Cloudflare zone. Because a Worker's fetch to a same-zone hostname skips that hostname's Worker, its token, JWKS and userinfo calls go through a service binding; that binding is optional and only used when present.
 
 ## Scripts
 

@@ -7,6 +7,8 @@ import type { AppEnv } from "../env";
 import { ApiError, validationHook } from "../lib/errors";
 import {
   NOT_ALLOWED_MESSAGE,
+  authInfo,
+  authMode,
   clearSessionCookie,
   clearTxCookie,
   isAllowed,
@@ -18,9 +20,9 @@ import {
   signSession,
   signTx,
   toAuthUser,
+  type SessionUser,
   verifySession,
   verifyTx,
-  type SessionUser,
 } from "../lib/session";
 import { nowIso } from "../lib/time";
 import { OIDC_SCOPE, client, getOidcConfig, redirectUri } from "../services/oidc";
@@ -28,7 +30,11 @@ import { OIDC_SCOPE, client, getOidcConfig, redirectUri } from "../services/oidc
 const app = new Hono<AppEnv>();
 
 /** Start the Authorization Code + PKCE flow. `?next=` is where to land afterwards. */
+/** Public: how sign-in works on this instance (the sign-in page reads it before any session exists). */
+app.get("/auth/info", (c) => c.json(authInfo(c.env)));
+
 app.get("/auth/login", async (c) => {
+  if (authMode(c.env) === "open") return c.redirect("/");
   let config;
   try {
     config = await getOidcConfig(c.env);
@@ -61,6 +67,7 @@ app.get("/auth/login", async (c) => {
  * nonce — all performed by openid-client), then start our own session.
  */
 app.get("/auth/callback", async (c) => {
+  if (authMode(c.env) === "open") return c.redirect("/");
   const txToken = readTxCookie(c);
   const tx = txToken ? await verifyTx(txToken, c.env.SESSION_SECRET) : null;
   clearTxCookie(c);
@@ -118,13 +125,13 @@ app.get("/auth/me", async (c) => {
   if (!user) {
     // A cookie that verifies but fails the access policy: clear it and say why.
     const token = readSessionCookie(c);
-    if (token && (await verifySession(token, c.env.SESSION_SECRET))) {
+    if (token && c.env.SESSION_SECRET && (await verifySession(token, c.env.SESSION_SECRET))) {
       clearSessionCookie(c);
       throw ApiError.forbidden(NOT_ALLOWED_MESSAGE);
     }
     throw ApiError.unauthorized();
   }
-  return c.json(toAuthUser(user, await loadPreferences(c.get("db"), user.sub)));
+  return c.json(toAuthUser(user, await loadPreferences(c.get("db"), user.sub), c.env));
 });
 
 /** Merge a partial preferences update into the user's stored preferences. */
@@ -148,7 +155,7 @@ app.patch("/auth/preferences", zValidator("json", userPreferencesUpdateSchema, v
       lastLoginAt: now,
     })
     .onConflictDoUpdate({ target: schema.users.sub, set: { preferences: merged } });
-  return c.json(toAuthUser(user, merged));
+  return c.json(toAuthUser(user, merged, c.env));
 });
 
 async function loadPreferences(db: AppEnv["Variables"]["db"], sub: string): Promise<unknown> {
@@ -157,6 +164,7 @@ async function loadPreferences(db: AppEnv["Variables"]["db"], sub: string): Prom
 }
 
 app.post("/auth/logout", async (c) => {
+  if (authMode(c.env) === "open") return c.json({ ok: true, logoutUrl: null });
   clearSessionCookie(c);
   let logoutUrl: string | null = null;
   try {
