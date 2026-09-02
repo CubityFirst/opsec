@@ -58,6 +58,9 @@
   "env": {
     "prod": {
       "name": "opsec",
+      // Only the custom domains below: no workers.dev or preview hostnames for the author's instance.
+      "workers_dev": false,
+      "preview_urls": false,
       "routes": [
         { "pattern": "opsec.cubityfir.st", "custom_domain": true },
         { "pattern": "opsec.nexus", "custom_domain": true },

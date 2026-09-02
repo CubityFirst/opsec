@@ -36,6 +36,35 @@ app.use("*", async (c, next) => {
 });
 app.notFound((c) => c.json({ error: { code: "not_found", message: "Not found" } }, 404));
 
+// Baseline security headers on every response (pages, assets and API). The CSP
+// allows only same-origin scripts; images may come from the identity provider
+// (avatar URLs) and from in-page blobs (image previews, avatar cropping).
+const SECURITY_HEADERS: Record<string, string> = {
+  "Strict-Transport-Security": "max-age=31536000; includeSubDomains",
+  "X-Content-Type-Options": "nosniff",
+  "X-Frame-Options": "DENY",
+  "Referrer-Policy": "strict-origin-when-cross-origin",
+  "Permissions-Policy": "camera=(), microphone=(), geolocation=(), payment=(), usb=()",
+  "Content-Security-Policy": [
+    "default-src 'self'",
+    "script-src 'self'",
+    "style-src 'self' 'unsafe-inline'",
+    "img-src 'self' https: data: blob:",
+    "font-src 'self' data:",
+    "connect-src 'self'",
+    "media-src 'self' blob:",
+    "worker-src 'self' blob:",
+    "frame-ancestors 'none'",
+    "base-uri 'self'",
+    "form-action 'self'",
+    "object-src 'none'",
+  ].join("; "),
+};
+app.use("*", async (c, next) => {
+  await next();
+  for (const [k, v] of Object.entries(SECURITY_HEADERS)) if (!c.res.headers.has(k)) c.res.headers.set(k, v);
+});
+
 app.use("/api/*", async (c, next) => {
   c.set("db", getDb(c.env.DB));
   await next();
