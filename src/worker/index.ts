@@ -60,17 +60,19 @@ const SECURITY_HEADERS: Record<string, string> = {
     "object-src 'none'",
   ].join("; "),
 };
+/** Copy of `res` with the security headers added (responses from bindings have immutable headers). */
+function withSecurityHeaders(res: Response): Response {
+  const out = new Response(res.body, res);
+  for (const [k, v] of Object.entries(SECURITY_HEADERS)) if (!out.headers.has(k)) out.headers.set(k, v);
+  return out;
+}
 app.use("*", async (c, next) => {
   await next();
-  // Responses from the ASSETS binding carry immutable headers: re-wrap so they can be set.
-  let res = c.res;
   try {
-    res.headers.set("X-Content-Type-Options", "nosniff");
+    for (const [k, v] of Object.entries(SECURITY_HEADERS)) if (!c.res.headers.has(k)) c.res.headers.set(k, v);
   } catch {
-    res = new Response(res.body, res);
-    c.res = res;
+    /* immutable headers (binding responses): handled where the response is produced */
   }
-  for (const [k, v] of Object.entries(SECURITY_HEADERS)) if (!res.headers.has(k)) res.headers.set(k, v);
 });
 
 app.use("/api/*", async (c, next) => {
@@ -100,8 +102,8 @@ app.route("/api", aiSettings);
 
 // Static assets normally never reach the Worker (see `assets` in wrangler.jsonc);
 // this is a belt-and-braces fallback for environments without the binding.
-app.get("*", (c) => {
-  if (c.env.ASSETS) return c.env.ASSETS.fetch(c.req.raw);
+app.get("*", async (c) => {
+  if (c.env.ASSETS) return withSecurityHeaders(await c.env.ASSETS.fetch(c.req.raw));
   return c.notFound();
 });
 
