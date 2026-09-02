@@ -30,19 +30,16 @@
     }
   ],
   "r2_buckets": [{ "binding": "BUCKET", "bucket_name": "opsec-files" }],
-  "vars": {
-    "ENVIRONMENT": "production",
-    // "open": no sign-in, everyone is an admin (bring your own auth in front, e.g. Cloudflare Access).
-    // "oidc": OpenID Connect sign-in; also set OIDC_ISSUER, OIDC_CLIENT_ID, ACCESS_ALLOWED_EMAILS and
-    //         the secrets OIDC_CLIENT_SECRET + SESSION_SECRET.
-    "AUTH_MODE": "open",
-    "AUTH_PROVIDER_LABEL": "SSO"
-    // Optional vars, all unset by default (add them here or in the dashboard):
-    //   oidc mode: OIDC_ISSUER, OIDC_CLIENT_ID, ACCESS_ALLOWED_EMAILS (comma-separated verified emails;
-    //              accounts with the `admin` role are always allowed)
-    //   Ask:       AI_BASE_URL, AI_MODEL, AI_LABEL, AI_EXTRA_BODY — or configure Ask from the Account
-    //              page after deploying (README → Ask). Put spend limits on the provider / AI Gateway.
-  },
+  // No vars are required. Everything below is optional and defaults sensibly when unset:
+  //   AUTH_MODE            "open" (default: no sign-in, every visitor is the owner) or "oidc"
+  //   AUTH_PROVIDER_LABEL  name on the sign-in button (default "SSO")
+  //   oidc mode            OIDC_ISSUER, OIDC_CLIENT_ID, ACCESS_ALLOWED_EMAILS (comma-separated verified
+  //                        emails; accounts with the `admin` role are always allowed)
+  //   Ask                  AI_BASE_URL, AI_MODEL, AI_LABEL, AI_EXTRA_BODY — or configure Ask from the
+  //                        Account page after deploying (README → Ask). Put spend limits on the
+  //                        provider / AI Gateway.
+  //   ENVIRONMENT          "development" only in local .dev.vars (opens the /api/dev/* seed routes)
+  "vars": {},
   // Secrets (npx wrangler secret put ...): SESSION_SECRET (needed to encrypt stored provider keys,
   // and for oidc mode), OIDC_CLIENT_SECRET (oidc mode), AI_API_KEY, AI_EXTRA_HEADERS (optional).
 
@@ -72,7 +69,6 @@
       // OIDC calls (token, JWKS, userinfo) go through this service binding. See services/oidc.ts.
       "services": [{ "binding": "ANNEX", "service": "annex-auth" }],
       "vars": {
-        "ENVIRONMENT": "production",
         "AUTH_MODE": "oidc",
         "AUTH_PROVIDER_LABEL": "Annex",
         "OIDC_ISSUER": "https://auth.cubityfir.st",
