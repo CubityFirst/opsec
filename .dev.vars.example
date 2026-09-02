@@ -1,10 +1,17 @@
-ENVIRONMENT=development
-# Local dev is open access unless you opt into OIDC here (see wrangler.jsonc for the vars).
-# AUTH_MODE=oidc
-# OIDC_ISSUER=https://your-idp.example
-# OIDC_CLIENT_ID=<client id>
-# OIDC_CLIENT_SECRET=<client secret>
-# ACCESS_ALLOWED_EMAILS=you@example.com
-SESSION_SECRET=<long random string>
-AI_API_KEY=none
-AI_EXTRA_HEADERS={"cf-aig-authorization":"Bearer <AI Gateway Run token>"}
+# Copy to .dev.vars for local development. The "Deploy to Cloudflare" button also reads this
+# file and prompts for the uncommented names as secrets, so only what a fresh instance needs is live.
+
+# Signs session cookies (oidc mode) and encrypts provider keys saved on the Account page.
+# Any long random string, e.g. `openssl rand -base64 48`.
+SESSION_SECRET=
+
+# Local dev only: "development" opens the /api/dev/* seed routes. Never set this on a deployment.
+# ENVIRONMENT=development
+
+# Optional: OpenID Connect sign-in (also set the vars AUTH_MODE=oidc, OIDC_ISSUER, OIDC_CLIENT_ID,
+# AUTH_PROVIDER_LABEL, ACCESS_ALLOWED_EMAILS).
+# OIDC_CLIENT_SECRET=
+
+# Optional: Ask provider credentials, if you prefer vars/secrets over the Account page.
+# AI_API_KEY=            (omit or "none" sends no Authorization header: BYOK gateways, local servers)
+# AI_EXTRA_HEADERS=      (JSON object, e.g. {"cf-aig-authorization":"Bearer <AI Gateway Run token>"})
