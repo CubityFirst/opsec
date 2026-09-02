@@ -41,7 +41,7 @@ It runs as a single Cloudflare Worker at [opsec.cubityfir.st](https://opsec.cubi
 
 ## Deploy your own
 
-The **Deploy to Cloudflare** button above forks this repository into your GitHub account and creates the Worker, a D1 database and an R2 bucket from `wrangler.jsonc`, then builds and deploys it. The deploy step runs the D1 migrations first (`npm run deploy`), so the instance is ready at its `workers.dev` URL when the build finishes.
+The **Deploy to Cloudflare** button above forks this repository into your GitHub account and creates the Worker, a D1 database and an R2 bucket from `wrangler.jsonc`, then builds and deploys it. The deploy step runs the D1 migrations first (`npm run deploy`), so the instance is ready at its `workers.dev` URL when the build finishes. The button only asks about the handful of vars the template sets (`AUTH_MODE`, the provider label, the Ask spend limits); everything else is optional and can be added later in the dashboard or with Wrangler.
 
 > **A fresh install has no authentication.** `AUTH_MODE` defaults to `open`: there is no sign-in and every visitor is treated as the owner with admin rights. That is deliberate, because everyone's identity provider is different, but it means an open instance on a public URL is an open address book. Before you put anything real in it, do one of the following.
 

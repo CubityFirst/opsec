@@ -37,17 +37,11 @@
     //         the secrets OIDC_CLIENT_SECRET + SESSION_SECRET.
     "AUTH_MODE": "open",
     "AUTH_PROVIDER_LABEL": "SSO",
-    "OIDC_ISSUER": "",
-    "OIDC_CLIENT_ID": "",
-    // Who may use the app in oidc mode: anyone with the `admin` role, plus these verified emails (comma-separated).
-    "ACCESS_ALLOWED_EMAILS": "",
-    // Ask tab: any OpenAI-compatible chat-completions provider. Leave blank and configure it from the
-    // Account page after deploying, or set AI_BASE_URL/AI_MODEL here plus the secrets AI_API_KEY and
-    // AI_EXTRA_HEADERS (see README → Ask).
-    "AI_BASE_URL": "",
-    "AI_MODEL": "",
-    "AI_LABEL": "",
-    "AI_EXTRA_BODY": "",
+    // Optional vars, all unset by default (add them here or in the dashboard):
+    //   oidc mode: OIDC_ISSUER, OIDC_CLIENT_ID, ACCESS_ALLOWED_EMAILS (comma-separated verified emails;
+    //              accounts with the `admin` role are always allowed)
+    //   Ask:       AI_BASE_URL, AI_MODEL, AI_LABEL, AI_EXTRA_BODY — or configure Ask from the Account
+    //              page after deploying (README → Ask)
     // Ask spend guard, per signed-in user per UTC day (services/ask/usage.ts).
     "ASK_DAILY_REQUEST_LIMIT": "200",
     "ASK_DAILY_TOKEN_BUDGET": "1000000"

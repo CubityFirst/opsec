@@ -3,6 +3,8 @@ import { deleteCookie, getCookie, setCookie } from "hono/cookie";
 import { sign, verify } from "hono/jwt";
 import { withPreferenceDefaults } from "@shared/schemas/preferences";
 import type { AuthUser } from "@shared/types";
+import type { AppVars } from "../env";
+import { ApiError } from "./errors";
 
 export const SESSION_COOKIE = "opsec_session";
 /** Short-lived cookie holding the PKCE verifier, state and nonce between /login and /callback. */
@@ -23,14 +25,14 @@ export interface SessionUser {
 export type AuthMode = "open" | "oidc";
 
 /** "oidc" only when explicitly configured; anything else is open access (see wrangler.jsonc). */
-export function authMode(env: Pick<Env, "AUTH_MODE">): AuthMode {
+export function authMode(env: Pick<AppVars, "AUTH_MODE">): AuthMode {
   return env.AUTH_MODE === "oidc" ? "oidc" : "open";
 }
 
 /** The single implicit user of an open-access instance. Everything is attributed to it. */
 export const OPEN_USER: SessionUser = { sub: "local", email: null, emailVerified: false, name: "Owner", picture: null, roles: ["admin"] };
 
-export function authInfo(env: Pick<Env, "AUTH_MODE" | "AUTH_PROVIDER_LABEL">): { authMode: AuthMode; providerLabel: string } {
+export function authInfo(env: Pick<AppVars, "AUTH_MODE" | "AUTH_PROVIDER_LABEL">): { authMode: AuthMode; providerLabel: string } {
   return { authMode: authMode(env), providerLabel: env.AUTH_PROVIDER_LABEL || "SSO" };
 }
 
@@ -42,7 +44,7 @@ export function isAdmin(user: SessionUser | null | undefined): boolean {
  * Access policy: admins always; otherwise only verified emails on the
  * ACCESS_ALLOWED_EMAILS allowlist (comma-separated, case-insensitive).
  */
-export function isAllowed(user: SessionUser | null | undefined, env: Pick<Env, "ACCESS_ALLOWED_EMAILS">): boolean {
+export function isAllowed(user: SessionUser | null | undefined, env: Pick<AppVars, "ACCESS_ALLOWED_EMAILS">): boolean {
   if (!user) return false;
   if (isAdmin(user)) return true;
   if (!user.email || !user.emailVerified) return false;
@@ -55,7 +57,15 @@ export function isAllowed(user: SessionUser | null | undefined, env: Pick<Env, "
 
 export const NOT_ALLOWED_MESSAGE = "This account is not allowed to use opsec▮.";
 
-export function toAuthUser(user: SessionUser, preferences: unknown, env: Pick<Env, "AUTH_MODE" | "AUTH_PROVIDER_LABEL">): AuthUser {
+/** The cookie-signing secret; oidc mode cannot run without it. */
+export function sessionSecret(env: Pick<AppVars, "SESSION_SECRET">): string {
+  if (!env.SESSION_SECRET) {
+    throw new ApiError(500, "internal", "Sign-in is not configured: SESSION_SECRET is missing. Set it with `npx wrangler secret put SESSION_SECRET` (any long random string).");
+  }
+  return env.SESSION_SECRET;
+}
+
+export function toAuthUser(user: SessionUser, preferences: unknown, env: Pick<AppVars, "AUTH_MODE" | "AUTH_PROVIDER_LABEL">): AuthUser {
   return { ...user, isAdmin: isAdmin(user), preferences: withPreferenceDefaults(preferences), ...authInfo(env) };
 }
 

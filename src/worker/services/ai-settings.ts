@@ -1,6 +1,7 @@
 import { eq } from "drizzle-orm";
 import type { AiProviderView, AiSettingsOut, AiSettingsUpdate, AiTestResult } from "@shared/schemas/ai-settings";
 import { schema, type Db } from "../db";
+import type { AppVars } from "../env";
 import { decryptString, encryptString } from "../lib/crypto";
 import { ApiError } from "../lib/errors";
 import { nowIso } from "../lib/time";
@@ -9,7 +10,7 @@ import { classifyAskError } from "./ask/errors";
 import { envProvider, type AiEnv, type AiProvider } from "./ask/provider";
 
 const KEY = "ai_provider";
-type SecretEnv = Pick<Env, "SESSION_SECRET">;
+type SecretEnv = Pick<AppVars, "SESSION_SECRET">;
 
 /** Row shape under app_settings.value; secrets are AES-GCM ciphertext (see lib/crypto.ts). */
 interface StoredAi {

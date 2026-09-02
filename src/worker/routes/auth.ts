@@ -15,6 +15,7 @@ import {
   readSessionCookie,
   readTxCookie,
   safeNext,
+  sessionSecret,
   setSessionCookie,
   setTxCookie,
   signSession,
@@ -49,7 +50,7 @@ app.get("/auth/login", async (c) => {
   const nonce = client.randomNonce();
   const next = safeNext(c.req.query("next"));
 
-  setTxCookie(c, await signTx({ verifier, state, nonce, next }, c.env.SESSION_SECRET));
+  setTxCookie(c, await signTx({ verifier, state, nonce, next }, sessionSecret(c.env)));
 
   const url = client.buildAuthorizationUrl(config, {
     redirect_uri: redirectUri(c.req.url),
@@ -69,7 +70,7 @@ app.get("/auth/login", async (c) => {
 app.get("/auth/callback", async (c) => {
   if (authMode(c.env) === "open") return c.redirect("/");
   const txToken = readTxCookie(c);
-  const tx = txToken ? await verifyTx(txToken, c.env.SESSION_SECRET) : null;
+  const tx = txToken ? await verifyTx(txToken, sessionSecret(c.env)) : null;
   clearTxCookie(c);
   if (!tx) return c.redirect(`/?auth_error=${encodeURIComponent("Sign-in session expired. Please try again.")}`, 302);
 
@@ -111,7 +112,7 @@ app.get("/auth/callback", async (c) => {
       .values({ sub: user.sub, email, emailVerified, name, picture, roles: user.roles, createdAt: now, lastLoginAt: now })
       .onConflictDoUpdate({ target: schema.users.sub, set: { email, emailVerified, name, picture, roles: user.roles, lastLoginAt: now } });
 
-    setSessionCookie(c, await signSession(user, c.env.SESSION_SECRET));
+    setSessionCookie(c, await signSession(user, sessionSecret(c.env)));
     return c.redirect(tx.next, 302);
   } catch (e) {
     console.error("OIDC callback failed", e);

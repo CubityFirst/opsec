@@ -1,3 +1,4 @@
+import type { WorkerEnv } from "../env";
 import * as client from "openid-client";
 import { ApiError } from "../lib/errors";
 
@@ -12,8 +13,8 @@ export const OIDC_SCOPE = "openid profile email roles";
  * issuer host is sent through the `ANNEX` service binding instead. Local dev
  * has no binding and talks to Annex over the public edge like any client.
  */
-export function annexFetch(env: Env): client.CustomFetch {
-  const issuerHost = new URL(env.OIDC_ISSUER).host;
+export function annexFetch(env: WorkerEnv): client.CustomFetch {
+  const issuerHost = new URL(env.OIDC_ISSUER ?? "").host;
   // Optional service binding for same-zone providers; plain fetch otherwise.
   const binding = env.ENVIRONMENT === "development" ? undefined : (env as { ANNEX?: Fetcher }).ANNEX;
   return (url, options) => {
@@ -30,7 +31,10 @@ let cached: { key: string; promise: Promise<client.Configuration> } | undefined;
  * issuer's well-known document. Cached per isolate; a failed discovery is
  * not cached so a transient outage does not poison the Worker.
  */
-export function getOidcConfig(env: Env): Promise<client.Configuration> {
+export function getOidcConfig(env: WorkerEnv): Promise<client.Configuration> {
+  if (!env.OIDC_ISSUER || !env.OIDC_CLIENT_ID) {
+    return Promise.reject(new ApiError(500, "internal", "Sign-in is not configured: set the OIDC_ISSUER and OIDC_CLIENT_ID vars (AUTH_MODE=oidc)."));
+  }
   // Fail here, with a clear message, rather than deep inside the token exchange.
   if (typeof env.OIDC_CLIENT_SECRET !== "string" || env.OIDC_CLIENT_SECRET.length === 0) {
     return Promise.reject(

@@ -1,3 +1,5 @@
+import type { AppVars } from "../../env";
+
 /** Resolved provider configuration used by the Ask client, whatever its source. */
 export interface AiProvider {
   baseUrl: string;
@@ -10,7 +12,7 @@ export interface AiProvider {
   extraHeaders: string;
 }
 
-export type AiEnv = Pick<Env, "AI_BASE_URL" | "AI_MODEL" | "AI_LABEL" | "AI_EXTRA_BODY" | "AI_API_KEY" | "AI_EXTRA_HEADERS">;
+export type AiEnv = Pick<AppVars, "AI_BASE_URL" | "AI_MODEL" | "AI_LABEL" | "AI_EXTRA_BODY" | "AI_API_KEY" | "AI_EXTRA_HEADERS">;
 
 /** The deployment's vars/secrets as a provider config (the fallback when nothing is saved in the app). */
 export function envProvider(env: AiEnv): AiProvider {

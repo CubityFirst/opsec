@@ -1,5 +1,5 @@
 import type { MiddlewareHandler } from "hono";
-import type { AppEnv } from "../env";
+import type { AppEnv, AppVars } from "../env";
 import { ApiError } from "../lib/errors";
 import { OPEN_USER, authMode, isAdmin, isAllowed, readSessionCookie, verifySession } from "../lib/session";
 
@@ -16,7 +16,7 @@ export const sessionMiddleware: MiddlewareHandler<AppEnv> = async (c, next) => {
     return;
   }
   const token = readSessionCookie(c);
-  const verified = token ? await verifySession(token, c.env.SESSION_SECRET) : null;
+  const verified = token && c.env.SESSION_SECRET ? await verifySession(token, c.env.SESSION_SECRET) : null;
   const user = isAllowed(verified, c.env) ? verified : null;
   c.set("user", user);
   c.set("actor", user?.sub ?? "anonymous");
@@ -24,7 +24,7 @@ export const sessionMiddleware: MiddlewareHandler<AppEnv> = async (c, next) => {
 };
 
 /** Paths under /api that work without a session. */
-function isPublic(path: string, env: Env): boolean {
+function isPublic(path: string, env: Pick<AppVars, "ENVIRONMENT">): boolean {
   if (path === "/api/health") return true;
   if (path.startsWith("/api/auth/")) return true;
   // Local seeding runs from a script with no browser session.
