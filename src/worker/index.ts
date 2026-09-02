@@ -62,7 +62,15 @@ const SECURITY_HEADERS: Record<string, string> = {
 };
 app.use("*", async (c, next) => {
   await next();
-  for (const [k, v] of Object.entries(SECURITY_HEADERS)) if (!c.res.headers.has(k)) c.res.headers.set(k, v);
+  // Responses from the ASSETS binding carry immutable headers: re-wrap so they can be set.
+  let res = c.res;
+  try {
+    res.headers.set("X-Content-Type-Options", "nosniff");
+  } catch {
+    res = new Response(res.body, res);
+    c.res = res;
+  }
+  for (const [k, v] of Object.entries(SECURITY_HEADERS)) if (!res.headers.has(k)) res.headers.set(k, v);
 });
 
 app.use("/api/*", async (c, next) => {
