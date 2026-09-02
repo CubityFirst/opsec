@@ -27,40 +27,63 @@ function secretKey(env: SecretEnv): string {
   return env.SESSION_SECRET;
 }
 
-export async function loadStoredProvider(db: Db, env: SecretEnv): Promise<{ provider: AiProvider; updatedAt: string } | null> {
+export async function loadStoredProvider(db: Db, env: SecretEnv): Promise<{ provider: AiProvider; updatedAt: string; secretsUnreadable: boolean } | null> {
   const row = await db.select().from(schema.appSettings).where(eq(schema.appSettings.key, KEY)).get();
   if (!row) return null;
   const v = row.value as unknown as StoredAi;
+  // A rotated or missing SESSION_SECRET must not take Ask or the settings page down: the
+  // secrets simply read as unset and the UI asks for them again.
+  let secretsUnreadable = false;
+  const open = async (enc: string): Promise<string> => {
+    if (!enc) return "";
+    try {
+      return await decryptString(secretKey(env), enc);
+    } catch {
+      secretsUnreadable = true;
+      return "";
+    }
+  };
+  const apiKey = await open(v.apiKeyEnc);
+  const extraHeaders = await open(v.extraHeadersEnc);
   return {
-    provider: {
-      baseUrl: v.baseUrl,
-      model: v.model,
-      label: v.label,
-      extraBody: v.extraBody,
-      apiKey: v.apiKeyEnc ? await decryptString(secretKey(env), v.apiKeyEnc) : "",
-      extraHeaders: v.extraHeadersEnc ? await decryptString(secretKey(env), v.extraHeadersEnc) : "",
-    },
+    provider: { baseUrl: v.baseUrl, model: v.model, label: v.label, extraBody: v.extraBody, apiKey, extraHeaders },
     updatedAt: row.updatedAt,
+    secretsUnreadable,
   };
 }
 
+function originOf(url: string): string | null {
+  try {
+    return new URL(url).origin;
+  } catch {
+    return null;
+  }
+}
+
 /** The provider Ask should use right now: saved settings win, else the deployment's vars/secrets. */
-export async function resolveProvider(db: Db, env: AiEnv & SecretEnv): Promise<{ provider: AiProvider; source: "db" | "env"; updatedAt: string | null }> {
+export async function resolveProvider(
+  db: Db,
+  env: AiEnv & SecretEnv,
+): Promise<{ provider: AiProvider; source: "db" | "env"; updatedAt: string | null; secretsUnreadable: boolean }> {
   const stored = await loadStoredProvider(db, env);
   if (stored) return { ...stored, source: "db" };
-  return { provider: envProvider(env), source: "env", updatedAt: null };
+  return { provider: envProvider(env), source: "env", updatedAt: null, secretsUnreadable: false };
 }
 
 /** Apply a settings update on top of the active config ("omit to keep" for secrets) without storing it. */
 export async function mergeProvider(db: Db, env: AiEnv & SecretEnv, input: AiSettingsUpdate): Promise<AiProvider> {
   const { provider: active } = await resolveProvider(db, env);
+  // Secrets are bound to the origin they were entered for: pointing the base URL at a
+  // different host must not carry the stored key or headers along (that would let the
+  // Worker be used to read them back), so they have to be supplied again.
+  const sameOrigin = originOf(input.baseUrl) !== null && originOf(input.baseUrl) === originOf(active.baseUrl);
   return {
     baseUrl: input.baseUrl,
     model: input.model,
     label: input.label,
     extraBody: input.extraBody,
-    apiKey: input.apiKey ?? active.apiKey,
-    extraHeaders: input.extraHeaders ?? active.extraHeaders,
+    apiKey: input.apiKey ?? (sameOrigin ? active.apiKey : ""),
+    extraHeaders: input.extraHeaders ?? (sameOrigin ? active.extraHeaders : ""),
   };
 }
 
@@ -98,7 +121,13 @@ export function providerView(p: AiProvider): AiProviderView {
 
 export async function settingsOut(db: Db, env: AiEnv & SecretEnv): Promise<AiSettingsOut> {
   const r = await resolveProvider(db, env);
-  return { source: r.source, active: providerView(r.provider), env: providerView(envProvider(env)), updatedAt: r.updatedAt };
+  return {
+    source: r.source,
+    active: providerView(r.provider),
+    env: providerView(envProvider(env)),
+    updatedAt: r.updatedAt,
+    ...(r.secretsUnreadable ? { secretsUnreadable: true } : {}),
+  };
 }
 
 /** One tiny non-streaming completion to prove the base URL, credentials and model name work together. */
@@ -107,7 +136,7 @@ export async function testProvider(p: AiProvider, fetchImpl?: typeof fetch): Pro
   try {
     const client = createAskClient(p, fetchImpl);
     const res = await client.chat.completions.create(
-      { model: p.model, messages: [{ role: "user", content: "Reply with the single word OK." }], max_completion_tokens: 16, ...extraBody(p) },
+      { max_completion_tokens: 16, ...extraBody(p), model: p.model, messages: [{ role: "user", content: "Reply with the single word OK." }], stream: false },
       { signal: AbortSignal.timeout(30_000) },
     );
     const reply = res.choices[0]?.message?.content?.trim() ?? "";

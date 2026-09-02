@@ -83,30 +83,28 @@ app.post("/contacts", zValidator("json", contactCreateSchema, validationHook), a
   ];
   if (input.methods.length > 0) {
     const seenPrimary = new Set<string>();
-    stmts.push(
-      db.insert(contactMethods).values(
-        input.methods.map((m, i) => {
-          // Only the first "primary" per type wins.
-          const isPrimary = m.isPrimary && !seenPrimary.has(m.type);
-          if (isPrimary) seenPrimary.add(m.type);
-          const sf = socialFields(m.type, m.label, m.value);
-          return {
-            id: newId(),
-            contactId: id,
-            type: m.type,
-            label: sf.label,
-            value: sf.value,
-            isPrimary,
-            sortOrder: m.sortOrder ?? i,
-            createdAt: now,
-            updatedAt: now,
-          };
-        }),
-      ),
-    );
+    const methodRows = input.methods.map((m, i) => {
+      // Only the first "primary" per type wins.
+      const isPrimary = m.isPrimary && !seenPrimary.has(m.type);
+      if (isPrimary) seenPrimary.add(m.type);
+      const sf = socialFields(m.type, m.label, m.value);
+      return {
+        id: newId(),
+        contactId: id,
+        type: m.type,
+        label: sf.label,
+        value: sf.value,
+        isPrimary,
+        sortOrder: m.sortOrder ?? i,
+        createdAt: now,
+        updatedAt: now,
+      };
+    });
+    // 9 columns per row: stay under D1's 100 bound parameters per statement.
+    for (const part of chunk(methodRows, 11)) stmts.push(db.insert(contactMethods).values(part));
   }
   if (tagRows.length > 0) {
-    stmts.push(db.insert(contactTags).values(tagRows.map((t) => ({ contactId: id, tagId: t.id, createdAt: now }))));
+    for (const part of chunk(tagRows, 33)) stmts.push(db.insert(contactTags).values(part.map((t) => ({ contactId: id, tagId: t.id, createdAt: now }))));
   }
   stmts.push(
     ...activityInserts(db, [event(id, "contact", id, "contact.created", { v: 1, kind: input.kind, displayName })], c.get("actor")),
@@ -236,17 +234,17 @@ async function deleteContactCascade(db: AppEnv["Variables"]["db"], bucket: R2Buc
     .select({ r2Key: files.r2Key })
     .from(files)
     .where(orphanIds.length > 0 ? or(eq(files.contactId, id), inArray(files.interactionId, orphanIds)) : eq(files.contactId, id));
-  await deleteObjects(
-    bucket,
-    fileRows.map((f) => f.r2Key),
-  );
-
   const stmts: Stmt[] = [];
-  if (orphanIds.length > 0) stmts.push(db.delete(interactions).where(inArray(interactions.id, orphanIds)));
+  for (const part of chunk(orphanIds)) stmts.push(db.delete(interactions).where(inArray(interactions.id, part)));
   // Anyone this contact introduced keeps their record; the link is just cleared.
   stmts.push(db.update(contacts).set({ metViaContactId: null }).where(eq(contacts.metViaContactId, id)));
   stmts.push(db.delete(contacts).where(eq(contacts.id, id)));
   await runBatch(db, stmts);
+  // Objects go last: an orphaned object is cheaper than a row pointing at nothing.
+  await deleteObjects(
+    bucket,
+    fileRows.map((f) => f.r2Key),
+  );
 }
 
 app.delete("/contacts/:id", requireAdmin, async (c) => {
@@ -362,7 +360,7 @@ app.put("/contacts/:id/tags", zValidator("json", setTagsSchema, validationHook),
 
   const now = nowIso();
   const stmts: Stmt[] = [];
-  if (toAdd.length > 0) stmts.push(db.insert(contactTags).values(toAdd.map((t) => ({ contactId: id, tagId: t.id, createdAt: now }))));
+  for (const part of chunk(toAdd, 33)) stmts.push(db.insert(contactTags).values(part.map((t) => ({ contactId: id, tagId: t.id, createdAt: now }))));
   if (toRemove.length > 0) {
     stmts.push(
       db.delete(contactTags).where(

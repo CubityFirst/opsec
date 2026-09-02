@@ -70,6 +70,13 @@ export function toActivityOut(row: ActivityRow): ActivityEventOut {
   };
 }
 
+const CLIP_CHARS = 500;
+/** Long text is logged as a bounded preview: the activity feed shows what changed, not a second copy of every note. */
+function clip(v: unknown): unknown {
+  if (typeof v === "string" && v.length > CLIP_CHARS) return `${v.slice(0, CLIP_CHARS)}… [${v.length} chars]`;
+  return v;
+}
+
 /** Compute `{ field: { from, to } }` for the keys of `patch` that differ from `before`. */
 export function diffChanges<T extends Record<string, unknown>>(before: T, patch: Partial<T>): Record<string, { from: unknown; to: unknown }> {
   const changes: Record<string, { from: unknown; to: unknown }> = {};
@@ -78,7 +85,7 @@ export function diffChanges<T extends Record<string, unknown>>(before: T, patch:
     if (to === undefined) continue;
     const from = before[key];
     if (JSON.stringify(from ?? null) !== JSON.stringify(to ?? null)) {
-      changes[key as string] = { from: from ?? null, to: to ?? null };
+      changes[key as string] = { from: clip(from ?? null), to: clip(to ?? null) };
     }
   }
   return changes;

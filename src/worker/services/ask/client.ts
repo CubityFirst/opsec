@@ -1,5 +1,6 @@
 import OpenAI from "openai";
 import type { AskConfig } from "@shared/schemas/ask";
+import { PROVIDER_TIMEOUT_MS } from "./limits";
 import type { AiProvider } from "./provider";
 
 function parseJsonObject(raw: string | undefined, what: string): Record<string, unknown> {
@@ -42,6 +43,7 @@ export function createAskClient(p: AiProvider, fetchImpl?: typeof fetch): OpenAI
     apiKey: keyed ? p.apiKey : "none",
     defaultHeaders: keyed ? extraHeaders(p) : { ...extraHeaders(p), Authorization: null },
     maxRetries: 1,
+    timeout: PROVIDER_TIMEOUT_MS,
     ...(fetchImpl ? { fetch: fetchImpl } : {}),
   });
 }

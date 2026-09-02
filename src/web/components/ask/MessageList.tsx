@@ -1,3 +1,4 @@
+import { MENTION_RE } from "@shared/mentions";
 import { ContactPeek } from "@/components/contacts/ContactPeek";
 import { SparklesIcon } from "lucide-react";
 import { MarkdownBody } from "@/components/MarkdownBody";
@@ -67,7 +68,6 @@ export function MessageList({
   );
 }
 
-const MENTION_RE = /\[@([^\]]+)\]\(\/contacts\/([^)\s]+)\)/g;
 
 /** The user's own text: mention links become chips, everything else is verbatim. */
 function UserText({ text }: { text: string }) {

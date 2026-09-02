@@ -42,6 +42,10 @@ export function blockedBy(proposal: AskProposal, results: ProposalResults): stri
 /** Send an action proposal's request (placeholders already substituted) and return the response body. */
 export async function applyRequest(request: Extract<AskProposal, { kind: "action" }>["request"]): Promise<unknown> {
   const { method, path, body } = request;
+  // Defence in depth: proposals are server-built, but never let one point anywhere but our own API.
+  if (!path.startsWith("/api/") || path.includes("..") || path.includes("?") || path.includes("#") || path.startsWith("/api/auth") || path.startsWith("/api/ai/")) {
+    throw new Error(`Refusing to apply a proposal to ${path}`);
+  }
   if (method === "POST") return api.post<unknown>(path, body);
   if (method === "PATCH") return api.patch<unknown>(path, body);
   if (method === "PUT") return api.put<unknown>(path, body);

@@ -292,7 +292,8 @@ const proposeTags = def({
   label: () => "Drafting a tag change for you to review",
   run: async (i, ctx) => {
     const { detail: d, ref, dependsOn } = await contactOrPending(ctx, i.contactId);
-    const current = d ? d.tags.map((t) => t.name) : [];
+    if (!d) throw new AskToolError("That contact does not exist yet: put its tags in the propose_contact_create call instead");
+    const current = d.tags.map((t) => t.name);
     const removeSet = new Set((i.remove ?? []).map((t) => t.toLowerCase()));
     const next = current.filter((t) => !removeSet.has(t.toLowerCase()));
     for (const t of i.add ?? []) if (!next.some((x) => x.toLowerCase() === t.toLowerCase())) next.push(t);

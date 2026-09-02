@@ -20,17 +20,28 @@ export interface SocialPlatform {
   placeholder: string;
 }
 
+/** Percent-decode without throwing, then keep only characters that can appear in a profile handle. */
+const cleanHandle = (raw: string): string | null => {
+  let h = raw;
+  try {
+    h = decodeURIComponent(raw);
+  } catch {
+    /* keep the raw segment */
+  }
+  h = h.replace(/[^A-Za-z0-9._@+-]/g, "");
+  return h || null;
+};
 const firstSegment = (path: string, strip: RegExp | null = null): string | null => {
   const parts = path.split("/").filter(Boolean);
   if (parts.length === 0) return null;
-  let h = decodeURIComponent(parts[0]!);
+  let h = cleanHandle(parts[0]!) ?? "";
   if (strip) h = h.replace(strip, "");
   return h || null;
 };
 const afterPrefix = (prefixes: string[]) => (path: string) => {
   const parts = path.split("/").filter(Boolean);
-  if (parts.length >= 2 && prefixes.includes(parts[0]!.toLowerCase())) return decodeURIComponent(parts[1]!);
-  if (parts.length >= 1 && parts[0]!.startsWith("@")) return decodeURIComponent(parts[0]!.slice(1));
+  if (parts.length >= 2 && prefixes.includes(parts[0]!.toLowerCase())) return cleanHandle(parts[1]!);
+  if (parts.length >= 1 && parts[0]!.startsWith("@")) return cleanHandle(parts[0]!.slice(1));
   return null;
 };
 
@@ -107,7 +118,10 @@ export function detectSocial(input: string): { platform: SocialPlatform; handle:
   }
   // Fediverse instances not in the list: "/@user" on an unknown host.
   const m = /^\/@([^/]+)/.exec(url.pathname);
-  if (m) return { platform: SOCIAL_BY_KEY.get("mastodon")!, handle: `${decodeURIComponent(m[1]!)}@${host}` };
+  if (m) {
+    const user = cleanHandle(m[1]!);
+    if (user) return { platform: SOCIAL_BY_KEY.get("mastodon")!, handle: `${user}@${host}` };
+  }
   return null;
 }
 

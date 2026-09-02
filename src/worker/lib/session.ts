@@ -24,9 +24,16 @@ export interface SessionUser {
 
 export type AuthMode = "open" | "oidc";
 
-/** "oidc" only when explicitly configured; anything else is open access (see wrangler.jsonc). */
+/**
+ * Unset or "open" is open access (see wrangler.jsonc); "oidc" enables sign-in. Any
+ * other value is a misconfiguration and fails closed with a 500 rather than
+ * silently opening the instance.
+ */
 export function authMode(env: Pick<AppVars, "AUTH_MODE">): AuthMode {
-  return env.AUTH_MODE === "oidc" ? "oidc" : "open";
+  const v = (env.AUTH_MODE ?? "").trim().toLowerCase();
+  if (v === "" || v === "open") return "open";
+  if (v === "oidc") return "oidc";
+  throw new ApiError(500, "internal", `Unrecognised AUTH_MODE "${env.AUTH_MODE}": use "open" or "oidc".`);
 }
 
 /** The single implicit user of an open-access instance. Everything is attributed to it. */
@@ -61,6 +68,9 @@ export const NOT_ALLOWED_MESSAGE = "This account is not allowed to use opsec▮.
 export function sessionSecret(env: Pick<AppVars, "SESSION_SECRET">): string {
   if (!env.SESSION_SECRET) {
     throw new ApiError(500, "internal", "Sign-in is not configured: SESSION_SECRET is missing. Set it with `npx wrangler secret put SESSION_SECRET` (any long random string).");
+  }
+  if (env.SESSION_SECRET.length < 32) {
+    throw new ApiError(500, "internal", "SESSION_SECRET is too short: use at least 32 characters (e.g. `openssl rand -base64 48`).");
   }
   return env.SESSION_SECRET;
 }

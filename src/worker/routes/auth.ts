@@ -94,8 +94,11 @@ app.get("/auth/callback", async (c) => {
     if (roles === null || email === null || name === null) {
       const info = await client.fetchUserInfo(config, tokens.access_token, claims.sub);
       roles ??= stringArray(info.roles);
-      email ??= optionalString(info.email);
-      emailVerified ||= info.email_verified === true;
+      if (email === null) {
+        // Take the address and its verified flag from the same source.
+        email = optionalString(info.email);
+        emailVerified = info.email_verified === true;
+      }
       name ??= optionalString(info.name);
       picture ??= optionalString(info.picture);
     }
@@ -115,8 +118,9 @@ app.get("/auth/callback", async (c) => {
     setSessionCookie(c, await signSession(user, sessionSecret(c.env)));
     return c.redirect(tx.next, 302);
   } catch (e) {
-    console.error("OIDC callback failed", e);
-    const message = e instanceof Error ? e.message : "Sign-in failed";
+    // Log the class and message only: provider errors can carry the callback params or response body.
+    console.error("OIDC callback failed", e instanceof Error ? `${e.name}: ${e.message}` : String(e));
+    const message = e instanceof ApiError ? e.message : "Sign-in failed. Please try again.";
     return c.redirect(`/?auth_error=${encodeURIComponent(message)}`, 302);
   }
 });

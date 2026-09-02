@@ -4,7 +4,7 @@ import type { Db } from "../../db";
 import type { SessionUser } from "../../lib/session";
 import { extraBody } from "./client";
 import type { AiProvider } from "./provider";
-import { ByteBudget, MAX_HISTORY_CHARS_PER_TURN, MAX_HISTORY_TURNS_SENT, MAX_ITERATIONS, MAX_OUTPUT_TOKENS, MAX_TOOL_CALLS_PER_ITERATION } from "./limits";
+import { ByteBudget, MAX_HISTORY_CHARS_PER_TURN, MAX_HISTORY_TURNS_SENT, MAX_ITERATIONS, MAX_OUTPUT_TOKENS, MAX_RUN_MS, MAX_TOOL_CALLS_PER_ITERATION } from "./limits";
 import { systemMessage } from "./prompt";
 import type { ToolCtx } from "./tool-def";
 import { executeTool, toolDefinitions, type ToolCall } from "./tools";
@@ -53,6 +53,8 @@ function buildMessages(user: SessionUser, input: AskRequest, now: Date): Msg[] {
  */
 export async function runAsk(args: RunAskArgs): Promise<RunAskResult> {
   const { db, provider, client, user, input, emit, signal } = args;
+  // Whole-run deadline on top of the client disconnect signal.
+  const runSignal = typeof AbortSignal.any === "function" ? AbortSignal.any([signal, AbortSignal.timeout(MAX_RUN_MS)]) : signal;
   const messages = buildMessages(user, input, args.now ?? new Date());
   const tools = toolDefinitions();
   const budget = new ByteBudget();
@@ -70,17 +72,18 @@ export async function runAsk(args: RunAskArgs): Promise<RunAskResult> {
     if (signal.aborted) return { stop: "aborted", iterations, usage, toolsUsed };
     const stream = await client.chat.completions.create(
       {
+        // OpenAI's current models reject `max_tokens`; every other compatible server accepts `max_completion_tokens` too (override via extra body if not).
+        max_completion_tokens: MAX_OUTPUT_TOKENS,
+        // Extra body may add provider options or replace the token cap, but never the conversation, tools or streaming.
+        ...extraBody(provider),
         model: provider.model,
         messages,
         tools,
         tool_choice: "auto",
         stream: true,
         stream_options: { include_usage: true },
-        // OpenAI's current models reject `max_tokens`; every other compatible server accepts `max_completion_tokens` too (override via extra body if not).
-        max_completion_tokens: MAX_OUTPUT_TOKENS,
-        ...extraBody(provider),
       },
-      { signal },
+      { signal: runSignal },
     );
 
     let text = "";

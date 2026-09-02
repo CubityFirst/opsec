@@ -10,7 +10,9 @@ import {
   paginationSchema,
 } from "./common";
 
-export const customFieldsSchema = z.record(z.string().min(1).max(100), z.union([z.string(), z.number(), z.boolean(), z.null()]));
+export const customFieldsSchema = z
+  .record(z.string().min(1).max(100), z.union([z.string().max(2000), z.number(), z.boolean(), z.null()]))
+  .refine((o) => Object.keys(o).length <= 50, "At most 50 custom fields");
 export type CustomFields = z.infer<typeof customFieldsSchema>;
 
 export const contactMethodInputSchema = z.object({
@@ -85,6 +87,7 @@ export const contactBulkSchema = z
     action: z.enum(CONTACT_BULK_ACTIONS),
     tagNames: z.array(nonBlank(50)).max(50).optional().default([]),
   })
+  .refine((v) => (v.tagNames?.length ?? 0) * v.ids.length <= 2000, "Too many contact × tag combinations in one request (max 2000)")
   .refine((v) => !(v.action === "addTags" || v.action === "removeTags") || v.tagNames.length > 0, {
     message: "At least one tag name is required",
     path: ["tagNames"],

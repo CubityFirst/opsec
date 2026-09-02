@@ -91,7 +91,7 @@ describe("AI provider settings", () => {
     expect(seen[0]!.headers.get("x-test-header")).toBeNull();
     expect(seen[0]!.body.model).toBe("custom-model");
     expect(seen[0]!.body.parallel_tool_calls).toBeUndefined();
-    expect(seen[0]!.body.stream).toBeUndefined();
+    expect(seen[0]!.body.stream).toBe(false);
 
     // Updating without secrets keeps them; sending "" clears.
     const kept = await json<AiSettingsOut>("/api/ai/settings", { method: "PUT", body: { ...CUSTOM, model: "custom-2" } });

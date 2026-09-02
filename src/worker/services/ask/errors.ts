@@ -2,10 +2,12 @@ import OpenAI from "openai";
 
 /** Short, human-readable tail of an upstream error body (no headers or request data). */
 function upstreamDetail(err: InstanceType<typeof OpenAI.APIError>): string {
+  // Only a structured error message from the provider is passed on; raw bodies (HTML error
+  // pages, whatever a mis-set base URL returns) are not echoed to the browser.
   const e = err.error as { message?: unknown; error?: { message?: unknown } } | undefined;
-  const raw = e?.error?.message ?? e?.message ?? err.message;
-  const text = typeof raw === "string" ? raw : JSON.stringify(raw ?? "");
-  return text.replace(/\s+/g, " ").slice(0, 300);
+  const raw = e?.error?.message ?? e?.message;
+  if (typeof raw !== "string" || !raw.trim()) return "no details";
+  return raw.replace(/\s+/g, " ").slice(0, 300);
 }
 
 /** Map SDK/provider failures to a stable code and a message safe to show in the UI. */

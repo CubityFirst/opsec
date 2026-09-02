@@ -1,8 +1,8 @@
 import { Hono } from "hono";
 import { getDb } from "./db";
 import type { AppEnv } from "./env";
-import { errorHandler } from "./lib/errors";
-import { requireAuth, sessionMiddleware } from "./middleware/auth";
+import { ApiError, errorHandler } from "./lib/errors";
+import { rejectCrossSite, requireAuth, sessionMiddleware } from "./middleware/auth";
 import activity from "./routes/activity";
 import aiSettings from "./routes/ai-settings";
 import ask from "./routes/ask";
@@ -81,6 +81,20 @@ app.use("/api/*", async (c, next) => {
 });
 // Sign-in state for every API request, then a hard gate for everything that is
 // not public (health, /api/auth/*, and local seeding in development).
+// Body size ceiling for JSON routes; uploads and Ask (images) have their own limits.
+const JSON_BODY_LIMIT = 1024 * 1024;
+const ASK_BODY_LIMIT = 12 * 1024 * 1024;
+app.use("/api/*", async (c, next) => {
+  const path = new URL(c.req.url).pathname;
+  const isUpload = /^\/api\/contacts\/[^/]+\/avatar$/.test(path) || /^\/api\/interactions\/[^/]+\/files$/.test(path);
+  if (!isUpload && c.req.method !== "GET" && c.req.method !== "HEAD") {
+    const limit = path === "/api/ask" ? ASK_BODY_LIMIT : JSON_BODY_LIMIT;
+    const len = Number(c.req.header("content-length") ?? "0");
+    if (len > limit) throw ApiError.tooLarge(`Request body exceeds ${Math.round(limit / 1024 / 1024)} MB`);
+  }
+  await next();
+});
+app.use("/api/*", rejectCrossSite);
 app.use("/api/*", sessionMiddleware);
 app.use("/api/*", requireAuth);
 

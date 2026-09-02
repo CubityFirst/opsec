@@ -26,7 +26,8 @@ describe("files", () => {
 
     const cropped = await api(file.url);
     expect(cropped.status).toBe(200);
-    expect(cropped.headers.get("content-type")).toBe("image/webp");
+    // The stored type comes from the bytes, not the declared multipart type.
+    expect(cropped.headers.get("content-type")).toBe("image/png");
     expect(new Uint8Array(await cropped.arrayBuffer())).toEqual(PNG);
     const full = await api(detail.body.avatarFullUrl!);
     expect(full.headers.get("content-type")).toBe("image/png");

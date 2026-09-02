@@ -257,7 +257,7 @@ export async function ensureTags(db: Db, names: string[]): Promise<TagRow[]> {
     .filter((l) => !have.has(l))
     .map((l) => ({ id: newId(), name: wanted.get(l)!, nameLower: l, color: null, createdAt: now, updatedAt: now }));
   if (missing.length > 0) {
-    await runBatch(db, chunk(missing, 20).map((part) => db.insert(tags).values(part)));
+    await runBatch(db, chunk(missing, 16).map((part) => db.insert(tags).values(part)));
   }
   const all = [...existing, ...missing];
   return lowers.map((l) => all.find((t) => t.nameLower === l)!);

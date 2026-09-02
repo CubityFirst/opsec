@@ -131,7 +131,8 @@ export function AiProviderCard() {
         </CardTitle>
         <CardDescription>
           Any OpenAI-compatible chat-completions endpoint. Settings saved here override the Worker's AI_* vars and secrets immediately; secrets are stored
-          encrypted and never shown again.
+          encrypted and never shown again. Changing the base URL to another host clears the stored key and headers, so enter them again.
+          {data.secretsUnreadable && " The stored key and headers could not be decrypted (SESSION_SECRET changed?): enter them again."}
         </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">

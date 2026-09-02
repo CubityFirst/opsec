@@ -202,6 +202,16 @@ The request sets `max_completion_tokens` (OpenAI rejects the older `max_tokens` 
 
 Limits per question: 12 model iterations, 6 tool calls per iteration, 12 KB per tool result, 120 KB of tool results in total, 40 turns of history, one image up to 1568 px on the long edge. Worker logs record only counts and timings, never questions, tool payloads or images.
 
+## Security notes
+
+- **Sessions**: HS256-signed `HttpOnly; Secure; SameSite=Lax` cookies (oidc mode); the access policy is re-checked on every request. `SESSION_SECRET` must be at least 32 characters.
+- **CSRF**: state-changing `/api/*` requests are refused when the browser reports a cross-site or cross-origin fetch (`Sec-Fetch-Site` / `Origin`), on top of SameSite cookies.
+- **Headers**: HSTS, a CSP that allows only same-origin scripts and connections, `X-Frame-Options: DENY`, `nosniff`, referrer and permissions policies, on every response including static assets.
+- **Files**: the stored content type of an upload comes from its bytes for the formats shown inline (PNG, JPEG, GIF, WebP, PDF); anything else downloads as an attachment with a generic type, and every file response carries a sandboxing CSP. Avatars must be raster images (never SVG). Uploads require `Content-Length` and JSON bodies are capped.
+- **Ask**: tools are read-only; the model can only propose changes that you apply. Markdown from notes or the model never renders remote images. Stored provider secrets are bound to the base URL's origin: changing the host clears them so the Worker cannot be used to read a key back. Provider error bodies are not echoed to the browser.
+- **Dev routes** (`/api/dev/*`) only exist on `localhost` with `ENVIRONMENT=development`.
+- **Admin role** gates cascade deletes of contacts and tags and the provider settings. Everyone allowed in can otherwise edit and delete records; run one instance per person, or put a stricter gate in front.
+
 ## Deploying
 
 One-time: the D1 database `nexus-db` and R2 bucket `nexus-files` already exist and are

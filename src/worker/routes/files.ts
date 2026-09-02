@@ -11,14 +11,19 @@ import { nowIso } from "../lib/time";
 import { activityInserts, event } from "../services/activity";
 import { getContactRow } from "../services/contacts";
 import {
+  assertContentLength,
   ATTACHMENT_MAX_BYTES,
   AVATAR_MAX_BYTES,
   AVATAR_ORIGINAL_MAX_BYTES,
-  assertContentLength,
   deleteObjects,
+  INLINE_TYPES,
+  isActiveType,
   isFile,
+  RASTER_TYPES,
   readFiles,
   sanitizeFilename,
+  sniffType,
+  storedContentType,
   toFileOut,
 } from "../services/files";
 import { getInteractionRow, participantIds } from "../services/interactions";
@@ -40,11 +45,13 @@ async function currentAvatarRows(db: AppEnv["Variables"]["db"], contact: { avata
   return db.select().from(files).where(inArray(files.id, ids));
 }
 
-function requireImage(file: File, what: string, max: number): string {
+/** Size-check an image upload and read it; the type comes from the bytes (PNG, JPEG, GIF or WebP only, never SVG). */
+async function readRaster(file: File, what: string, max: number): Promise<{ bytes: Uint8Array; contentType: string }> {
   if (file.size > max) throw ApiError.tooLarge(`${what} exceeds ${Math.round(max / 1024 / 1024)} MB limit`);
-  const contentType = file.type || "application/octet-stream";
-  if (!contentType.startsWith("image/")) throw ApiError.badRequest(`${what} must be an image`);
-  return contentType;
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  const contentType = sniffType(bytes);
+  if (!contentType || !RASTER_TYPES.has(contentType)) throw ApiError.badRequest(`${what} must be a PNG, JPEG, GIF or WebP image`);
+  return { bytes, contentType };
 }
 
 /**
@@ -61,8 +68,10 @@ app.post("/contacts/:id/avatar", async (c) => {
   const cropped = form.get("file");
   const original = form.get("original");
   if (!isFile(cropped)) throw ApiError.badRequest('Expected a multipart "file" field');
-  const croppedType = requireImage(cropped, "Avatar", AVATAR_MAX_BYTES);
-  const originalType = isFile(original) ? requireImage(original, "Original photo", AVATAR_ORIGINAL_MAX_BYTES) : null;
+  const croppedImg = await readRaster(cropped, "Avatar", AVATAR_MAX_BYTES);
+  const originalImg = isFile(original) ? await readRaster(original, "Original photo", AVATAR_ORIGINAL_MAX_BYTES) : null;
+  const croppedType = croppedImg.contentType;
+  const originalType = originalImg?.contentType ?? null;
 
   const now = nowIso();
   const avatarRow: FileRow = {
@@ -97,9 +106,9 @@ app.post("/contacts/:id/avatar", async (c) => {
       : null;
   if (originalRow) originalRow.r2Key = `avatars/${id}/${originalRow.id}`;
 
-  await c.env.BUCKET.put(avatarRow.r2Key, await cropped.arrayBuffer(), { httpMetadata: { contentType: croppedType } });
-  if (originalRow && isFile(original)) {
-    await c.env.BUCKET.put(originalRow.r2Key, await original.arrayBuffer(), { httpMetadata: { contentType: originalRow.contentType } });
+  await c.env.BUCKET.put(avatarRow.r2Key, croppedImg.bytes, { httpMetadata: { contentType: croppedType } });
+  if (originalRow && originalImg) {
+    await c.env.BUCKET.put(originalRow.r2Key, originalImg.bytes, { httpMetadata: { contentType: originalRow.contentType } });
   }
 
   const previous = await currentAvatarRows(db, contact);
@@ -168,7 +177,7 @@ app.post("/interactions/:id/files", async (c) => {
   const db = c.get("db");
   const id = c.req.param("id");
   await getInteractionRow(db, id);
-  assertContentLength(c.req.raw, ATTACHMENT_MAX_BYTES * 4);
+  assertContentLength(c.req.raw, ATTACHMENT_MAX_BYTES * 2 + 1024 * 1024);
   const uploads = await readFiles(c.req.raw);
   if (uploads.length === 0) throw ApiError.badRequest('Expected at least one multipart "file" field');
   for (const f of uploads) {
@@ -180,8 +189,9 @@ app.post("/interactions/:id/files", async (c) => {
   for (const f of uploads) {
     const fileId = newId();
     const r2Key = `attachments/${id}/${fileId}`;
-    const contentType = f.type || "application/octet-stream";
-    await c.env.BUCKET.put(r2Key, await f.arrayBuffer(), { httpMetadata: { contentType } });
+    const bytes = new Uint8Array(await f.arrayBuffer());
+    const contentType = storedContentType(f.type, bytes);
+    await c.env.BUCKET.put(r2Key, bytes, { httpMetadata: { contentType } });
     rows.push({
       id: fileId,
       kind: "attachment",
@@ -235,14 +245,20 @@ app.get("/files/:id", async (c) => {
   if (ifNoneMatch && ifNoneMatch === obj.httpEtag) {
     return new Response(null, { status: 304, headers: { ETag: obj.httpEtag } });
   }
-  const download = c.req.query("download") === "1";
+  // Only raster images and PDFs are shown inline; anything else downloads. Rows written before the
+  // upload-time sniffing may carry a declared type, so active types are neutralised here as well.
+  const contentType = isActiveType(row.contentType) ? "application/octet-stream" : row.contentType;
+  const inline = c.req.query("download") !== "1" && INLINE_TYPES.has(contentType);
   const headers = new Headers();
   obj.writeHttpMetadata(headers);
-  headers.set("Content-Type", row.contentType);
+  headers.set("Content-Type", contentType);
   headers.set("Content-Length", String(obj.size));
   headers.set("ETag", obj.httpEtag);
   headers.set("Cache-Control", "private, max-age=3600");
-  headers.set("Content-Disposition", `${download ? "attachment" : "inline"}; filename="${row.filename.replace(/"/g, "")}"`);
+  headers.set("Content-Disposition", `${inline ? "inline" : "attachment"}; filename="${row.filename.replace(/"/g, "")}"`);
+  // Even an inline file is an isolated, script-less document on this origin.
+  headers.set("Content-Security-Policy", "sandbox; default-src 'none'; style-src 'unsafe-inline'");
+  headers.set("X-Content-Type-Options", "nosniff");
   return new Response(obj.body, { status: 200, headers });
 });
 

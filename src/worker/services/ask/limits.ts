@@ -5,6 +5,9 @@ export const MAX_TOOL_RESULT_BYTES = 12_000;
 /** Across all tool results in one request. */
 export const MAX_TOTAL_TOOL_BYTES = 120_000;
 export const MAX_OUTPUT_TOKENS = 8000;
+/** Hard ceiling for one question end to end, and for a single provider call. */
+export const MAX_RUN_MS = 10 * 60 * 1000;
+export const PROVIDER_TIMEOUT_MS = 120 * 1000;
 /** History actually sent to the model (the request may carry more; older/longer turns are trimmed). Bounds input tokens per iteration. */
 export const MAX_HISTORY_TURNS_SENT = 20;
 export const MAX_HISTORY_CHARS_PER_TURN = 6000;

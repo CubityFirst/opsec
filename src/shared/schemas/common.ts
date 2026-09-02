@@ -56,7 +56,8 @@ export const birthdaySchema = z
   }, "Not a valid calendar date");
 
 /** Full ISO-8601 datetime. Stored as UTC. */
-export const isoDateTimeSchema = z.iso.datetime({ offset: true });
+/** Accepts any offset; stored and compared as UTC so text ordering matches time ordering. */
+export const isoDateTimeSchema = z.iso.datetime({ offset: true }).transform((v) => new Date(v).toISOString());
 
 export const idSchema = z.string().min(1).max(64);
 

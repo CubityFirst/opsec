@@ -21,7 +21,12 @@ const jsonObjectText = z
  * leave `apiKey` / `extraHeaders` out to keep what is active, send "" to clear.
  */
 export const aiSettingsUpdateSchema = z.object({
-  baseUrl: z.string().trim().url("Must be a URL").max(500),
+  baseUrl: z
+    .string()
+    .trim()
+    .url("Must be a URL")
+    .max(500)
+    .refine((u) => /^https?:\/\//i.test(u), "Must start with http:// or https://"),
   model: nonBlank(200),
   label: z.string().trim().max(100).default(""),
   extraBody: jsonObjectText.default(""),
@@ -47,6 +52,8 @@ export interface AiSettingsOut {
   active: AiProviderView;
   env: AiProviderView;
   updatedAt: string | null;
+  /** Stored secrets could not be decrypted (SESSION_SECRET changed or missing); they must be entered again. */
+  secretsUnreadable?: boolean;
 }
 
 export type AiTestResult =

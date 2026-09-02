@@ -1,3 +1,4 @@
+import { isLocalDev } from "../middleware/auth";
 import { Hono } from "hono";
 import { schema } from "../db";
 import type { AppEnv } from "../env";
@@ -10,7 +11,8 @@ import { ApiError } from "../lib/errors";
 const app = new Hono<AppEnv>();
 
 app.use("/dev/*", async (c, next) => {
-  if (c.env.ENVIRONMENT !== "development") throw ApiError.notFound("Route");
+  // Only a local dev server: never on a deployed hostname, whatever the var says.
+  if (!isLocalDev(new URL(c.req.url), c.env)) throw ApiError.notFound("Route");
   await next();
 });
 

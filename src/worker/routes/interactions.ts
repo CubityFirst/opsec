@@ -7,7 +7,7 @@ import { extractMentionIds } from "@shared/mentions";
 import type { InteractionOut, ListResult } from "@shared/types";
 import { schema } from "../db";
 import type { AppEnv } from "../env";
-import { runBatch, type Stmt } from "../lib/batch";
+import { chunk, runBatch, type Stmt } from "../lib/batch";
 import { ApiError, validationHook } from "../lib/errors";
 import { newId } from "../lib/ids";
 import { nowIso } from "../lib/time";
@@ -65,8 +65,8 @@ app.post("/interactions", zValidator("json", interactionCreateSchema, validation
       createdAt: now,
       updatedAt: now,
     }),
-    db.insert(interactionContacts).values(ids.map((contactId) => ({ interactionId: id, contactId, role: null }))),
-    db.update(contacts).set({ updatedAt: now }).where(inArray(contacts.id, ids)),
+    ...chunk(ids, 33).map((part) => db.insert(interactionContacts).values(part.map((contactId) => ({ interactionId: id, contactId, role: null })))),
+    ...chunk(ids).map((part) => db.update(contacts).set({ updatedAt: now }).where(inArray(contacts.id, part))),
     ...activityInserts(
       db,
       [
@@ -145,12 +145,12 @@ app.patch("/interactions/:id", zValidator("json", interactionUpdateSchema, valid
       })
       .where(eq(interactions.id, id)),
   ];
-  if (toAdd.length > 0) stmts.push(db.insert(interactionContacts).values(toAdd.map((contactId) => ({ interactionId: id, contactId, role: null }))));
+  for (const part of chunk(toAdd, 33)) stmts.push(db.insert(interactionContacts).values(part.map((contactId) => ({ interactionId: id, contactId, role: null }))));
   if (toRemove.length > 0) {
     stmts.push(db.delete(interactionContacts).where(and(eq(interactionContacts.interactionId, id), inArray(interactionContacts.contactId, toRemove))));
   }
   const affected = [...new Set([...current, ...wanted])];
-  stmts.push(db.update(contacts).set({ updatedAt: now }).where(inArray(contacts.id, affected)));
+  for (const part of chunk(affected)) stmts.push(db.update(contacts).set({ updatedAt: now }).where(inArray(contacts.id, part)));
   // Contacts newly mentioned in the details get a "mentioned" entry on their feed.
   const previouslyMentioned = new Set(extractMentionIds(before.body));
   const newBody = patch.body === undefined ? before.body : patch.body;
@@ -185,10 +185,6 @@ app.delete("/interactions/:id", async (c) => {
     participantIds(db, id),
     db.select({ r2Key: files.r2Key }).from(files).where(eq(files.interactionId, id)),
   ]);
-  await deleteObjects(
-    c.env.BUCKET,
-    fileRows.map((f) => f.r2Key),
-  );
   const stmts: Stmt[] = [db.delete(interactions).where(eq(interactions.id, id))];
   if (participants.length > 0) {
     stmts.push(
@@ -207,6 +203,10 @@ app.delete("/interactions/:id", async (c) => {
     );
   }
   await runBatch(db, stmts);
+  await deleteObjects(
+    c.env.BUCKET,
+    fileRows.map((f) => f.r2Key),
+  );
   return c.body(null, 204);
 });
 

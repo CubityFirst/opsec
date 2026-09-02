@@ -31,8 +31,9 @@ export function ApplyAllButton({ proposals, context, onChange }: { proposals: Pr
   const qc = useQueryClient();
   const [running, setRunning] = useState(false);
   const open = proposals.filter((p) => !p.applied && !p.dismissed);
-  const automatic = open.filter((p) => p.kind !== "interaction");
-  const destructive = automatic.some((p) => p.kind === "action" && p.destructive);
+  // Deletions and archives are never batched: each keeps its own red button.
+  const automatic = open.filter((p) => p.kind !== "interaction" && !(p.kind === "action" && p.destructive));
+  const destructive = false;
   if (automatic.length < 2 && !(automatic.length === 1 && open.length > 1)) return null;
 
   const run = async () => {
@@ -46,7 +47,7 @@ export function ApplyAllButton({ proposals, context, onChange }: { proposals: Pr
           const result = await applyRequest(substitutePending(p.request, results));
           results[p.id] = result ?? null;
           onChange(p.id, { applied: true, result });
-        } else {
+        } else if (p.kind === "contact_note") {
           const current = await api.get<ContactDetail>(`/api/contacts/${p.contact.id}`);
           const notes = current.notes ? `${current.notes.trimEnd()}\n\n${p.appendText}` : p.appendText;
           await api.patch(`/api/contacts/${p.contact.id}`, { notes });
@@ -71,7 +72,7 @@ export function ApplyAllButton({ proposals, context, onChange }: { proposals: Pr
       <Button size="sm" variant={destructive ? "destructive" : "secondary"} disabled={running} onClick={() => void run()}>
         <ListChecksIcon /> Apply all {automatic.length} in order
       </Button>
-      {open.length > automatic.length && <span className="text-xs text-muted-foreground">Interactions still open in their dialog for review.</span>}
+      {open.length > automatic.length && <span className="text-xs text-muted-foreground">Interactions and deletions stay separate for review.</span>}
     </div>
   );
 }

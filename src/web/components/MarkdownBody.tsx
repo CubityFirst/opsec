@@ -13,10 +13,13 @@ export function MarkdownBody({ children, className }: { children: string; classN
   return (
     <div className={cn("[&_a]:underline [&_li]:ml-4 [&_ol]:list-decimal [&_p]:mb-1.5 [&_p:last-child]:mb-0 [&_ul]:list-disc", className)}>
       <ReactMarkdown
+        // No remote images: a note or model answer must not be able to make the browser call out.
+        disallowedElements={["img"]}
+        unwrapDisallowed
         components={{
           a: ({ href, children: label }) => {
             const text = Array.isArray(label) ? label.join("") : String(label ?? "");
-            if (href?.startsWith("/")) {
+            if (href?.startsWith("/") && !href.startsWith("//")) {
               const mention = text.startsWith("@");
               const hashtag = text.startsWith("#");
               const contactId = mention ? /^\/contacts\/([^/?#]+)$/.exec(href)?.[1] : undefined;
