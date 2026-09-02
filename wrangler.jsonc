@@ -1,0 +1,52 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "opsec",
+  "main": "src/worker/index.ts",
+  "compatibility_date": "2026-08-22",
+  "compatibility_flags": ["nodejs_compat"],
+  "observability": { "enabled": true },
+  "assets": {
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application",
+    // Every request hits the Worker first so the legacy-host redirect applies to
+    // pages and assets too; the Worker then serves static files via ASSETS.
+    "run_worker_first": true
+  },
+  "routes": [
+    { "pattern": "opsec.cubityfir.st", "custom_domain": true },
+    { "pattern": "opsec.nexus", "custom_domain": true },
+    // Former hostname: the Worker answers with a 308 to opsec.cubityfir.st (see src/worker/index.ts).
+    { "pattern": "nexus.cubityfir.st", "custom_domain": true }
+  ],
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "nexus-db",
+      "database_id": "86818e80-503b-4c67-970a-39d6ca9ab6e0",
+      "migrations_dir": "drizzle"
+    }
+  ],
+  "r2_buckets": [{ "binding": "BUCKET", "bucket_name": "nexus-files" }],
+  // Annex (auth.cubityfir.st) is a Worker on the same zone. A plain fetch from
+  // this Worker to a same-zone hostname bypasses that hostname's Worker and hits
+  // the origin, so server-to-server OIDC calls (token, JWKS, userinfo) go through
+  // this service binding instead. See src/worker/services/oidc.ts.
+  "services": [{ "binding": "ANNEX", "service": "annex-auth" }],
+  "vars": {
+    "ENVIRONMENT": "production",
+    "OIDC_ISSUER": "https://auth.cubityfir.st",
+    "OIDC_CLIENT_ID": "annx_6d092a4c0a09224a32ab96d0",
+    // Who may use opsec▮: anyone with the `admin` role, plus these verified emails (comma-separated).
+    "ACCESS_ALLOWED_EMAILS": "cubity@cubityfir.st",
+    // Ask tab: any OpenAI-compatible chat-completions provider (see README → Ask).
+    // Secrets: AI_API_KEY ("none" for BYOK/llama.cpp), AI_EXTRA_HEADERS (JSON, e.g. cf-aig-authorization).
+    "AI_BASE_URL": "https://gateway.ai.cloudflare.com/v1/d843ae90cab33e54f4d284bc65d2fd6a/opsec/compat",
+    "AI_MODEL": "openai/gpt-5.6-luna",
+    "AI_LABEL": "gpt-5.6-luna via AI Gateway",
+    "AI_EXTRA_BODY": "{\"reasoning_effort\":\"none\"}",
+    // Ask spend guard, per signed-in user per UTC day (services/ask/usage.ts).
+    "ASK_DAILY_REQUEST_LIMIT": "200",
+    "ASK_DAILY_TOKEN_BUDGET": "1000000"
+  }
+  // Secrets (npx wrangler secret put ...): OIDC_CLIENT_SECRET, SESSION_SECRET
+}

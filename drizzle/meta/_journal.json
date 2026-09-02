@@ -1,0 +1,111 @@
+{
+  "version": "7",
+  "dialect": "sqlite",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "6",
+      "when": 1788300025805,
+      "tag": "0000_init",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1788300041309,
+      "tag": "0001_seed_relationship_types",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1788302970778,
+      "tag": "0002_avatar_original",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1788303783873,
+      "tag": "0003_users",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1788305844559,
+      "tag": "0004_relationship_type_kinds",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1788305981107,
+      "tag": "0005_user_preferences",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1788347228991,
+      "tag": "0006_other_names",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "6",
+      "when": 1788348110630,
+      "tag": "0007_how_we_met",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "6",
+      "when": 1788349527768,
+      "tag": "0008_life_events",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "6",
+      "when": 1788349750039,
+      "tag": "0009_work",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "6",
+      "when": 1788350098540,
+      "tag": "0010_pets_as_members",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "6",
+      "when": 1788365600906,
+      "tag": "0011_app_settings",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "6",
+      "when": 1788368294609,
+      "tag": "0012_contact_pronouns",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "6",
+      "when": 1788373696126,
+      "tag": "0013_relationship_group_category",
+      "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "6",
+      "when": 1788383544058,
+      "tag": "0014_ask_usage",
+      "breakpoints": true
+    }
+  ]
+}

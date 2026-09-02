@@ -1,0 +1,1 @@
+ALTER TABLE `contacts` ADD `avatar_original_file_id` text;

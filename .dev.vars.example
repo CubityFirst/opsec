@@ -1,0 +1,5 @@
+ENVIRONMENT=development
+OIDC_CLIENT_SECRET=<annex client secret>
+SESSION_SECRET=<long random string>
+AI_API_KEY=none
+AI_EXTRA_HEADERS={"cf-aig-authorization":"Bearer <AI Gateway Run token>"}

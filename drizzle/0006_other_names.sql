@@ -1,0 +1,1 @@
+ALTER TABLE `contacts` ADD `other_names` text DEFAULT '[]' NOT NULL;

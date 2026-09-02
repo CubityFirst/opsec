@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="360" height="96" viewBox="0 0 360 96" role="img" aria-label="opsec">
+  <title>opsec</title>
+  <!-- Light-background wordmark. The block is drawn as a rect so it renders identically in every font. -->
+  <text x="16" y="70" font-family="ui-monospace, 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace" font-size="64" font-weight="700" letter-spacing="-2" fill="#0a0a0a" textLength="222" lengthAdjust="spacingAndGlyphs">opsec</text>
+  <rect x="250" y="24" width="24" height="46" rx="2" fill="#0a0a0a"/>
+</svg>
