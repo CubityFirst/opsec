@@ -29,10 +29,10 @@ import { SettleBetDialog } from "./SettleBetDialog";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
-const OUTCOME_STYLE: Record<BetOutcome, { icon: LucideIcon; badge: string; border: string }> = {
-  me: { icon: ThumbsUpIcon, badge: "border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400", border: "border-l-emerald-500/60" },
-  them: { icon: ThumbsDownIcon, badge: "border-rose-500/40 bg-rose-500/10 text-rose-700 dark:text-rose-400", border: "border-l-rose-500/60" },
-  void: { icon: BanIcon, badge: "text-muted-foreground", border: "border-l-muted-foreground/40" },
+const OUTCOME_STYLE: Record<BetOutcome, { icon: LucideIcon; badge: string }> = {
+  me: { icon: ThumbsUpIcon, badge: "border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"},
+  them: { icon: ThumbsDownIcon, badge: "border-rose-500/40 bg-rose-500/10 text-rose-700 dark:text-rose-400"},
+  void: { icon: BanIcon, badge: "text-muted-foreground"},
 };
 
 /** Days from today (local) to a YYYY-MM-DD day; negative when it has passed. */
@@ -94,7 +94,7 @@ export function BetCard({ bet, showContact = false, compact = false }: { bet: Be
   };
 
   return (
-    <Card className={cn("border-l-4", open ? (review.due ? "border-l-amber-500" : "border-l-primary/40") : OUTCOME_STYLE[bet.outcome!].border, compact && "py-3")}>
+    <Card className={cn(compact && "py-3")}>
       <CardContent className={cn("flex flex-col gap-2", compact && "px-4")}>
         <div className="flex items-start gap-3">
           {showContact ? (
