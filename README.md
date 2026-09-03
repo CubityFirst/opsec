@@ -236,10 +236,28 @@ name). The Worker is `opsec`. The custom domains `opsec.cubityfir.st`, `opsec.ne
 (the zone must be on the same Cloudflare account).
 
 ```bash
-npm run db:migrate:remote
-npm run deploy
-curl https://opsec.cubityfir.st/api/health
+npm run deploy:prod        # build with CLOUDFLARE_ENV=prod, apply migrations, deploy
+curl https://opsec.cubityfir.st/api/auth/login -o /dev/null -w "%{redirect_url}\n"   # must point at the identity provider
 ```
+
+`npm run deploy` (no `:prod`) deploys the **top-level template**: open access, a fresh `opsec-db`, no
+Annex binding. Because the template and `env.prod` share the Worker name `opsec`, running it against
+this account silently switches production to open access and an empty database (sign-in then fails
+with "Internal error"). Only use it on a self-hosted account.
+
+### Workers Builds (GitHub → Cloudflare)
+
+The same trap applies to the dashboard's automatic builds, whose defaults are `npm run build` and
+`npx wrangler deploy`. In **Workers & Pages → opsec → Settings → Builds**, set:
+
+| Setting | Value |
+|---|---|
+| Build command | `npm run ci:build` (runs `build:prod`) |
+| Deploy command | `npm run ci:deploy` (applies D1 migrations with `--env prod`, then `npx wrangler deploy`) |
+
+The build emits `dist/opsec/wrangler.json` already flattened to `env.prod`, and `npx wrangler deploy`
+picks it up through `.wrangler/deploy/config.json`. Secrets (`SESSION_SECRET`, `OIDC_CLIENT_SECRET`,
+`AI_API_KEY`) live on the Worker and survive deploys.
 
 ## Schema changes
 
