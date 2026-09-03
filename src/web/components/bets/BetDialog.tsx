@@ -1,5 +1,5 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
@@ -7,7 +7,6 @@ import { betCreateSchema, type BetCreateInput } from "@shared/schemas/bet";
 import type { BetOut, ContactRef } from "@shared/types";
 import { FieldError } from "@/components/FieldError";
 import { MentionTextarea } from "@/components/MentionTextarea";
-import { ContactPicker } from "@/components/contacts/ContactPicker";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -29,33 +28,17 @@ function todayLocal(): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
-/**
- * Make or edit a bet. Pass `contact` when the other party is fixed (contact
- * page); otherwise a picker is shown (Bets page, dashboard).
- */
-export function BetDialog({
-  contact,
-  bet,
-  open,
-  onOpenChange,
-}: {
-  contact?: ContactRef;
-  bet?: BetOut;
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-}) {
-  const [picked, setPicked] = useState<ContactRef | null>(null);
-  const other = contact ?? bet?.contact ?? picked;
-  const create = useCreateBet(other?.id ?? "");
-  const update = useUpdateBet(other?.id ?? "");
+/** Make or edit a bet with one contact (the other party is fixed: bets live on the contact's page). */
+export function BetDialog({ contact, bet, open, onOpenChange }: { contact: ContactRef; bet?: BetOut; open: boolean; onOpenChange: (open: boolean) => void }) {
+  const create = useCreateBet(contact.id);
+  const update = useUpdateBet(contact.id);
   const { register, control, handleSubmit, reset, formState } = useForm<FormValues, unknown, BetCreateInput>({
     resolver: zodResolver(formSchema as never),
     defaultValues: { prediction: "", wager: "", madeOn: todayLocal(), reviewOn: "", details: "" },
   });
 
   useEffect(() => {
-    if (open) {
-      setPicked(null);
+    if (open)
       reset({
         prediction: bet?.prediction ?? "",
         wager: bet?.wager ?? "",
@@ -63,14 +46,9 @@ export function BetDialog({
         reviewOn: bet?.reviewOn ?? "",
         details: bet?.details ?? "",
       });
-    }
   }, [open, bet, reset]);
 
   const onSubmit = handleSubmit(async (values) => {
-    if (!other) {
-      toast.error("Pick who the bet is with");
-      return;
-    }
     try {
       if (bet) await update.mutateAsync({ id: bet.id, input: values });
       else await create.mutateAsync(values);
@@ -86,18 +64,12 @@ export function BetDialog({
       <DialogContent className="sm:max-w-lg">
         <form onSubmit={onSubmit} className="flex flex-col gap-4">
           <DialogHeader>
-            <DialogTitle>{bet ? "Edit bet" : "Make a bet"}</DialogTitle>
-            <DialogDescription>Write down your prediction and when you will both know the answer. {other ? other.displayName : "They"} take{other ? "s" : ""} the other side.</DialogDescription>
+            <DialogTitle>{bet ? "Edit bet" : `Bet with ${contact.displayName}`}</DialogTitle>
+            <DialogDescription>Write down your prediction and when you will both know the answer. {contact.displayName} takes the other side.</DialogDescription>
           </DialogHeader>
-          {!contact && !bet && (
-            <div className="flex flex-col gap-1.5">
-              <Label>With</Label>
-              <ContactPicker value={picked} onSelect={setPicked} kinds={["person", "organization"]} placeholder="Who is the bet with?" />
-            </div>
-          )}
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="bet-prediction">My prediction</Label>
-            <Input id="bet-prediction" autoFocus={!!contact || !!bet} placeholder="e.g. It won't rain on the wedding day" {...register("prediction")} aria-invalid={!!formState.errors.prediction} />
+            <Input id="bet-prediction" autoFocus placeholder="e.g. It won't rain on the wedding day" {...register("prediction")} aria-invalid={!!formState.errors.prediction} />
             <FieldError message={formState.errors.prediction?.message} />
           </div>
           <div className="grid gap-3 sm:grid-cols-2">

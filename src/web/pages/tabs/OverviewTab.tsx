@@ -9,13 +9,12 @@ import type { ContactMethodOut } from "@shared/types";
 import { ContactMethodDialog } from "@/components/contacts/ContactMethodDialog";
 import { CustomFieldsEditor } from "@/components/contacts/CustomFieldsEditor";
 import { InteractionDialog } from "@/components/interactions/InteractionDialog";
-import { BetCard } from "@/components/bets/BetCard";
+import { BetCard, describeRecord } from "@/components/bets/BetCard";
 import { BetDialog } from "@/components/bets/BetDialog";
 import { LifeEventCard } from "@/components/life-events/LifeEventCard";
 import { LifeEventDialog } from "@/components/life-events/LifeEventDialog";
 import { useContactBets } from "@/lib/queries/bets";
 import { useLifeEvents } from "@/lib/queries/life-events";
-import { describeRecord } from "../BetsPage";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { errorMessage } from "@/lib/api";
@@ -48,6 +47,7 @@ export function OverviewTab() {
   const [logOpen, setLogOpen] = useState(false);
   const [lifeOpen, setLifeOpen] = useState(false);
   const [betOpen, setBetOpen] = useState(false);
+  const [allSettled, setAllSettled] = useState(false);
   const lifeEvents = useLifeEvents(contact.id);
   const bets = useContactBets(contact.id);
   const betItems = bets.data?.items ?? [];
@@ -200,17 +200,13 @@ export function OverviewTab() {
                   {openBets.map((b) => (
                     <BetCard key={b.id} bet={b} compact />
                   ))}
-                  {settledBets.slice(0, 3).map((b) => (
+                  {(allSettled ? settledBets : settledBets.slice(0, 3)).map((b) => (
                     <BetCard key={b.id} bet={b} compact />
                   ))}
                   {settledBets.length > 3 && (
-                    <p className="text-xs text-muted-foreground">
-                      {settledBets.length - 3} more settled{" "}
-                      <Link to="/bets?status=settled" className="underline">
-                        on the Bets page
-                      </Link>
-                      .
-                    </p>
+                    <button type="button" className="self-start text-xs text-muted-foreground underline" onClick={() => setAllSettled((v) => !v)}>
+                      {allSettled ? "Show fewer" : `Show ${settledBets.length - 3} more settled`}
+                    </button>
                   )}
                 </div>
               )}

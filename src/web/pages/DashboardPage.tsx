@@ -155,7 +155,7 @@ export function DashboardPage() {
                   const r = describeReview(b.reviewOn, now);
                   return (
                     <li key={b.id}>
-                      <Link to="/bets" className="flex items-center gap-3 rounded-md px-1 py-1.5 hover:bg-accent">
+                      <Link to={`/contacts/${b.contact.id}`} className="flex items-center gap-3 rounded-md px-1 py-1.5 hover:bg-accent">
                         <ContactAvatar contact={b.contact} className="size-8" />
                         <span className="min-w-0 flex-1">
                           <span className="block truncate text-sm font-medium">{b.prediction}</span>
@@ -171,13 +171,7 @@ export function DashboardPage() {
                 })}
               </ul>
               {dueBets.data!.total > dueBets.data!.items.length && (
-                <p className="mt-2 text-xs text-muted-foreground">
-                  {dueBets.data!.total - dueBets.data!.items.length} more{" "}
-                  <Link to="/bets" className="underline">
-                    on the Bets page
-                  </Link>
-                  .
-                </p>
+                <p className="mt-2 text-xs text-muted-foreground">{dueBets.data!.total - dueBets.data!.items.length} more waiting on their contacts' pages.</p>
               )}
             </SidePanel>
           )}

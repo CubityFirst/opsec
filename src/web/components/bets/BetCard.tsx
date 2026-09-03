@@ -3,7 +3,7 @@ import { useState } from "react";
 import { Link } from "react-router";
 import { toast } from "sonner";
 import { BET_OUTCOME_LABELS, type BetOutcome } from "@shared/schemas/bet";
-import type { BetOut } from "@shared/types";
+import type { BetOut, BetRecord } from "@shared/types";
 import { MarkdownBody } from "@/components/MarkdownBody";
 import { ContactAvatar } from "@/components/contacts/ContactAvatar";
 import {
@@ -53,6 +53,14 @@ export function describeReview(reviewOn: string, now = new Date()): { text: stri
   return { text: `${-n} days overdue`, due: true };
 }
 
+/** "3 won · 1 lost · 2 open" */
+export function describeRecord(r: BetRecord): string {
+  const parts = [`${r.won} won`, `${r.lost} lost`];
+  if (r.void) parts.push(`${r.void} void`);
+  parts.push(`${r.open} open`);
+  return parts.join(" · ");
+}
+
 export function BetOutcomeBadge({ outcome, className }: { outcome: BetOutcome; className?: string }) {
   const s = OUTCOME_STYLE[outcome];
   const Icon = s.icon;
@@ -64,7 +72,7 @@ export function BetOutcomeBadge({ outcome, className }: { outcome: BetOutcome; c
 }
 
 /**
- * One bet. `showContact` adds the other party (Bets page, dashboard); the
+ * One bet. `showContact` adds the other party (dashboard); the
  * contact page leaves it off because it is implied.
  */
 export function BetCard({ bet, showContact = false, compact = false }: { bet: BetOut; showContact?: boolean; compact?: boolean }) {
@@ -170,7 +178,7 @@ export function BetCard({ bet, showContact = false, compact = false }: { bet: Be
         )}
       </CardContent>
 
-      <BetDialog bet={bet} open={editOpen} onOpenChange={setEditOpen} />
+      <BetDialog contact={bet.contact} bet={bet} open={editOpen} onOpenChange={setEditOpen} />
       <SettleBetDialog bet={bet} open={settleOpen} onOpenChange={setSettleOpen} />
       <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
         <AlertDialogContent>
