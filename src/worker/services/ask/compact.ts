@@ -18,6 +18,7 @@ export function compactContact(c: ContactSummary) {
     name: c.displayName,
     nickname: c.nickname,
     pronouns: c.pronouns ?? undefined,
+    animalType: c.animalType ?? undefined,
     otherNames: c.otherNames.length ? c.otherNames : undefined,
     tags: c.tags.map((t) => t.name),
     jobTitle: c.jobTitle,

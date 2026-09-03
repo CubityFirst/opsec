@@ -80,6 +80,8 @@ export interface ContactSummary extends ContactRef {
   lastName: string | null;
   nickname: string | null;
   pronouns: string | null;
+  /** Pets only: species or breed, e.g. "Dog", "Cockapoo". */
+  animalType: string | null;
   /** Other names this contact goes by (Chinese name, English name, maiden name, …). */
   otherNames: { label: string; value: string }[];
   jobTitle: string | null;

@@ -26,7 +26,7 @@ import { TagNamesInput } from "./TagNamesInput";
 function normalise(v: unknown) {
   if (!v || typeof v !== "object") return v;
   const o = { ...(v as Record<string, unknown>) };
-  for (const k of ["lastName", "nickname", "pronouns", "notes", "birthday", "metOn", "metWhere", "metHow", "jobTitle"]) {
+  for (const k of ["lastName", "nickname", "pronouns", "animalType", "notes", "birthday", "metOn", "metWhere", "metHow", "jobTitle"]) {
     if (o[k] === "") o[k] = null;
   }
   // The form holds the picked contact; the API wants its id.
@@ -51,6 +51,7 @@ type FormValues = {
   lastName: string;
   nickname: string;
   pronouns: string;
+  animalType: string;
   birthday: string;
   notes: string;
   methods: { type: (typeof CONTACT_METHOD_TYPES)[number]; label: string; value: string; isPrimary: boolean; sortOrder: number }[];
@@ -71,6 +72,7 @@ function defaults(contact?: ContactDetail): FormValues {
     lastName: contact?.lastName ?? "",
     nickname: contact?.nickname ?? "",
     pronouns: contact?.pronouns ?? "",
+    animalType: contact?.animalType ?? "",
     otherNames: contact?.otherNames ?? [],
     metOn: contact?.metOn ?? "",
     metWhere: contact?.metWhere ?? "",
@@ -173,6 +175,12 @@ export function ContactFormDialog({
               <div className="flex flex-col gap-1.5">
                 <Label htmlFor="pronouns">Pronouns</Label>
                 <Input id="pronouns" placeholder="e.g. she/her, they/them" {...register("pronouns")} />
+              </div>
+            )}
+            {kind === "pet" && (
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="animalType">Animal type</Label>
+                <Input id="animalType" placeholder="e.g. Dog, Cockapoo, Tortoise" {...register("animalType")} />
               </div>
             )}
             <div className="flex flex-col gap-1.5">

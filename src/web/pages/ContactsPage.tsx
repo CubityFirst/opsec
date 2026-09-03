@@ -259,10 +259,11 @@ function ContactRow({ contact, selected, onToggle }: { contact: ContactSummary; 
                 </span>
               )}
             </div>
-            {(contact.nickname || contact.otherNames.length > 0 || contact.jobTitle || contact.employer) && (
+            {(contact.nickname || contact.animalType || contact.otherNames.length > 0 || contact.jobTitle || contact.employer) && (
               <div className="truncate text-xs text-muted-foreground">
                 {[
                   contact.nickname && `“${contact.nickname}”`,
+                  contact.animalType,
                   ...contact.otherNames.map((n) => n.value),
                   [contact.jobTitle, contact.employer?.displayName].filter(Boolean).join(" at "),
                 ]

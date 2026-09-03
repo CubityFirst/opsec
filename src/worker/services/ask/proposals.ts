@@ -106,6 +106,7 @@ const CONTACT_FIELD_LABELS = {
   lastName: "Last name",
   nickname: "Nickname",
   pronouns: "Pronouns",
+  animalType: "Animal type",
   otherNames: "Other names",
   birthday: "Birthday",
   metOn: "Met on",
@@ -121,6 +122,7 @@ const contactFieldsForUpdate = {
   lastName: text(200),
   nickname: text(200),
   pronouns: text(40),
+  animalType: text(100).describe("Pets only: species or breed"),
   otherNames: z.array(otherNameSchema).max(20).optional().describe("Replaces the whole list"),
   birthday: birthdaySchema.nullable().optional(),
   metOn: birthdaySchema.nullable().optional(),
@@ -144,12 +146,13 @@ const proposeContactUpdate = def({
     const changes: Change[] = [];
     const isPerson = d.kind === "person";
 
-    const simple: (keyof typeof CONTACT_FIELD_LABELS & keyof ContactDetail)[] = ["firstName", "lastName", "nickname", "pronouns", "birthday", "metOn", "metWhere", "metHow", "jobTitle"];
+    const simple: (keyof typeof CONTACT_FIELD_LABELS & keyof ContactDetail)[] = ["firstName", "lastName", "nickname", "pronouns", "animalType", "birthday", "metOn", "metWhere", "metHow", "jobTitle"];
     for (const f of simple) {
       const raw = i[f as keyof typeof i] as string | null | undefined;
       const next = f === "firstName" ? (raw as string | undefined) : norm(raw);
       if (next === undefined) continue;
       if ((f === "pronouns" || f === "jobTitle") && !isPerson) throw new AskToolError(`Only people have a ${CONTACT_FIELD_LABELS[f].toLowerCase()}`);
+      if (f === "animalType" && d.kind !== "pet") throw new AskToolError("Only pets have an animal type");
       if (next === (d[f] ?? null)) continue;
       body[f] = next;
       changes.push({ label: CONTACT_FIELD_LABELS[f], from: show(d[f]), to: show(next) });
@@ -218,6 +221,7 @@ const proposeContactCreate = def({
     lastName: text(200),
     nickname: text(200),
     pronouns: text(40),
+    animalType: text(100).describe("Pets only: species or breed, e.g. Dog, Cockapoo"),
     birthday: birthdaySchema.nullable().optional(),
     jobTitle: text(200),
     employerContactId: idSchema.nullable().optional(),
@@ -235,6 +239,7 @@ const proposeContactCreate = def({
     if (!parsed.success) throw new AskToolError(parsed.error.issues.map((x) => `${x.path.join(".")}: ${x.message}`).join("; "));
     const body = parsed.data;
     if (i.kind !== "person" && (body.jobTitle || body.employerContactId || body.pronouns)) throw new AskToolError("Only people have pronouns, a job title or an employer");
+    if (i.kind !== "pet" && body.animalType) throw new AskToolError("Only pets have an animal type");
     const lookups = [body.employerContactId, body.metViaContactId].filter((x): x is string => !!x);
     const { refs, dependsOn } = await resolveRefs(ctx, lookups);
     if (body.employerContactId) await checkEmployer(ctx, "new", body.employerContactId);
@@ -245,6 +250,7 @@ const proposeContactCreate = def({
     const fields: [string, unknown][] = [
       ["Nickname", body.nickname],
       ["Pronouns", body.pronouns],
+      ["Animal type", body.animalType],
       ["Birthday", body.birthday],
       ["Job title", body.jobTitle],
       ["Employer", body.employerContactId ? refs.get(body.employerContactId)?.displayName : null],

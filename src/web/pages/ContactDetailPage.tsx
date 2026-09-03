@@ -192,6 +192,7 @@ function Header({ contact, editOpen, setEditOpen }: { contact: ContactDetail; ed
             {contact.displayName}
             {contact.nickname && <span className="ml-2 text-lg font-normal text-muted-foreground">“{contact.nickname}”</span>}
             {contact.pronouns && <span className="ml-2 text-sm font-normal text-muted-foreground">{contact.pronouns}</span>}
+            {contact.animalType && <span className="ml-2 text-sm font-normal text-muted-foreground">{contact.animalType}</span>}
           </h1>
           <KindBadge kind={contact.kind} />
           {contact.archivedAt && (

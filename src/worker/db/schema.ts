@@ -35,6 +35,8 @@ export const contacts = sqliteTable(
     nickname: text("nickname"),
     /** e.g. "she/her"; people only in the UI. */
     pronouns: text("pronouns"),
+    /** Pets only: species or breed in the owner's words, e.g. "Dog", "Cockapoo", "Tortoise". */
+    animalType: text("animal_type"),
     /** Other names this contact goes by: [{ label: "Chinese name", value: "陈伟" }, …]. */
     otherNames: text("other_names", { mode: "json" }).$type<{ label: string; value: string }[]>().notNull().default(sql`'[]'`),
     birthday: text("birthday"),

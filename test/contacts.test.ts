@@ -319,6 +319,14 @@ describe("list and search", () => {
     expect(patched.body.pronouns).toBeNull();
   });
 
+  it("stores a pet's animal type and clears it with null", async () => {
+    const rex = await createContact({ kind: "pet", firstName: "Rex", animalType: "Cockapoo" });
+    expect(rex.animalType).toBe("Cockapoo");
+    const patched = await json<{ animalType: string | null }>(`/api/contacts/${rex.id}`, { method: "PATCH", body: { animalType: null } });
+    expect(patched.status).toBe(200);
+    expect(patched.body.animalType).toBeNull();
+  });
+
   it("filters by q across name, nickname, methods and tags", async () => {
     const a = await createContact({ firstName: "Zelda", nickname: "Zee", methods: [{ type: "phone", value: "+44 7000 123456" }], tagNames: ["hyrule"] });
     await createContact({ firstName: "Link" });

@@ -56,6 +56,7 @@ function PeekBody({ id, onNavigate }: { id: string; onNavigate: () => void }) {
           <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
             <span className="truncate font-medium">{c.displayName}</span>
             {c.pronouns && <span className="text-xs text-muted-foreground">{c.pronouns}</span>}
+            {c.animalType && <span className="text-xs text-muted-foreground">{c.animalType}</span>}
             <KindBadge kind={c.kind} />
           </div>
           {c.nickname && <p className="truncate text-xs text-muted-foreground">“{c.nickname}”</p>}

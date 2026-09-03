@@ -135,6 +135,7 @@ export async function hydrateSummaries(db: Db, rows: ContactRow[]): Promise<Cont
     lastName: r.lastName,
     nickname: r.nickname,
     pronouns: r.pronouns,
+    animalType: r.animalType,
     otherNames: Array.isArray(r.otherNames) ? r.otherNames : [],
     jobTitle: r.jobTitle,
     employer: (r.employerContactId && employerMap.get(r.employerContactId)) || null,

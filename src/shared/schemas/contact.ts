@@ -37,6 +37,8 @@ const contactFields = {
   lastName: optionalText(200),
   nickname: optionalText(200),
   pronouns: optionalText(40),
+  /** Pets only: species or breed, free text. */
+  animalType: optionalText(100),
   otherNames: z.array(otherNameSchema).max(20).optional(),
   /** How we met. `metOn` uses the same partial-date format as `birthday`. */
   metOn: birthdaySchema.nullish().transform((v) => v ?? null),

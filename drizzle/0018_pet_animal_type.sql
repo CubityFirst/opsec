@@ -1,0 +1,1 @@
+ALTER TABLE `contacts` ADD `animal_type` text;
