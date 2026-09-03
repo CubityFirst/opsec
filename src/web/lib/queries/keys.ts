@@ -10,6 +10,12 @@ export const contactKeys = {
   activity: (id: string) => [...contactKeys.all, "activity", id] as const,
   files: (id: string) => [...contactKeys.all, "files", id] as const,
   lifeEvents: (id: string) => [...contactKeys.all, "life-events", id] as const,
+  bets: (id: string) => [...contactKeys.all, "bets", id] as const,
+};
+
+export const betKeys = {
+  all: ["bets"] as const,
+  list: (q: Record<string, string | number | undefined>) => [...betKeys.all, "list", q] as const,
 };
 
 export const tagKeys = {

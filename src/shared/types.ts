@@ -6,6 +6,7 @@
 import type { ActivityEventType } from "./schemas/activity";
 import type { UserPreferences } from "./schemas/preferences";
 import type { LifeEventCategory } from "./schemas/life-event";
+import type { BetOutcome } from "./schemas/bet";
 import type { ContactKind, ContactMethodType, EntityType, FileKind, InteractionType, RelationshipCategory } from "./schemas/common";
 
 export interface ListResult<T> {
@@ -207,6 +208,39 @@ export interface LifeEventOut {
   body: string | null;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface BetOut {
+  id: string;
+  /** The other party. */
+  contact: ContactRef;
+  prediction: string;
+  wager: string | null;
+  /** YYYY-MM-DD */
+  madeOn: string;
+  /** YYYY-MM-DD */
+  reviewOn: string;
+  details: string | null;
+  status: "open" | "settled";
+  /** null while open. */
+  outcome: BetOutcome | null;
+  settledAt: string | null;
+  settledNote: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** Open / won / lost / void counts for a set of bets. */
+export interface BetRecord {
+  open: number;
+  won: number;
+  lost: number;
+  void: number;
+}
+
+export interface BetListResult extends ListResult<BetOut> {
+  /** Counts over every bet matching the filters except `status` (so the page can show the full record). */
+  record: BetRecord;
 }
 
 export type FeedItem =

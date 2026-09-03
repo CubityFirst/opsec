@@ -1,16 +1,18 @@
 import type OpenAI from "openai";
 import { z } from "zod";
-import { CONTACT_KINDS, INTERACTION_TYPES, idSchema, isoDateTimeSchema, nonBlank, optionalText } from "@shared/schemas/common";
+import { BET_STATUSES } from "@shared/schemas/bet";
+import { CONTACT_KINDS, INTERACTION_TYPES, idSchema, isoDateSchema, isoDateTimeSchema, nonBlank, optionalText } from "@shared/schemas/common";
 import { interactionCreateSchema } from "@shared/schemas/interaction";
 
 import { newId } from "../../lib/ids";
+import { listBets } from "../bets";
 import { getContactDetail, getContactRow, listContacts } from "../contacts";
 import { contactFeed } from "../feed";
 import { getInteractionOut, listContactInteractions, searchInteractions } from "../interactions";
 import { listLifeEvents } from "../life-events";
 import { listRelationshipsFor } from "../relationships";
 import { BODY_PREVIEW_CHARS, MAX_TOOL_RESULT_BYTES, NOTES_SUMMARY_CHARS } from "./limits";
-import { compactContact, compactInteraction, compactLifeEvent, describeFeedItem, ref, truncate } from "./compact";
+import { compactBet, compactContact, compactInteraction, compactLifeEvent, describeFeedItem, ref, truncate } from "./compact";
 import { PROPOSAL_TOOLS, resolveRefs } from "./proposals";
 import { AskToolError, def, type ToolCtx, type ToolDef } from "./tool-def";
 
@@ -139,6 +141,23 @@ const listLifeEventsTool = def({
   run: async (i, ctx) => (await listLifeEvents(ctx.db, i.contactId)).map((l) => compactLifeEvent(l, 400)),
 });
 
+const listBetsTool = def({
+  name: "list_bets",
+  description:
+    "Bets (friendly wagers) with contacts: the user's prediction, the wager, the day it was made, the reviewOn date when the result is due, and for settled ones the outcome (me = the user's prediction held, them = the contact was right, void) and how it fell. Open bets come first, soonest review date on top. Filter by contactId, status, or dueBy (open bets whose review date is on or before that day: use today's date for 'what needs settling').",
+  schema: z.object({
+    contactId: idSchema.optional(),
+    status: z.enum(BET_STATUSES).optional(),
+    dueBy: isoDateSchema.optional(),
+    limit: z.number().int().min(1).max(50).optional(),
+  }),
+  label: (i) => (i.contactId ? "Listing a contact’s bets" : i.dueBy ? "Listing bets due for review" : "Listing bets"),
+  run: async (i, ctx) => {
+    const r = await listBets(ctx.db, { status: i.status, dueBy: i.dueBy, limit: i.limit ?? 20, offset: 0 }, { contactId: i.contactId });
+    return { total: r.total, record: r.record, items: r.items.map((b) => compactBet(b, 400)) };
+  },
+});
+
 const proposeInteraction = def({
   name: "propose_interaction",
   description:
@@ -177,7 +196,7 @@ const proposeContactNote = def({
 });
 
 /** Fixed order: the tool list is part of the prompt prefix. */
-export const TOOLS: ToolDef<z.ZodObject>[] = [searchContacts, getContact, listInteractionsTool, getInteraction, getActivity, listLifeEventsTool, proposeInteraction, proposeContactNote, ...PROPOSAL_TOOLS];
+export const TOOLS: ToolDef<z.ZodObject>[] = [searchContacts, getContact, listInteractionsTool, getInteraction, getActivity, listLifeEventsTool, listBetsTool, proposeInteraction, proposeContactNote, ...PROPOSAL_TOOLS];
 
 export function toolDefinitions(): OpenAI.Chat.Completions.ChatCompletionTool[] {
   return TOOLS.map((t) => {

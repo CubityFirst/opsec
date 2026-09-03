@@ -1,5 +1,6 @@
-import { ArchiveIcon, AtSignIcon, FileIcon, LinkIcon, MilestoneIcon, PencilIcon, PlusIcon, SparklesIcon, TagIcon, Trash2Icon, type LucideIcon } from "lucide-react";
+import { ArchiveIcon, AtSignIcon, DicesIcon, FileIcon, LinkIcon, MilestoneIcon, PencilIcon, PlusIcon, RotateCcwIcon, SparklesIcon, TagIcon, Trash2Icon, type LucideIcon } from "lucide-react";
 import { Link } from "react-router";
+import { BET_OUTCOME_LABELS, type BetOutcome } from "@shared/schemas/bet";
 import type { ActivityEventOut } from "@shared/types";
 import { formatDateTime, formatRelative } from "@/lib/format";
 
@@ -53,6 +54,18 @@ export function describeEvent(e: ActivityEventOut): { icon: LucideIcon; text: Re
       return { icon: PencilIcon, text: <>Edited life event “{str(p, "title")}” ({changeSummary(p.changes)})</> };
     case "life_event.deleted":
       return { icon: Trash2Icon, text: <>Removed life event “{str(p, "title")}”</> };
+    case "bet.created":
+      return { icon: DicesIcon, text: <>Made a bet: “{str(p, "prediction")}”{str(p, "wager") ? ` for ${str(p, "wager")}` : ""}, review on {str(p, "reviewOn")}</> };
+    case "bet.updated":
+      return { icon: PencilIcon, text: <>Edited bet “{str(p, "prediction")}” ({changeSummary(p.changes)})</> };
+    case "bet.settled": {
+      const outcome = str(p, "outcome") as BetOutcome;
+      return { icon: DicesIcon, text: <>Settled bet “{str(p, "prediction")}”: {BET_OUTCOME_LABELS[outcome]?.toLowerCase() ?? outcome}{str(p, "note") ? ` — ${str(p, "note")}` : ""}</> };
+    }
+    case "bet.reopened":
+      return { icon: RotateCcwIcon, text: <>Reopened bet “{str(p, "prediction")}”</> };
+    case "bet.deleted":
+      return { icon: Trash2Icon, text: <>Removed bet “{str(p, "prediction")}”</> };
     case "interaction.mentioned":
       return {
         icon: AtSignIcon,

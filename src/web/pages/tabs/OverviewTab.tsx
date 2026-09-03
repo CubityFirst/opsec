@@ -9,9 +9,13 @@ import type { ContactMethodOut } from "@shared/types";
 import { ContactMethodDialog } from "@/components/contacts/ContactMethodDialog";
 import { CustomFieldsEditor } from "@/components/contacts/CustomFieldsEditor";
 import { InteractionDialog } from "@/components/interactions/InteractionDialog";
+import { BetCard } from "@/components/bets/BetCard";
+import { BetDialog } from "@/components/bets/BetDialog";
 import { LifeEventCard } from "@/components/life-events/LifeEventCard";
 import { LifeEventDialog } from "@/components/life-events/LifeEventDialog";
+import { useContactBets } from "@/lib/queries/bets";
 import { useLifeEvents } from "@/lib/queries/life-events";
+import { describeRecord } from "../BetsPage";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { errorMessage } from "@/lib/api";
@@ -43,7 +47,12 @@ export function OverviewTab() {
   const details = contact.methods.filter((m) => m.type !== "social");
   const [logOpen, setLogOpen] = useState(false);
   const [lifeOpen, setLifeOpen] = useState(false);
+  const [betOpen, setBetOpen] = useState(false);
   const lifeEvents = useLifeEvents(contact.id);
+  const bets = useContactBets(contact.id);
+  const betItems = bets.data?.items ?? [];
+  const openBets = betItems.filter((b) => b.status === "open");
+  const settledBets = betItems.filter((b) => b.status === "settled");
   const deleteMethod = useDeleteMethod(contact.id);
 
   const onDeleteMethod = async (m: ContactMethodOut) => {
@@ -170,6 +179,45 @@ export function OverviewTab() {
           </CardContent>
         </Card>
 
+        {contact.kind !== "pet" && (
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <CardTitle className="text-base">
+                Bets
+                {bets.data && betItems.length > 0 && <span className="ml-2 text-xs font-normal text-muted-foreground">{describeRecord(bets.data.record)}</span>}
+              </CardTitle>
+              <Button variant="outline" size="sm" onClick={() => setBetOpen(true)}>
+                <PlusIcon /> Make a bet
+              </Button>
+            </CardHeader>
+            <CardContent>
+              {bets.isPending ? (
+                <p className="text-sm text-muted-foreground">Loading…</p>
+              ) : betItems.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No bets with {contact.displayName} yet. Write down a prediction, a wager and the day you will know who was right.</p>
+              ) : (
+                <div className="flex flex-col gap-2">
+                  {openBets.map((b) => (
+                    <BetCard key={b.id} bet={b} compact />
+                  ))}
+                  {settledBets.slice(0, 3).map((b) => (
+                    <BetCard key={b.id} bet={b} compact />
+                  ))}
+                  {settledBets.length > 3 && (
+                    <p className="text-xs text-muted-foreground">
+                      {settledBets.length - 3} more settled{" "}
+                      <Link to="/bets?status=settled" className="underline">
+                        on the Bets page
+                      </Link>
+                      .
+                    </p>
+                  )}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Notes</CardTitle>
@@ -264,6 +312,7 @@ export function OverviewTab() {
       />
       <InteractionDialog open={logOpen} onOpenChange={setLogOpen} initialParticipants={[contact]} />
       <LifeEventDialog contactId={contact.id} open={lifeOpen} onOpenChange={setLifeOpen} />
+      <BetDialog contact={contact} open={betOpen} onOpenChange={setBetOpen} />
     </div>
   );
 }

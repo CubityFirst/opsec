@@ -15,8 +15,9 @@ export const CONTACT_METHOD_TYPES = ["phone", "email", "address", "social", "url
 export const RELATIONSHIP_CATEGORIES = ["family", "social", "group", "work", "pet", "care", "other"] as const;
 export const INTERACTION_TYPES = ["call", "text", "email", "meeting", "meal", "gift", "event", "note", "other"] as const;
 export const FILE_KINDS = ["avatar", "avatar_original", "attachment"] as const;
-export const ENTITY_TYPES = ["contact", "contact_method", "tag", "relationship", "interaction", "file", "life_event"] as const;
+export const ENTITY_TYPES = ["contact", "contact_method", "tag", "relationship", "interaction", "file", "life_event", "bet"] as const;
 export const LIFE_EVENT_CATEGORIES = ["work_education", "family_relationships", "home_living", "health_wellness", "travel_experiences"] as const;
+export const BET_OUTCOMES = ["me", "them", "void"] as const;
 
 const timestamps = {
   createdAt: text("created_at").notNull(),
@@ -199,6 +200,36 @@ export const lifeEvents = sqliteTable(
   (t) => [index("life_events_contact_idx").on(t.contactId, t.occurredOn)],
 );
 
+/**
+ * A friendly wager with one contact. `prediction` is the user's call ("it won't
+ * rain on Saturday"); the contact takes the other side. Open until `outcome` is
+ * set at (or after) the `review_on` date.
+ */
+export const bets = sqliteTable(
+  "bets",
+  {
+    id: text("id").primaryKey(),
+    contactId: text("contact_id")
+      .notNull()
+      .references(() => contacts.id, { onDelete: "cascade" }),
+    prediction: text("prediction").notNull(),
+    /** What is at stake, free text: "£10", "a pint", "loser buys dinner". */
+    wager: text("wager"),
+    /** Day the bet was made, YYYY-MM-DD. */
+    madeOn: text("made_on").notNull(),
+    /** Day to check the result, YYYY-MM-DD. */
+    reviewOn: text("review_on").notNull(),
+    details: text("details"),
+    /** null while open; "me" = the prediction held, "them" = it did not, "void" = called off. */
+    outcome: text("outcome", { enum: BET_OUTCOMES }),
+    settledAt: text("settled_at"),
+    /** How it actually fell, in a sentence or two. */
+    settledNote: text("settled_note"),
+    ...timestamps,
+  },
+  (t) => [index("bets_contact_idx").on(t.contactId, t.reviewOn), index("bets_review_idx").on(t.outcome, t.reviewOn)],
+);
+
 export const files = sqliteTable(
   "files",
   {
@@ -289,3 +320,4 @@ export type FileRow = typeof files.$inferSelect;
 export type ActivityRow = typeof activity.$inferSelect;
 export type UserRow = typeof users.$inferSelect;
 export type LifeEventRow = typeof lifeEvents.$inferSelect;
+export type BetRow = typeof bets.$inferSelect;

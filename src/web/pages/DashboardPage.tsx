@@ -1,7 +1,8 @@
-import { CakeIcon, ClockIcon, MessageSquareIcon, PlusIcon } from "lucide-react";
+import { CakeIcon, ClockIcon, DicesIcon, MessageSquareIcon, PlusIcon } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Link } from "react-router";
 import type { ContactSummary } from "@shared/types";
+import { describeReview } from "@/components/bets/BetCard";
 import { ContactAvatar } from "@/components/contacts/ContactAvatar";
 import { InteractionCard } from "@/components/interactions/InteractionCard";
 import { InteractionDialog } from "@/components/interactions/InteractionDialog";
@@ -11,8 +12,10 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { errorMessage } from "@/lib/api";
 import { formatBirthday, formatRelative, parseBirthday } from "@/lib/format";
 import { useAuthUser } from "@/lib/queries/auth";
+import { useBets } from "@/lib/queries/bets";
 import { useContacts } from "@/lib/queries/contacts";
 import { useRecentInteractions } from "@/lib/queries/interactions";
+import { cn } from "@/lib/utils";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -58,6 +61,12 @@ export function DashboardPage() {
   const showDetails = useAuthUser()?.preferences.dashboardShowContactDetails ?? true;
 
   const now = useMemo(() => new Date(), []);
+  // Open bets whose review point is within the next two weeks (or already past).
+  const dueBy = useMemo(() => {
+    const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 14);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  }, [now]);
+  const dueBets = useBets({ dueBy, limit: 8 });
   const { birthdays, outOfTouch } = useMemo(() => {
     const items = contacts.data?.items ?? [];
     const birthdays = items
@@ -139,6 +148,40 @@ export function DashboardPage() {
 
         {/* First on narrow screens so it is not buried under the list; pinned on wide ones. */}
         <aside className="order-1 flex flex-col gap-4 lg:sticky lg:top-6 lg:order-2">
+          {(dueBets.data?.items.length ?? 0) > 0 && (
+            <SidePanel title="Bets to settle" icon={DicesIcon}>
+              <ul className="flex flex-col">
+                {dueBets.data!.items.map((b) => {
+                  const r = describeReview(b.reviewOn, now);
+                  return (
+                    <li key={b.id}>
+                      <Link to="/bets" className="flex items-center gap-3 rounded-md px-1 py-1.5 hover:bg-accent">
+                        <ContactAvatar contact={b.contact} className="size-8" />
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate text-sm font-medium">{b.prediction}</span>
+                          <span className="block truncate text-xs text-muted-foreground">
+                            {showDetails ? `with ${b.contact.displayName}` : "with a contact"}
+                            {b.wager ? ` · ${b.wager}` : ""}
+                          </span>
+                        </span>
+                        <span className={cn("shrink-0 text-xs", r.due ? "font-medium text-amber-600 dark:text-amber-400" : "text-muted-foreground")}>{r.text}</span>
+                      </Link>
+                    </li>
+                  );
+                })}
+              </ul>
+              {dueBets.data!.total > dueBets.data!.items.length && (
+                <p className="mt-2 text-xs text-muted-foreground">
+                  {dueBets.data!.total - dueBets.data!.items.length} more{" "}
+                  <Link to="/bets" className="underline">
+                    on the Bets page
+                  </Link>
+                  .
+                </p>
+              )}
+            </SidePanel>
+          )}
+
           <SidePanel title="Upcoming birthdays" icon={CakeIcon}>
             {contacts.isPending ? (
               <Skeleton className="h-16 w-full" />

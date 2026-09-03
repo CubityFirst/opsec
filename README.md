@@ -26,6 +26,7 @@ It runs as a single Cloudflare Worker at [opsec.cubityfir.st](https://opsec.cubi
 - **One graph, three kinds.** People, pets and organisations share the same contact model. Relationships are typed and directional ("X is the *parent* of Y") with the other side derived automatically, grouped into family, social, group, work, pet and care.
 - **Interactions with context.** Calls, texts, meals, meetings, gifts and notes, each with participants, a markdown body, a location and file attachments. `@mentions` link to contacts and `#tags` link to lists, in summaries as well as bodies. Clicking a mention opens a mini profile card.
 - **Life and work.** First-class job title and employer that keep the employer relationship in step; life events in five categories; a "how we met" record with a date, place and the person who introduced you; partial dates everywhere (a birthday without a year, a month without a day).
+- **Bets.** Write down a prediction you have staked something on with someone ("it won't rain on the wedding day", "Jo gets more than 10,000 votes"), the wager, and a review date. The dashboard nudges you when a review point arrives; settling records who was right and how it fell, and the Bets page keeps your won / lost record.
 - **Names as people use them.** Nickname, pronouns and any number of other names (a Chinese name, a maiden name), all searchable.
 - **Ask.** A chat over your own data: "When did I last talk to Alice about Lisbon?", "Who introduced me to Rex's vet?", or paste a screenshot and say "log this". The model investigates with read-only tools and can propose any change, from logging an interaction to creating an organisation and setting someone's job there in one go. Nothing is written until you press Apply. It speaks the OpenAI chat-completions format, so the provider is configuration: Cloudflare AI Gateway, OpenAI, Anthropic, OpenRouter or a llama.cpp box at home, switchable from the Account page.
 - **Yours.** Sign-in through Annex (OpenID Connect with PKCE), access limited to an allow-list, secrets encrypted at rest, a per-user daily spend guard on the model, and no analytics or third-party scripts.
@@ -118,6 +119,7 @@ Text ULID primary keys, ISO-8601 UTC timestamps.
 | `relationships` | one directed row per link: "from is the `type` of to" |
 | `interactions`, `interaction_contacts` | call / text / meal / … with one or more participants |
 | `life_events` | milestones per contact in five categories (work & education, family & relationships, home & living, health & wellness, travel & experiences) with a partial date; shown in the feed at that date |
+| `bets` | a wager with one contact: the user's `prediction` (the contact takes the other side), optional `wager`, `made_on` and `review_on` days, `details`; open until `outcome` (`me` / `them` / `void`) is set with `settled_at` and a `settled_note` on how it fell |
 | `files` | R2 object metadata: `avatar` (cropped 512×512 WebP), `avatar_original` (the untouched upload, viewable full-size), `attachment` |
 | `activity` | append-only event log per contact with versioned JSON payloads |
 
@@ -145,6 +147,7 @@ errors return `{ error: { code, message, issues? } }`.
 - `GET /contacts/:id/relationships`, `POST /relationships`, `GET/PATCH/DELETE /relationships/:id`, `GET /relationship-types`
 - `GET /contacts/:id/interactions`, `GET/POST /interactions`, `GET/PATCH/DELETE /interactions/:id`
 - `GET/POST /contacts/:id/life-events`, `GET/PATCH/DELETE /life-events/:id`
+- `GET /bets` (`?status=open|settled`, `?dueBy=YYYY-MM-DD` for open bets whose review date has arrived; open first, then settled; the response also carries a `record` of open / won / lost / void), `GET/POST /contacts/:id/bets`, `GET/PATCH/DELETE /bets/:id`, `POST /bets/:id/settle` (`{ outcome: me|them|void, note? }`), `POST /bets/:id/reopen`
 - `GET /contacts/:id/activity` (merged feed), `GET /activity` (raw log)
 - `POST/DELETE /contacts/:id/avatar` (multipart `file` = cropped avatar, optional `original` = full photo), `POST /interactions/:id/files`, `GET /contacts/:id/files`, `GET /files/:id`, `DELETE /files/:id`
 - `GET /search?q=`, `GET/POST /tags`, `PATCH/DELETE /tags/:id`
@@ -153,7 +156,7 @@ errors return `{ error: { code, message, issues? } }`.
 
 ## Ask
 
-The **Ask** tab is a chat over your CRM data ("When did I last speak to Alice, and what about?"). The model investigates with read-only tools (`search_contacts`, `get_contact`, `list_interactions`, `get_interaction`, `get_activity`, `list_life_events`) and can *propose* any change (new interactions and contacts; edits to names, pronouns, birthday, how-we-met, job and employer, custom fields, tags, contact methods, relationships, life events and existing interactions; archiving and deletions) that you apply with a button; it never writes on its own. Conversations live in the browser only. You can paste or attach a screenshot and ask the model to describe or log it.
+The **Ask** tab is a chat over your CRM data ("When did I last speak to Alice, and what about?"). The model investigates with read-only tools (`search_contacts`, `get_contact`, `list_interactions`, `get_interaction`, `get_activity`, `list_life_events`, `list_bets`) and can *propose* any change (new interactions and contacts; edits to names, pronouns, birthday, how-we-met, job and employer, custom fields, tags, contact methods, relationships, life events, bets and existing interactions; settling bets; archiving and deletions) that you apply with a button; it never writes on its own. Conversations live in the browser only. You can paste or attach a screenshot and ask the model to describe or log it.
 
 The backend speaks the **OpenAI Chat Completions** wire format, so any compatible server works: Cloudflare AI Gateway, Anthropic's compatibility layer, llama.cpp, OpenRouter… Provider choice is pure configuration.
 
@@ -210,8 +213,8 @@ The Worker is also a [Model Context Protocol](https://modelcontextprotocol.io) s
 claude mcp add opsec --transport http https://<your host>/mcp --header "Authorization: Bearer <token>"
 ```
 
-- **Read tools** are the Ask read tools: `search_contacts`, `get_contact`, `list_interactions`, `get_interaction`, `get_activity`, `list_life_events`.
-- **Write tools** (write-scoped tokens only) are the Ask proposal tools applied immediately through the app's own API, so validation and the activity log are identical to the UI: `create_contact`, `update_contact`, `set_tags`, `contact_method`, `relationship`, `life_event`, `create_interaction`, `update_interaction`, `delete_interaction`, `append_contact_note`, `archive_contact`. Removals, deletions and archiving must be called again with `confirm: true`.
+- **Read tools** are the Ask read tools: `search_contacts`, `get_contact`, `list_interactions`, `get_interaction`, `get_activity`, `list_life_events`, `list_bets`.
+- **Write tools** (write-scoped tokens only) are the Ask proposal tools applied immediately through the app's own API, so validation and the activity log are identical to the UI: `create_contact`, `update_contact`, `set_tags`, `contact_method`, `relationship`, `life_event`, `bet` (add / update / settle / reopen / remove), `create_interaction`, `update_interaction`, `delete_interaction`, `append_contact_note`, `archive_contact`. Removals, deletions and archiving must be called again with `confirm: true`.
 - The same token works for the JSON API (`Authorization: Bearer …`); read-only tokens are refused for anything but GET. Tokens act as the user who created them, are stored hashed, can be revoked at any time, and cannot mint or revoke other tokens.
 
 ## Security notes

@@ -10,6 +10,7 @@ import { pendingIdFor, type AskProposal } from "@shared/schemas/ask";
 import { CONTACT_KINDS, INTERACTION_TYPES, birthdaySchema, contactMethodTypeSchema, idSchema, isoDateSchema, isoDateTimeSchema, nonBlank } from "@shared/schemas/common";
 import { contactCreateSchema, contactMethodInputSchema, customFieldsSchema, otherNameSchema } from "@shared/schemas/contact";
 import { LIFE_EVENT_CATEGORIES, LIFE_EVENT_CATEGORY_LABELS, lifeEventCreateSchema } from "@shared/schemas/life-event";
+import { BET_OUTCOME_LABELS, betCreateSchema, betOutcomeSchema } from "@shared/schemas/bet";
 import type { ContactDetail, ContactRef } from "@shared/types";
 import { schema } from "../../db";
 import { newId } from "../../lib/ids";
@@ -500,6 +501,83 @@ const proposeLifeEvent = def({
 });
 
 // ---------------------------------------------------------------------------
+// Bets
+
+const proposeBet = def({
+  name: "propose_bet",
+  description:
+    "Draft a bet with a contact: add one (the user's prediction, an optional wager, and a reviewOn date when the result will be known), update its fields, settle it (outcome: me = the prediction held, them = it did not, void = called off; note = how it fell), reopen a settled one, or remove it. For anything but add pass the betId from list_bets. Dates are YYYY-MM-DD; madeOn defaults to today. Shown to the user with an Apply button.",
+  schema: z.object({
+    contactId: idSchema,
+    action: z.enum(["add", "update", "settle", "reopen", "remove"]),
+    betId: idSchema.optional(),
+    prediction: z.string().trim().max(500).optional(),
+    wager: text(200),
+    madeOn: isoDateSchema.optional(),
+    reviewOn: isoDateSchema.optional(),
+    details: text(20_000),
+    outcome: betOutcomeSchema.optional().describe("settle only"),
+    note: text(5000).describe("settle only: how it actually fell"),
+  }),
+  label: (i) => `Drafting a bet ${i.action} for you to review`,
+  run: async (i, ctx) => {
+    const { detail: d, ref: contact, dependsOn } = await contactOrPending(ctx, i.contactId);
+    if (i.action === "add") {
+      const parsed = betCreateSchema.safeParse({ prediction: i.prediction, wager: i.wager ?? null, madeOn: i.madeOn, reviewOn: i.reviewOn, details: i.details ?? null });
+      if (!parsed.success) throw new AskToolError(parsed.error.issues.map((x) => `${x.path.join(".")}: ${x.message}`).join("; "));
+      const body = parsed.data;
+      const changes: Change[] = [
+        { label: "Prediction", from: null, to: body.prediction },
+        { label: "Review on", from: null, to: body.reviewOn },
+      ];
+      if (body.wager) changes.push({ label: "Wager", from: null, to: body.wager });
+      if (body.madeOn) changes.push({ label: "Made on", from: null, to: body.madeOn });
+      if (body.details) changes.push({ label: "Details", from: null, to: body.details });
+      return emitAction(ctx, { title: `Add bet with ${contact.displayName}`, contact, changes, request: { method: "POST", path: `/api/contacts/${contact.id}/bets`, body }, dependsOn });
+    }
+    if (!d) throw new AskToolError("That contact does not exist yet; only add is possible until the create is applied");
+    if (!i.betId) throw new AskToolError("betId is required (see list_bets)");
+    const row = await ctx.db.select().from(schema.bets).where(eq(schema.bets.id, i.betId)).get();
+    if (!row || row.contactId !== d.id) throw new AskToolError("Not found");
+    const quoted = `“${row.prediction}”`;
+    if (i.action === "remove") {
+      return emitAction(ctx, {
+        title: `Remove bet ${quoted}`,
+        contact,
+        changes: [{ label: "Bet", from: `${row.prediction} (review ${row.reviewOn})`, to: null }],
+        request: { method: "DELETE", path: `/api/bets/${row.id}` },
+        destructive: true,
+      });
+    }
+    if (i.action === "settle") {
+      if (!i.outcome) throw new AskToolError("outcome is required to settle (me, them or void)");
+      const note = norm(i.note) ?? null;
+      const changes: Change[] = [{ label: "Outcome", from: row.outcome ? BET_OUTCOME_LABELS[row.outcome] : "open", to: BET_OUTCOME_LABELS[i.outcome] }];
+      if (note) changes.push({ label: "How it fell", from: row.settledNote, to: note });
+      return emitAction(ctx, { title: `Settle bet ${quoted}`, contact, changes, request: { method: "POST", path: `/api/bets/${row.id}/settle`, body: { outcome: i.outcome, note } } });
+    }
+    if (i.action === "reopen") {
+      if (!row.outcome) throw new AskToolError("That bet is still open");
+      return emitAction(ctx, {
+        title: `Reopen bet ${quoted}`,
+        contact,
+        changes: [{ label: "Outcome", from: BET_OUTCOME_LABELS[row.outcome], to: "open" }],
+        request: { method: "POST", path: `/api/bets/${row.id}/reopen` },
+      });
+    }
+    const body: Record<string, unknown> = {};
+    const changes: Change[] = [];
+    if (i.prediction !== undefined && i.prediction.trim() && i.prediction.trim() !== row.prediction) (body.prediction = i.prediction.trim()), changes.push({ label: "Prediction", from: row.prediction, to: i.prediction.trim() });
+    if (i.wager !== undefined && norm(i.wager) !== row.wager) (body.wager = norm(i.wager) ?? null), changes.push({ label: "Wager", from: row.wager, to: norm(i.wager) ?? null });
+    if (i.madeOn !== undefined && i.madeOn !== row.madeOn) (body.madeOn = i.madeOn), changes.push({ label: "Made on", from: row.madeOn, to: i.madeOn });
+    if (i.reviewOn !== undefined && i.reviewOn !== row.reviewOn) (body.reviewOn = i.reviewOn), changes.push({ label: "Review on", from: row.reviewOn, to: i.reviewOn });
+    if (i.details !== undefined && norm(i.details) !== row.details) (body.details = norm(i.details) ?? null), changes.push({ label: "Details", from: row.details, to: norm(i.details) ?? null });
+    if (changes.length === 0) throw new AskToolError("Nothing would change");
+    return emitAction(ctx, { title: `Update bet ${quoted}`, contact, changes, request: { method: "PATCH", path: `/api/bets/${row.id}`, body } });
+  },
+});
+
+// ---------------------------------------------------------------------------
 // Interactions (existing ones; new ones go through propose_interaction)
 
 const proposeInteractionUpdate = def({
@@ -572,6 +650,7 @@ export const PROPOSAL_TOOLS = [
   proposeContactMethod,
   proposeRelationship,
   proposeLifeEvent,
+  proposeBet,
   proposeInteractionUpdate,
   proposeInteractionDelete,
   proposeArchive,

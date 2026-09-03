@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { contactMethodTypeSchema, interactionTypeSchema } from "./common";
 import { lifeEventCategorySchema } from "./life-event";
+import { betOutcomeSchema } from "./bet";
 
 /**
  * Versioned payloads for the append-only `activity` log. This union is the
@@ -89,6 +90,27 @@ export const activityEventSchema = z.discriminatedUnion("eventType", [
   z.object({
     eventType: z.literal("life_event.deleted"),
     payload: z.object({ v: v1, category: lifeEventCategorySchema, title: z.string(), occurredOn: z.string() }),
+  }),
+
+  z.object({
+    eventType: z.literal("bet.created"),
+    payload: z.object({ v: v1, prediction: z.string(), wager: z.string().nullable(), madeOn: z.string(), reviewOn: z.string() }),
+  }),
+  z.object({
+    eventType: z.literal("bet.updated"),
+    payload: z.object({ v: v1, prediction: z.string(), changes: z.record(z.string(), fieldChangeSchema) }),
+  }),
+  z.object({
+    eventType: z.literal("bet.settled"),
+    payload: z.object({ v: v1, prediction: z.string(), wager: z.string().nullable(), outcome: betOutcomeSchema, note: z.string().nullable() }),
+  }),
+  z.object({
+    eventType: z.literal("bet.reopened"),
+    payload: z.object({ v: v1, prediction: z.string(), previousOutcome: betOutcomeSchema }),
+  }),
+  z.object({
+    eventType: z.literal("bet.deleted"),
+    payload: z.object({ v: v1, prediction: z.string(), wager: z.string().nullable(), reviewOn: z.string(), outcome: betOutcomeSchema.nullable() }),
   }),
 
   z.object({

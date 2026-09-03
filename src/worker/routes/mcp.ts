@@ -21,7 +21,7 @@ const SUPPORTED_VERSIONS = ["2025-11-25", "2025-06-18", "2025-03-26", "2024-11-0
 const DEFAULT_VERSION = "2025-06-18";
 const SERVER_VERSION = "0.1.0";
 
-const INSTRUCTIONS = `opsec▮ is a personal CRM: people, pets and organisations with typed relationships, interactions (calls, meals, notes…), life events, tags, contact methods and notes. Ids are ULIDs; always search_contacts first and use ids from results. A relationship reads "from is the <type> of to". Dates: birthdays and "met on" use partial dates (YYYY-MM-DD, YYYY-MM, YYYY, --MM-DD, --MM); interactions use ISO-8601 datetimes and default to now. Write tools apply immediately (they need a write-scoped token); destructive ones must be called again with confirm: true.`;
+const INSTRUCTIONS = `opsec▮ is a personal CRM: people, pets and organisations with typed relationships, interactions (calls, meals, notes…), life events, bets (a prediction with a review date and an optional wager, settled as me/them/void), tags, contact methods and notes. Ids are ULIDs; always search_contacts first and use ids from results. A relationship reads "from is the <type> of to". Dates: birthdays and "met on" use partial dates (YYYY-MM-DD, YYYY-MM, YYYY, --MM-DD, --MM); interactions use ISO-8601 datetimes and default to now. Write tools apply immediately (they need a write-scoped token); destructive ones must be called again with confirm: true.`;
 
 /** Proposal tool → MCP write tool name. */
 const WRITE_NAMES: Record<string, string> = {
@@ -33,6 +33,7 @@ const WRITE_NAMES: Record<string, string> = {
   propose_contact_method: "contact_method",
   propose_relationship: "relationship",
   propose_life_event: "life_event",
+  propose_bet: "bet",
   propose_interaction_update: "update_interaction",
   propose_interaction_delete: "delete_interaction",
   propose_archive: "archive_contact",

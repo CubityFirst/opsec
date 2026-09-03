@@ -1,4 +1,4 @@
-import type { ContactRef, ContactSummary, FeedItem, InteractionOut, LifeEventOut } from "@shared/types";
+import type { BetOut, ContactRef, ContactSummary, FeedItem, InteractionOut, LifeEventOut } from "@shared/types";
 
 /** Cut text to `max` chars, telling the model how to get the rest. */
 export function truncate(text: string | null | undefined, max: number, hint = ""): string | null {
@@ -47,6 +47,22 @@ export function compactLifeEvent(l: LifeEventOut, bodyChars: number) {
   return { id: l.id, category: l.category, title: l.title, occurredOn: l.occurredOn, body: truncate(l.body, bodyChars) };
 }
 
+export function compactBet(b: BetOut, detailChars: number) {
+  return {
+    id: b.id,
+    with: ref(b.contact),
+    prediction: b.prediction,
+    wager: b.wager ?? undefined,
+    madeOn: b.madeOn,
+    reviewOn: b.reviewOn,
+    status: b.status,
+    outcome: b.outcome ?? undefined,
+    settledAt: b.settledAt ?? undefined,
+    settledNote: b.settledNote ?? undefined,
+    details: truncate(b.details, detailChars) ?? undefined,
+  };
+}
+
 const str = (p: Record<string, unknown>, k: string) => (typeof p[k] === "string" ? (p[k] as string) : "");
 
 /** One line per feed item, for the activity tool. */
@@ -87,6 +103,17 @@ export function describeFeedItem(item: FeedItem): { at: string; kind: string; li
     case "life_event.updated":
     case "life_event.deleted":
       line = `${e.eventType}: ${str(p, "title")}`;
+      break;
+    case "bet.created":
+      line = `bet made: "${str(p, "prediction")}"${str(p, "wager") ? ` for ${str(p, "wager")}` : ""}, review on ${str(p, "reviewOn")} [id ${e.entityId}]`;
+      break;
+    case "bet.settled":
+      line = `bet settled (${str(p, "outcome") === "me" ? "I was right" : str(p, "outcome") === "them" ? "they were right" : "void"}): "${str(p, "prediction")}"${str(p, "note") ? ` — ${str(p, "note")}` : ""} [id ${e.entityId}]`;
+      break;
+    case "bet.updated":
+    case "bet.reopened":
+    case "bet.deleted":
+      line = `${e.eventType}: "${str(p, "prediction")}"`;
       break;
     case "file.uploaded":
     case "file.deleted":
