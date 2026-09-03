@@ -154,13 +154,13 @@ function Header({ contact, editOpen, setEditOpen }: { contact: ContactDetail; ed
       {cropFile && <AvatarCropDialog file={cropFile} onApply={onApplyCrop} onClose={() => setCropFile(null)} />}
 
       <Dialog open={photoOpen} onOpenChange={setPhotoOpen}>
-        <DialogContent className="max-w-[min(98vw,120rem)] p-2 sm:p-3">
+        <DialogContent className="w-auto max-w-[min(98vw,120rem)] p-2 sm:max-w-[min(98vw,120rem)] sm:p-3">
           <DialogHeader className="sr-only">
             <DialogTitle>{contact.displayName}</DialogTitle>
             <DialogDescription>Full-size photo</DialogDescription>
           </DialogHeader>
           {contact.avatarFullUrl && (
-            <img src={contact.avatarFullUrl} alt={contact.displayName} className="mx-auto max-h-[90vh] w-auto max-w-full rounded-md object-contain" />
+            <img src={contact.avatarFullUrl} alt={contact.displayName} className="mx-auto max-h-[calc(92vh-4.5rem)] w-auto max-w-full rounded-md object-contain" />
           )}
           <div className="flex flex-wrap items-center justify-between gap-2 px-1">
             <span className="text-sm font-medium">{contact.displayName}</span>
