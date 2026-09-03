@@ -1,6 +1,7 @@
 import { EyeOffIcon, LogOutIcon, ShieldAlertIcon, ShieldCheckIcon } from "lucide-react";
 import { toast } from "sonner";
 import { AiProviderCard } from "@/components/settings/AiProviderCard";
+import { ApiTokensCard } from "@/components/settings/ApiTokensCard";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -117,6 +118,8 @@ export function AccountPage() {
           </div>
         </CardContent>
       </Card>
+
+      <ApiTokensCard />
 
       {user.isAdmin && <AiProviderCard />}
 

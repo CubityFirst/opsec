@@ -202,6 +202,18 @@ The request sets `max_completion_tokens` (OpenAI rejects the older `max_tokens` 
 
 Limits per question: 12 model iterations, 6 tool calls per iteration, 12 KB per tool result, 120 KB of tool results in total, 40 turns of history, one image up to 1568 px on the long edge. Worker logs record only counts and timings, never questions, tool payloads or images.
 
+## MCP server and API tokens
+
+The Worker is also a [Model Context Protocol](https://modelcontextprotocol.io) server at `/mcp` (stateless Streamable HTTP), so Claude Code, Claude Desktop, ChatGPT and other MCP clients can use your CRM directly. Create a token under **Account → API tokens**, choosing *read only* or *read and write*, then:
+
+```sh
+claude mcp add opsec --transport http https://<your host>/mcp --header "Authorization: Bearer <token>"
+```
+
+- **Read tools** are the Ask read tools: `search_contacts`, `get_contact`, `list_interactions`, `get_interaction`, `get_activity`, `list_life_events`.
+- **Write tools** (write-scoped tokens only) are the Ask proposal tools applied immediately through the app's own API, so validation and the activity log are identical to the UI: `create_contact`, `update_contact`, `set_tags`, `contact_method`, `relationship`, `life_event`, `create_interaction`, `update_interaction`, `delete_interaction`, `append_contact_note`, `archive_contact`. Removals, deletions and archiving must be called again with `confirm: true`.
+- The same token works for the JSON API (`Authorization: Bearer …`); read-only tokens are refused for anything but GET. Tokens act as the user who created them, are stored hashed, can be revoked at any time, and cannot mint or revoke other tokens.
+
 ## Security notes
 
 - **Sessions**: HS256-signed `HttpOnly; Secure; SameSite=Lax` cookies (oidc mode); the access policy is re-checked on every request. `SESSION_SECRET` must be at least 32 characters.

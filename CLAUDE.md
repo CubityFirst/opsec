@@ -28,6 +28,8 @@ Personal CRM on a single Cloudflare Worker (Worker `opsec`, domain opsec.cubityf
 
 - **Ask** (`src/worker/services/ask/*`, `routes/ask.ts`): OpenAI Chat Completions via the `openai` SDK; provider is config only (`AI_*` vars/secrets, see README → Ask). Tools are read-only by construction (the tool test wraps `db` in a write-throwing proxy); writes happen only through proposals the user applies in the UI. The active provider is resolved per request by `services/ai-settings.ts` (`resolveProvider`): the admin-edited row in `app_settings` (secrets encrypted via `lib/crypto.ts` under `SESSION_SECRET`) wins over the `AI_*` vars. Keep secrets out of API responses (`providerView` reports presence only). Tests script the upstream with `ASK_FAKE_UPSTREAM=1` + `globalThis.__askFakeUpstream`; never call a real provider in tests.
 
+- **MCP / API tokens**: `routes/mcp.ts` is a stateless Streamable HTTP MCP server (JSON-RPC over POST) authenticated only by API tokens (`services/tokens.ts`, `routes/tokens.ts`, table `api_tokens`, hashed). Read tools reuse the Ask read tools; write tools run the Ask proposal tools and apply the resulting request in-process via `app-ref.ts` (`internalFetch`) as the token's user, so all validation and logging stays in the normal routes. `sessionMiddleware` accepts bearer tokens for `/api/*` too; read-scoped tokens are refused for non-GET requests in `requireAuth`.
+
 ## Not yet done
 
 - Multi-user data isolation: add `owner_id` columns and scope queries by `c.get("user").sub` if more than one person should have separate data.

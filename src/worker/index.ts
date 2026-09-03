@@ -5,6 +5,9 @@ import { ApiError, errorHandler } from "./lib/errors";
 import { rejectCrossSite, requireAuth, sessionMiddleware } from "./middleware/auth";
 import activity from "./routes/activity";
 import aiSettings from "./routes/ai-settings";
+import mcp from "./routes/mcp";
+import tokens from "./routes/tokens";
+import { registerApp } from "./app-ref";
 import ask from "./routes/ask";
 import auth from "./routes/auth";
 import contacts from "./routes/contacts";
@@ -113,6 +116,9 @@ app.route("/api", search);
 app.route("/api", dev);
 app.route("/api", ask);
 app.route("/api", aiSettings);
+app.route("/api", tokens);
+// MCP lives outside /api: it authenticates with API tokens only (see routes/mcp.ts).
+app.route("/", mcp);
 
 // Static assets normally never reach the Worker (see `assets` in wrangler.jsonc);
 // this is a belt-and-braces fallback for environments without the binding.
@@ -120,5 +126,7 @@ app.get("*", async (c) => {
   if (c.env.ASSETS) return withSecurityHeaders(await c.env.ASSETS.fetch(c.req.raw));
   return c.notFound();
 });
+
+registerApp(app);
 
 export default app;

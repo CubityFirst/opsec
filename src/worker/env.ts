@@ -36,5 +36,7 @@ export type AppEnv = {
     user: SessionUser | null;
     /** Identity recorded in the activity log: the OIDC `sub`, or "anonymous". */
     actor: string;
+    /** Set when the request was authenticated with an API token instead of a session. */
+    tokenScope?: "read" | "write";
   };
 };

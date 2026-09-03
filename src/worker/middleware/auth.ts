@@ -2,6 +2,7 @@ import type { MiddlewareHandler } from "hono";
 import type { AppEnv, AppVars } from "../env";
 import { ApiError } from "../lib/errors";
 import { OPEN_USER, authMode, isAdmin, isAllowed, readSessionCookie, verifySession } from "../lib/session";
+import { authenticateToken } from "../services/tokens";
 
 /**
  * Reads and verifies the session cookie; never rejects on its own. A valid
@@ -9,6 +10,17 @@ import { OPEN_USER, authMode, isAdmin, isAllowed, readSessionCookie, verifySessi
  * so a later policy change locks existing cookies out immediately.
  */
 export const sessionMiddleware: MiddlewareHandler<AppEnv> = async (c, next) => {
+  // API tokens (MCP clients, scripts) take precedence over cookies and work in both modes.
+  const bearer = c.req.header("authorization");
+  if (bearer) {
+    const token = await authenticateToken(c.get("db"), c.env, bearer);
+    if (!token) throw ApiError.unauthorized();
+    c.set("user", token.user);
+    c.set("actor", token.user.sub);
+    c.set("tokenScope", token.scope);
+    await next();
+    return;
+  }
   if (authMode(c.env) === "open") {
     c.set("user", OPEN_USER);
     c.set("actor", OPEN_USER.sub);
@@ -40,6 +52,10 @@ function isPublic(url: URL, env: Pick<AppVars, "ENVIRONMENT">): boolean {
 
 export const requireAuth: MiddlewareHandler<AppEnv> = async (c, next) => {
   if (!isPublic(new URL(c.req.url), c.env) && !c.get("user")) throw ApiError.unauthorized();
+  const method = c.req.method;
+  if (c.get("tokenScope") === "read" && method !== "GET" && method !== "HEAD" && method !== "OPTIONS") {
+    throw ApiError.forbidden("This API token is read-only");
+  }
   await next();
 };
 

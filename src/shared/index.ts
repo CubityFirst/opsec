@@ -8,6 +8,7 @@ export * from "./schemas/preferences";
 export * from "./schemas/life-event";
 export * from "./schemas/ask";
 export * from "./schemas/ai-settings";
+export * from "./schemas/token";
 export * from "./mentions";
 export * from "./social";
 export * from "./types";

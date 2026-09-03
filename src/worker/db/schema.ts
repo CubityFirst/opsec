@@ -248,6 +248,23 @@ export const appSettings = sqliteTable("app_settings", {
   updatedAt: text("updated_at").notNull(),
 });
 
+/** Personal API tokens (MCP clients, scripts). Only the SHA-256 of the token is kept. */
+export const apiTokens = sqliteTable(
+  "api_tokens",
+  {
+    id: text("id").primaryKey(),
+    sub: text("sub").notNull(),
+    name: text("name").notNull(),
+    scope: text("scope", { enum: ["read", "write"] }).notNull(),
+    tokenHash: text("token_hash").notNull().unique(),
+    prefix: text("prefix").notNull(),
+    createdAt: text("created_at").notNull(),
+    lastUsedAt: text("last_used_at"),
+    revokedAt: text("revoked_at"),
+  },
+  (t) => [index("api_tokens_sub_idx").on(t.sub)],
+);
+
 /** Signed-in identities, keyed on the OIDC `sub` claim (never on email). */
 export const users = sqliteTable("users", {
   sub: text("sub").primaryKey(),
