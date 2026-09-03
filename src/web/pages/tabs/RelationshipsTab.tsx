@@ -4,6 +4,7 @@ import { Link, useOutletContext } from "react-router";
 import { toast } from "sonner";
 import type { ContactRef, RelationshipOut } from "@shared/types";
 import { ContactAvatar } from "@/components/contacts/ContactAvatar";
+import { DeceasedBadge } from "@/components/contacts/DeceasedBadge";
 import { KindBadge } from "@/components/contacts/KindBadge";
 import { RelationshipDialog } from "@/components/relationships/RelationshipDialog";
 import { RelationshipEditDialog } from "@/components/relationships/RelationshipEditDialog";
@@ -108,6 +109,7 @@ function RelationshipRow({ rel, contact }: { rel: RelationshipOut; contact: Cont
                 <div className="flex items-center gap-2">
                   <span className="truncate font-medium hover:underline">{rel.otherContact.displayName}</span>
                   <KindBadge kind={rel.otherContact.kind} />
+                  {rel.otherContact.deceased && <DeceasedBadge />}
                 </div>
                 <div className="truncate text-xs text-muted-foreground">
                   {rel.typeLabel}

@@ -2,6 +2,7 @@ import { BriefcaseIcon, CakeIcon, ExternalLinkIcon } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import { Link } from "react-router";
 import { ContactAvatar } from "@/components/contacts/ContactAvatar";
+import { DeceasedBadge } from "@/components/contacts/DeceasedBadge";
 import { KindBadge } from "@/components/contacts/KindBadge";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -58,6 +59,7 @@ function PeekBody({ id, onNavigate }: { id: string; onNavigate: () => void }) {
             {c.pronouns && <span className="text-xs text-muted-foreground">{c.pronouns}</span>}
             {c.animalType && <span className="text-xs text-muted-foreground">{c.animalType}</span>}
             <KindBadge kind={c.kind} />
+            {c.deceasedAt && <DeceasedBadge on={c.deceasedOn} />}
           </div>
           {c.nickname && <p className="truncate text-xs text-muted-foreground">“{c.nickname}”</p>}
         </div>

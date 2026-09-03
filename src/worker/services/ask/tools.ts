@@ -36,15 +36,19 @@ const searchContacts = def({
   run: async (i, ctx) => {
     const limit = i.limit ?? 10;
     const base = { q: i.q, kind: i.kind, tag: i.tag, sort: "name" as const, limit, offset: 0 };
-    const active = await listContacts(ctx.db, { ...base, archived: false });
+    const active = await listContacts(ctx.db, { ...base, archived: false, deceased: false });
     let items = active.items;
     let total = active.total;
+    // Deceased contacts are always searchable: "when did Rex die" must still resolve.
+    const deceased = await listContacts(ctx.db, { ...base, archived: false, deceased: true });
+    items = [...items, ...deceased.items];
+    total += deceased.total;
     if (i.includeArchived) {
-      const archived = await listContacts(ctx.db, { ...base, archived: true });
-      items = [...items, ...archived.items].slice(0, limit);
+      const archived = await listContacts(ctx.db, { ...base, archived: true, deceased: false });
+      items = [...items, ...archived.items];
       total += archived.total;
     }
-    return { total, items: items.map(compactContact) };
+    return { total, items: items.slice(0, limit).map(compactContact) };
   },
 });
 
@@ -189,7 +193,7 @@ const proposeContactNote = def({
     const row = await getContactRow(ctx.db, i.contactId);
     ctx.emit({
       type: "proposal",
-      proposal: { kind: "contact_note", id: newId(), contact: { id: row.id, kind: row.kind, displayName: row.displayName, avatarUrl: null }, appendText: i.appendText },
+      proposal: { kind: "contact_note", id: newId(), contact: { id: row.id, kind: row.kind, displayName: row.displayName, avatarUrl: null, deceased: !!row.deceasedAt }, appendText: i.appendText },
     });
     return "The note draft is now shown to the user with an Apply button. Summarise it in one sentence and stop; do not say it was saved.";
   },

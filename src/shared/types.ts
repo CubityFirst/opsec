@@ -73,6 +73,8 @@ export interface ContactRef {
   kind: ContactKind;
   displayName: string;
   avatarUrl: string | null;
+  /** Marked as deceased (people and pets). Shown as a marker wherever the contact is referenced. */
+  deceased: boolean;
 }
 
 export interface ContactSummary extends ContactRef {
@@ -96,6 +98,10 @@ export interface ContactSummary extends ContactRef {
   primaryPhone: string | null;
   lastInteraction: LastInteraction | null;
   archivedAt: string | null;
+  /** When the contact was marked as deceased; null while living. */
+  deceasedAt: string | null;
+  /** Date of death (partial date) when known. */
+  deceasedOn: string | null;
   createdAt: string;
   updatedAt: string;
 }

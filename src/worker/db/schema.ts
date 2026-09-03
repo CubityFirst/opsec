@@ -60,6 +60,10 @@ export const contacts = sqliteTable(
       .notNull()
       .default(sql`'{}'`),
     archivedAt: text("archived_at"),
+    /** People and pets: set when marked as deceased. Hidden from the default list like archiving, but relationships stay. */
+    deceasedAt: text("deceased_at"),
+    /** Date of death when known; partial date like birthday. */
+    deceasedOn: text("deceased_on"),
     ...timestamps,
   },
   (t) => [

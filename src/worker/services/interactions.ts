@@ -5,7 +5,7 @@ import { schema, type Db } from "../db";
 import type { InteractionRow } from "../db/schema";
 import { chunk } from "../lib/batch";
 import { ApiError } from "../lib/errors";
-import { likePattern, toContactRef } from "./contacts";
+import { likePattern, toContactRef, contactRefColumns } from "./contacts";
 import { toFileOut } from "./files";
 
 const { contacts, interactions, interactionContacts, files } = schema;
@@ -37,10 +37,7 @@ export async function hydrateInteractions(db: Db, rows: InteractionRow[]): Promi
       db
         .select({
           interactionId: interactionContacts.interactionId,
-          id: contacts.id,
-          kind: contacts.kind,
-          displayName: contacts.displayName,
-          avatarFileId: contacts.avatarFileId,
+          ...contactRefColumns,
         })
         .from(interactionContacts)
         .innerJoin(contacts, eq(contacts.id, interactionContacts.contactId))

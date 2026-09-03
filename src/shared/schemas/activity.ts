@@ -18,6 +18,8 @@ export const activityEventSchema = z.discriminatedUnion("eventType", [
   z.object({ eventType: z.literal("contact.updated"), payload: z.object({ v: v1, changes: z.record(z.string(), fieldChangeSchema) }) }),
   z.object({ eventType: z.literal("contact.archived"), payload: z.object({ v: v1 }) }),
   z.object({ eventType: z.literal("contact.unarchived"), payload: z.object({ v: v1 }) }),
+  z.object({ eventType: z.literal("contact.deceased"), payload: z.object({ v: v1, on: z.string().nullable() }) }),
+  z.object({ eventType: z.literal("contact.undeceased"), payload: z.object({ v: v1 }) }),
 
   z.object({
     eventType: z.literal("contact_method.added"),

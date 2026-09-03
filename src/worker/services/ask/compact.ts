@@ -8,7 +8,7 @@ export function truncate(text: string | null | undefined, max: number, hint = ""
 }
 
 export function ref(c: ContactRef) {
-  return { id: c.id, name: c.displayName, kind: c.kind };
+  return { id: c.id, name: c.displayName, kind: c.kind, deceased: c.deceased || undefined };
 }
 
 export function compactContact(c: ContactSummary) {
@@ -28,6 +28,8 @@ export function compactContact(c: ContactSummary) {
     primaryPhone: c.primaryPhone,
     lastInteraction: c.lastInteraction ? { occurredAt: c.lastInteraction.occurredAt, type: c.lastInteraction.type, summary: c.lastInteraction.summary } : null,
     archived: c.archivedAt ? true : undefined,
+    /** true, or the (partial) date of death when known. */
+    deceased: c.deceasedAt ? (c.deceasedOn ?? true) : undefined,
   };
 }
 

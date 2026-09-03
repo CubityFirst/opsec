@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { ApiErrorBody, ContactDetail, ContactMethodOut, ContactSummary, FeedResult, ListResult, RelationshipOut, SearchResult, TagWithCount } from "@shared/types";
-import { api, apiAs, createContact, createInteraction, json } from "./helpers";
+import { api, apiAs, createContact, createInteraction, createRelationship, json } from "./helpers";
 
 describe("health", () => {
   it("responds", async () => {
@@ -317,6 +317,43 @@ describe("list and search", () => {
     const patched = await json<{ pronouns: string | null }>(`/api/contacts/${a.id}`, { method: "PATCH", body: { pronouns: null } });
     expect(patched.status).toBe(200);
     expect(patched.body.pronouns).toBeNull();
+  });
+
+  it("marks a person or pet as deceased: hidden from the default list, relationships kept, reversible", async () => {
+    const owner = await createContact({ firstName: "Grieving", lastName: "Owner" });
+    const rex = await createContact({ kind: "pet", firstName: "Old Rex" });
+    const org = await createContact({ kind: "organization", firstName: "Acme Deceased Ltd" });
+    await createRelationship(owner.id, rex.id, "owner");
+
+    expect((await json(`/api/contacts/${org.id}/deceased`, { method: "POST", body: { on: "2024" } })).status).toBe(400);
+    expect((await json(`/api/contacts/${rex.id}/deceased`, { method: "POST", body: { on: "not-a-date" } })).status).toBe(400);
+
+    const marked = await json<ContactDetail>(`/api/contacts/${rex.id}/deceased`, { method: "POST", body: { on: "2024-05" } });
+    expect(marked.status).toBe(200);
+    expect(marked.body.deceasedOn).toBe("2024-05");
+    expect(marked.body.deceasedAt).not.toBeNull();
+
+    const active = await json<{ items: { id: string }[] }>("/api/contacts?q=Old%20Rex");
+    expect(active.body.items.map((c) => c.id)).not.toContain(rex.id);
+    const dead = await json<{ items: { id: string }[] }>("/api/contacts?q=Old%20Rex&deceased=true");
+    expect(dead.body.items.map((c) => c.id)).toEqual([rex.id]);
+
+    // Relationships survive and carry the marker from the other side.
+    const rels = await json<{ items: { otherContact: { id: string; deceased: boolean } }[] }>(`/api/contacts/${owner.id}/relationships`);
+    expect(rels.body.items.find((r) => r.otherContact.id === rex.id)?.otherContact.deceased).toBe(true);
+
+    // Marking again only changes the date; logged as an update rather than a second "deceased" event.
+    const redated = await json<ContactDetail>(`/api/contacts/${rex.id}/deceased`, { method: "POST", body: { on: "2024-05-12" } });
+    expect(redated.body.deceasedOn).toBe("2024-05-12");
+    expect(redated.body.deceasedAt).toBe(marked.body.deceasedAt);
+
+    const cleared = await json<ContactDetail>(`/api/contacts/${rex.id}/deceased`, { method: "DELETE" });
+    expect(cleared.body.deceasedAt).toBeNull();
+    expect(cleared.body.deceasedOn).toBeNull();
+    const feed = await json<{ items: { kind: string; event?: { eventType: string } }[] }>(`/api/contacts/${rex.id}/activity`);
+    const types = feed.body.items.map((i) => i.event?.eventType);
+    expect(types.filter((t) => t === "contact.deceased")).toHaveLength(1);
+    expect(types).toContain("contact.undeceased");
   });
 
   it("stores a pet's animal type and clears it with null", async () => {

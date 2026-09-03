@@ -134,6 +134,13 @@
       "when": 1788450027951,
       "tag": "0018_pet_animal_type",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "6",
+      "when": 1788459352176,
+      "tag": "0019_contact_deceased",
+      "breakpoints": true
     }
   ]
 }

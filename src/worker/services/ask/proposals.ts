@@ -68,8 +68,8 @@ async function contactOrPending(ctx: ToolCtx, id: string): Promise<{ detail: Con
   return { detail, ref: toRef(detail), dependsOn: [] };
 }
 
-function toRef(c: Pick<ContactRef, "id" | "kind" | "displayName" | "avatarUrl">): ContactRef {
-  return { id: c.id, kind: c.kind, displayName: c.displayName, avatarUrl: c.avatarUrl };
+function toRef(c: Pick<ContactRef, "id" | "kind" | "displayName" | "avatarUrl" | "deceased">): ContactRef {
+  return { id: c.id, kind: c.kind, displayName: c.displayName, avatarUrl: c.avatarUrl, deceased: c.deceased };
 }
 
 function show(v: unknown): string | null {
@@ -265,7 +265,7 @@ const proposeContactCreate = def({
     for (const m of body.methods) changes.push({ label: m.label ? `${m.type} (${m.label})` : m.type, from: null, to: m.value });
     const id = newId();
     const placeholder = pendingIdFor(id);
-    ctx.pending.set(placeholder, { proposalId: id, ref: { id: placeholder, kind: body.kind, displayName: name, avatarUrl: null } });
+    ctx.pending.set(placeholder, { proposalId: id, ref: { id: placeholder, kind: body.kind, displayName: name, avatarUrl: null, deceased: false } });
     emitAction(ctx, { id, title: `Create ${name}`, contact: null, changes, request: { method: "POST", path: "/api/contacts", body }, dependsOn });
     return `The proposal “Create ${name}” is shown to the user with an Apply button. Its contact id will be ${placeholder} once applied: use exactly that id in any further proposals in this reply that need it (employerContactId, metViaContactId, relationship ids, interaction contactIds, tags, life events). Then summarise in one sentence; do not say anything was saved.`;
   },
@@ -506,6 +506,38 @@ const proposeLifeEvent = def({
   },
 });
 
+const proposeDeceased = def({
+  name: "propose_deceased",
+  description:
+    "Draft marking a person or pet as deceased (or undoing that). A deceased contact leaves the default contact list like an archived one, but all relationships, interactions and bets are kept. `on` is the date of death as a partial date, if known. Shown to the user with an Apply button.",
+  schema: z.object({ contactId: idSchema, deceased: z.boolean(), on: birthdaySchema.nullable().optional().describe("Date of death, partial date; only with deceased: true") }),
+  label: (i) => (i.deceased ? "Drafting a deceased mark for you to review" : "Drafting removal of a deceased mark for you to review"),
+  run: async (i, ctx) => {
+    const d = await getContactDetail(ctx.db, i.contactId);
+    if (d.kind === "organization") throw new AskToolError("Only people and pets can be marked as deceased");
+    const on = i.on ?? null;
+    if (!i.deceased) {
+      if (!d.deceasedAt) throw new AskToolError(`${d.displayName} is not marked as deceased`);
+      return emitAction(ctx, {
+        title: `Remove the deceased mark from ${d.displayName}`,
+        contact: toRef(d),
+        changes: [{ label: "Status", from: "deceased", to: "living" }],
+        request: { method: "DELETE", path: `/api/contacts/${d.id}/deceased` },
+      });
+    }
+    if (d.deceasedAt && on === d.deceasedOn) throw new AskToolError(`${d.displayName} is already marked as deceased`);
+    const changes: Change[] = d.deceasedAt ? [{ label: "Date of death", from: d.deceasedOn, to: on }] : [{ label: "Status", from: d.archivedAt ? "archived" : "active", to: "deceased" }];
+    if (!d.deceasedAt && on) changes.push({ label: "Date of death", from: null, to: on });
+    return emitAction(ctx, {
+      title: d.deceasedAt ? `Update ${d.displayName}'s date of death` : `Mark ${d.displayName} as deceased`,
+      contact: toRef(d),
+      changes,
+      request: { method: "POST", path: `/api/contacts/${d.id}/deceased`, body: { on } },
+      destructive: !d.deceasedAt,
+    });
+  },
+});
+
 // ---------------------------------------------------------------------------
 // Bets
 
@@ -660,4 +692,5 @@ export const PROPOSAL_TOOLS = [
   proposeInteractionUpdate,
   proposeInteractionDelete,
   proposeArchive,
+  proposeDeceased,
 ];

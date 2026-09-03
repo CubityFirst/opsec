@@ -67,6 +67,16 @@ export function useArchiveContact(id: string) {
   });
 }
 
+/** Mark as deceased (with an optional partial date of death) or, with `null`, remove the mark. */
+export function useMarkDeceased(id: string) {
+  const invalidate = useInvalidateContact();
+  return useMutation({
+    mutationFn: (input: { on: string | null } | null) =>
+      input ? api.post<ContactDetail>(`/api/contacts/${id}/deceased`, input) : api.del<ContactDetail>(`/api/contacts/${id}/deceased`),
+    onSuccess: () => invalidate(id),
+  });
+}
+
 export function useDeleteContact() {
   const qc = useQueryClient();
   return useMutation({

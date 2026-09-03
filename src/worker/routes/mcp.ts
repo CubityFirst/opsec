@@ -37,6 +37,7 @@ const WRITE_NAMES: Record<string, string> = {
   propose_interaction_update: "update_interaction",
   propose_interaction_delete: "delete_interaction",
   propose_archive: "archive_contact",
+  propose_deceased: "mark_deceased",
 };
 const DESTRUCTIVE = new Set(["delete_interaction"]);
 

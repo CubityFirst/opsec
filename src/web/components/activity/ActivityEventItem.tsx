@@ -1,4 +1,4 @@
-import { ArchiveIcon, AtSignIcon, DicesIcon, FileIcon, LinkIcon, MilestoneIcon, PencilIcon, PlusIcon, RotateCcwIcon, SparklesIcon, TagIcon, Trash2Icon, type LucideIcon } from "lucide-react";
+import { ArchiveIcon, AtSignIcon, DicesIcon, FileIcon, HeartCrackIcon, LinkIcon, MilestoneIcon, PencilIcon, PlusIcon, RotateCcwIcon, SparklesIcon, TagIcon, Trash2Icon, type LucideIcon } from "lucide-react";
 import { Link } from "react-router";
 import { BET_OUTCOME_LABELS, type BetOutcome } from "@shared/schemas/bet";
 import type { ActivityEventOut } from "@shared/types";
@@ -32,6 +32,10 @@ export function describeEvent(e: ActivityEventOut): { icon: LucideIcon; text: Re
       return { icon: ArchiveIcon, text: <>Archived</> };
     case "contact.unarchived":
       return { icon: ArchiveIcon, text: <>Restored from archive</> };
+    case "contact.deceased":
+      return { icon: HeartCrackIcon, text: <>Marked as deceased{str(p, "on") ? ` (${str(p, "on")})` : ""}</> };
+    case "contact.undeceased":
+      return { icon: HeartCrackIcon, text: <>Deceased mark removed</> };
     case "contact_method.added":
       return { icon: PlusIcon, text: <>Added {str(p, "type")}{str(p, "label") ? ` (${str(p, "label")})` : ""}: {str(p, "value")}</> };
     case "contact_method.updated":

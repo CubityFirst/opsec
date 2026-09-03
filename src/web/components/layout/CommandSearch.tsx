@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 import { ContactAvatar } from "@/components/contacts/ContactAvatar";
+import { DeceasedBadge } from "@/components/contacts/DeceasedBadge";
 import { KindBadge } from "@/components/contacts/KindBadge";
 import { Command, CommandDialog, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { useSearch } from "@/lib/queries/search";
@@ -52,6 +53,7 @@ export function CommandSearch({ open, onOpenChange }: { open: boolean; onOpenCha
                 <ContactAvatar contact={hit} className="size-6" />
                 <span className="truncate">{hit.displayName}</span>
                 <KindBadge kind={hit.kind} className="ml-1" />
+                {hit.deceased && <DeceasedBadge className="ml-1" />}
                 {hit.matchedOn !== "name" && (
                   <span className="ml-auto truncate text-xs text-muted-foreground">{hit.matchText}</span>
                 )}

@@ -9,15 +9,14 @@ import type { ContactSummary } from "@shared/types";
 import { BulkActionBar } from "@/components/contacts/BulkActionBar";
 import { ContactAvatar } from "@/components/contacts/ContactAvatar";
 import { ContactFormDialog } from "@/components/contacts/ContactFormDialog";
+import { DeceasedBadge } from "@/components/contacts/DeceasedBadge";
 import { KindBadge } from "@/components/contacts/KindBadge";
 import { TagChip } from "@/components/contacts/TagChip";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Switch } from "@/components/ui/switch";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { errorMessage } from "@/lib/api";
 import { KIND_LABELS, formatRelative } from "@/lib/format";
@@ -37,7 +36,10 @@ export function ContactsPage() {
 
   const kind = (params.get("kind") as ContactKind | null) ?? undefined;
   const tag = params.get("tag") ?? undefined;
-  const archived = params.get("archived") === "true";
+  // status=archived|deceased; the older ?archived=true links still work.
+  const status = params.get("status") === "deceased" ? "deceased" : params.get("status") === "archived" || params.get("archived") === "true" ? "archived" : "active";
+  const archived = status === "archived";
+  const deceased = status === "deceased";
   const sort = (params.get("sort") as ContactSort | null) ?? "name";
   const page = Math.max(0, Number(params.get("page") ?? 0));
 
@@ -54,7 +56,7 @@ export function ContactsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [q]);
 
-  const query = useContacts({ q: q || undefined, kind, tag, archived, sort, limit: PAGE, offset: page * PAGE });
+  const query = useContacts({ q: q || undefined, kind, tag, archived, deceased, sort, limit: PAGE, offset: page * PAGE });
   const tags = useTags();
   const createOpen = location.pathname.endsWith("/new");
 
@@ -153,12 +155,20 @@ export function ContactsPage() {
             <SelectItem value="updated">Sort: recently updated</SelectItem>
           </SelectContent>
         </Select>
-        <div className="flex items-center gap-2 pb-1.5">
-          <Switch id="archived" checked={archived} onCheckedChange={(v) => setParam("archived", v ? "true" : undefined)} />
-          <Label htmlFor="archived" className="flex items-center gap-1 text-sm text-muted-foreground">
-            <ArchiveIcon className="size-3.5" /> Archived
-          </Label>
-        </div>
+        <Select value={status} onValueChange={(v) => setParam("status", v === "active" ? undefined : v)}>
+          <SelectTrigger className="w-36" aria-label="Status">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="active">Active</SelectItem>
+            <SelectItem value="archived">
+              <span className="flex items-center gap-1.5">
+                <ArchiveIcon className="size-3.5" /> Archived
+              </span>
+            </SelectItem>
+            <SelectItem value="deceased">† Deceased</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
       {selected.size > 0 && (
@@ -175,7 +185,7 @@ export function ContactsPage() {
       ) : query.isPending ? (
         <ListSkeleton />
       ) : query.data.items.length === 0 ? (
-        <EmptyState hasFilters={!!(q || kind || tag || archived)} />
+        <EmptyState hasFilters={!!(q || kind || tag || archived || deceased)} />
       ) : (
         <div className="overflow-x-auto rounded-xl border">
           <Table>
@@ -253,6 +263,7 @@ function ContactRow({ contact, selected, onToggle }: { contact: ContactSummary; 
             <div className="flex items-center gap-2">
               <span className="truncate font-medium">{contact.displayName}</span>
               <KindBadge kind={contact.kind} />
+              {contact.deceasedAt && <DeceasedBadge on={contact.deceasedOn} />}
               {contact.archivedAt && (
                 <span className="text-xs text-muted-foreground">
                   <ArchiveIcon className="inline size-3" /> archived

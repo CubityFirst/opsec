@@ -1,11 +1,13 @@
-import { ArchiveIcon, ArchiveRestoreIcon, CameraIcon, DownloadIcon, ExpandIcon, MailIcon, MoreHorizontalIcon, PencilIcon, PhoneIcon, Trash2Icon } from "lucide-react";
-import { useRef, useState } from "react";
+import { ArchiveIcon, ArchiveRestoreIcon, CameraIcon, DownloadIcon, ExpandIcon, HeartCrackIcon, MailIcon, MoreHorizontalIcon, PencilIcon, PhoneIcon, Trash2Icon } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 import { NavLink, Outlet, useNavigate, useParams } from "react-router";
 import { toast } from "sonner";
 import { describeSocial } from "@shared/social";
 import type { ContactDetail } from "@shared/types";
 import { AvatarCropDialog } from "@/components/contacts/AvatarCropDialog";
+import { BirthdayInput } from "@/components/contacts/BirthdayInput";
 import { ContactAvatar } from "@/components/contacts/ContactAvatar";
+import { DeceasedBadge } from "@/components/contacts/DeceasedBadge";
 import { SocialIcon } from "@/components/contacts/SocialIcon";
 import { ContactFormDialog } from "@/components/contacts/ContactFormDialog";
 import { JobEditor } from "@/components/contacts/JobEditor";
@@ -22,14 +24,15 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { ApiError, errorMessage } from "@/lib/api";
 import { formatDate } from "@/lib/format";
 import { useAuthUser } from "@/lib/queries/auth";
-import { useArchiveContact, useContact, useDeleteAvatar, useDeleteContact, useUploadAvatar } from "@/lib/queries/contacts";
+import { useArchiveContact, useContact, useDeleteAvatar, useDeleteContact, useMarkDeceased, useUploadAvatar } from "@/lib/queries/contacts";
 import { cn } from "@/lib/utils";
 import { ErrorState } from "./ContactsPage";
 
@@ -82,6 +85,58 @@ export function ContactDetailPage() {
   );
 }
 
+/** Mark a person or pet as deceased with an optional date of death, change that date, or remove the mark. */
+function DeceasedDialog({ contact, open, onOpenChange }: { contact: ContactDetail; open: boolean; onOpenChange: (open: boolean) => void }) {
+  const mark = useMarkDeceased(contact.id);
+  const [on, setOn] = useState("");
+  useEffect(() => {
+    if (open) setOn(contact.deceasedOn ?? "");
+  }, [open, contact.deceasedOn]);
+  const pet = contact.kind === "pet";
+  const run = async (input: { on: string | null } | null, done: string) => {
+    try {
+      await mark.mutateAsync(input);
+      toast.success(done);
+      onOpenChange(false);
+    } catch (e) {
+      toast.error(errorMessage(e));
+    }
+  };
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>{contact.deceasedAt ? `${contact.displayName} is marked as deceased` : `Mark ${contact.displayName} as deceased`}</DialogTitle>
+          <DialogDescription>
+            {pet ? "They" : "They"} leave the contact list like an archived contact, but every relationship, interaction and bet stays. The date is optional and can be partial.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor="deceased-on">Date of death</Label>
+          <BirthdayInput id="deceased-on" value={on} onChange={setOn} />
+        </div>
+        <DialogFooter className="gap-2 sm:justify-between">
+          {contact.deceasedAt ? (
+            <Button variant="ghost" onClick={() => void run(null, "Deceased mark removed")} disabled={mark.isPending}>
+              Remove mark
+            </Button>
+          ) : (
+            <span />
+          )}
+          <div className="flex gap-2">
+            <Button variant="ghost" onClick={() => onOpenChange(false)}>
+              Cancel
+            </Button>
+            <Button onClick={() => void run({ on: on || null }, contact.deceasedAt ? "Date updated" : `${contact.displayName} marked as deceased`)} disabled={mark.isPending}>
+              {contact.deceasedAt ? "Save date" : "Mark as deceased"}
+            </Button>
+          </div>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 function Header({ contact, editOpen, setEditOpen }: { contact: ContactDetail; editOpen: boolean; setEditOpen: (open: boolean) => void }) {
   const navigate = useNavigate();
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -94,6 +149,7 @@ function Header({ contact, editOpen, setEditOpen }: { contact: ContactDetail; ed
 
   const [cropFile, setCropFile] = useState<File | null>(null);
   const [photoOpen, setPhotoOpen] = useState(false);
+  const [deceasedOpen, setDeceasedOpen] = useState(false);
 
   const onPickAvatar = (file: File | undefined) => {
     if (fileRef.current) fileRef.current.value = "";
@@ -152,6 +208,7 @@ function Header({ contact, editOpen, setEditOpen }: { contact: ContactDetail; ed
       <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={(e) => onPickAvatar(e.target.files?.[0])} />
 
       {cropFile && <AvatarCropDialog file={cropFile} onApply={onApplyCrop} onClose={() => setCropFile(null)} />}
+      <DeceasedDialog contact={contact} open={deceasedOpen} onOpenChange={setDeceasedOpen} />
 
       <Dialog open={photoOpen} onOpenChange={setPhotoOpen}>
         <DialogContent className="w-auto max-w-[min(98vw,120rem)] p-2 sm:max-w-[min(98vw,120rem)] sm:p-3">
@@ -195,6 +252,7 @@ function Header({ contact, editOpen, setEditOpen }: { contact: ContactDetail; ed
             {contact.animalType && <span className="ml-2 text-sm font-normal text-muted-foreground">{contact.animalType}</span>}
           </h1>
           <KindBadge kind={contact.kind} />
+          {contact.deceasedAt && <DeceasedBadge on={contact.deceasedOn} />}
           {contact.archivedAt && (
             <span className="flex items-center gap-1 text-xs text-muted-foreground">
               <ArchiveIcon className="size-3" /> Archived {formatDate(contact.archivedAt)}
@@ -278,6 +336,11 @@ function Header({ contact, editOpen, setEditOpen }: { contact: ContactDetail; ed
               </DropdownMenuItem>
             )}
             <DropdownMenuSeparator />
+            {contact.kind !== "organization" && (
+              <DropdownMenuItem onSelect={() => setDeceasedOpen(true)}>
+                <HeartCrackIcon /> {contact.deceasedAt ? "Deceased…" : "Mark as deceased…"}
+              </DropdownMenuItem>
+            )}
             <DropdownMenuItem onSelect={() => void onArchive()}>
               {contact.archivedAt ? (
                 <>

@@ -193,6 +193,12 @@ describe("ask tools", () => {
     const arch = pick(await run("propose_archive", { contactId: a.id, archived: true }));
     expect(arch.request).toEqual({ method: "POST", path: `/api/contacts/${a.id}/archive` });
     expect((await run("propose_archive", { contactId: a.id, archived: false })).ok).toBe(false);
+
+    const dead = pick(await run("propose_deceased", { contactId: rex.id, deceased: true, on: "2025-01" }));
+    expect(dead).toMatchObject({ destructive: true, request: { method: "POST", path: `/api/contacts/${rex.id}/deceased`, body: { on: "2025-01" } } });
+    expect((await run("propose_deceased", { contactId: rex.id, deceased: false })).ok).toBe(false);
+    const orgDead = await run("propose_deceased", { contactId: (await createContact({ kind: "organization", firstName: "No Death Ltd" })).id, deceased: true });
+    expect(orgDead.summary).toMatch(/Only people and pets/);
   });
 
   it("chains proposals on a not-yet-created contact via new:<id> placeholders", async () => {

@@ -72,9 +72,18 @@ export const contactListQuerySchema = paginationSchema.extend({
   kind: contactKindSchema.optional(),
   tag: z.string().trim().max(50).optional(),
   archived: boolQuery.optional().default(false),
+  /** true: only deceased contacts (archived is then ignored). false (default): deceased contacts are left out. */
+  deceased: boolQuery.optional().default(false),
   sort: contactSortSchema.optional().default("name"),
 });
 export type ContactListQuery = z.infer<typeof contactListQuerySchema>;
+
+/** Body of `POST /contacts/:id/deceased`. */
+export const markDeceasedSchema = z.object({
+  /** Date of death, partial (YYYY-MM-DD, YYYY-MM, YYYY, --MM-DD, --MM). */
+  on: birthdaySchema.nullish().transform((v) => v ?? null),
+});
+export type MarkDeceasedInput = z.infer<typeof markDeceasedSchema>;
 
 export const setTagsSchema = z.object({ tagNames: z.array(nonBlank(50)).max(50) });
 export type SetTagsInput = z.infer<typeof setTagsSchema>;

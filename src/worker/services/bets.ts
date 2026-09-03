@@ -4,7 +4,7 @@ import type { BetListResult, BetOut, BetRecord } from "@shared/types";
 import { schema, type Db } from "../db";
 import type { BetRow } from "../db/schema";
 import { ApiError } from "../lib/errors";
-import { contactRefs, toContactRef } from "./contacts";
+import { contactRefColumns, contactRefs, toContactRef } from "./contacts";
 
 const { bets, contacts } = schema;
 
@@ -39,7 +39,7 @@ export async function getBetRow(db: Db, id: string): Promise<BetRow> {
 
 export async function getBetOut(db: Db, id: string): Promise<BetOut> {
   const row = await db
-    .select({ bet: bets, contact: { id: contacts.id, kind: contacts.kind, displayName: contacts.displayName, avatarFileId: contacts.avatarFileId } })
+    .select({ bet: bets, contact: contactRefColumns })
     .from(bets)
     .innerJoin(contacts, eq(contacts.id, bets.contactId))
     .where(eq(bets.id, id))

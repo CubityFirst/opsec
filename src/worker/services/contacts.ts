@@ -28,9 +28,12 @@ export function avatarUrl(fileId: string | null | undefined): string | null {
   return fileId ? `/api/files/${fileId}` : null;
 }
 
-export function toContactRef(row: Pick<ContactRow, "id" | "kind" | "displayName" | "avatarFileId">): ContactRef {
-  return { id: row.id, kind: row.kind, displayName: row.displayName, avatarUrl: avatarUrl(row.avatarFileId) };
+export function toContactRef(row: Pick<ContactRow, "id" | "kind" | "displayName" | "avatarFileId" | "deceasedAt">): ContactRef {
+  return { id: row.id, kind: row.kind, displayName: row.displayName, avatarUrl: avatarUrl(row.avatarFileId), deceased: !!row.deceasedAt };
 }
+
+/** The columns `toContactRef` needs, for `select({...})` calls. */
+export const contactRefColumns = { id: contacts.id, kind: contacts.kind, displayName: contacts.displayName, avatarFileId: contacts.avatarFileId, deceasedAt: contacts.deceasedAt };
 
 export function toTagOut(row: Pick<TagRow, "id" | "name" | "color">): TagOut {
   return { id: row.id, name: row.name, color: row.color };
@@ -146,6 +149,8 @@ export async function hydrateSummaries(db: Db, rows: ContactRow[]): Promise<Cont
     primaryPhone: methodMap.get(r.id)?.phone ?? null,
     lastInteraction: lastMap.get(r.id) ?? null,
     archivedAt: r.archivedAt,
+    deceasedAt: r.deceasedAt,
+    deceasedOn: r.deceasedOn,
     createdAt: r.createdAt,
     updatedAt: r.updatedAt,
   }));
@@ -177,7 +182,10 @@ export function contactSearchCondition(q: string): SQL {
 }
 
 export async function listContacts(db: Db, query: ContactListQuery): Promise<ListResult<ContactSummary>> {
-  const conditions: SQL[] = [query.archived ? isNotNull(contacts.archivedAt) : isNull(contacts.archivedAt)];
+  // Three states: deceased (an archive-like shelf of its own), archived, active.
+  const conditions: SQL[] = query.deceased
+    ? [isNotNull(contacts.deceasedAt)]
+    : [isNull(contacts.deceasedAt), query.archived ? isNotNull(contacts.archivedAt) : isNull(contacts.archivedAt)];
   if (query.kind) conditions.push(eq(contacts.kind, query.kind));
   if (query.tag) {
     conditions.push(
@@ -276,7 +284,7 @@ export async function contactRefs(db: Db, ids: string[]): Promise<Map<string, Co
   const map = new Map<string, ContactRef>();
   for (const part of chunk(ids)) {
     const rows = await db
-      .select({ id: contacts.id, kind: contacts.kind, displayName: contacts.displayName, avatarFileId: contacts.avatarFileId })
+      .select(contactRefColumns)
       .from(contacts)
       .where(inArray(contacts.id, part));
     for (const r of rows) map.set(r.id, toContactRef(r));

@@ -9,6 +9,7 @@ import {
   contactMethodUpdateSchema,
   contactUpdateSchema,
   setTagsSchema,
+  markDeceasedSchema,
 } from "@shared/schemas/contact";
 import { normalizeSocial } from "@shared/social";
 import type { AppEnv } from "../env";
@@ -78,6 +79,8 @@ app.post("/contacts", zValidator("json", contactCreateSchema, validationHook), a
       notes: input.notes ?? null,
       customFields: input.customFields ?? {},
       archivedAt: null,
+      deceasedAt: null,
+      deceasedOn: null,
       createdAt: now,
       updatedAt: now,
     }),
@@ -211,6 +214,45 @@ app.post("/contacts/:id/unarchive", async (c) => {
     await runBatch(db, [
       db.update(contacts).set({ archivedAt: null, updatedAt: nowIso() }).where(eq(contacts.id, id)),
       ...activityInserts(db, [event(id, "contact", id, "contact.unarchived", { v: 1 })], c.get("actor")),
+    ]);
+  }
+  return c.json(await getContactDetail(db, id));
+});
+
+/**
+ * Mark a person or pet as deceased. Like archiving it leaves the default list,
+ * but every relationship, interaction and bet stays exactly as it was. Calling
+ * it again only updates the date of death.
+ */
+app.post("/contacts/:id/deceased", zValidator("json", markDeceasedSchema, validationHook), async (c) => {
+  const db = c.get("db");
+  const id = c.req.param("id");
+  const row = await getContactRow(db, id);
+  if (row.kind === "organization") throw ApiError.badRequest("Only people and pets can be marked as deceased");
+  const { on } = c.req.valid("json");
+  const now = nowIso();
+  if (!row.deceasedAt) {
+    await runBatch(db, [
+      db.update(contacts).set({ deceasedAt: now, deceasedOn: on, updatedAt: now }).where(eq(contacts.id, id)),
+      ...activityInserts(db, [event(id, "contact", id, "contact.deceased", { v: 1, on })], c.get("actor")),
+    ]);
+  } else if (on !== row.deceasedOn) {
+    await runBatch(db, [
+      db.update(contacts).set({ deceasedOn: on, updatedAt: now }).where(eq(contacts.id, id)),
+      ...activityInserts(db, [event(id, "contact", id, "contact.updated", { v: 1, changes: { deceasedOn: { from: row.deceasedOn, to: on } } })], c.get("actor")),
+    ]);
+  }
+  return c.json(await getContactDetail(db, id));
+});
+
+app.delete("/contacts/:id/deceased", async (c) => {
+  const db = c.get("db");
+  const id = c.req.param("id");
+  const row = await getContactRow(db, id);
+  if (row.deceasedAt) {
+    await runBatch(db, [
+      db.update(contacts).set({ deceasedAt: null, deceasedOn: null, updatedAt: nowIso() }).where(eq(contacts.id, id)),
+      ...activityInserts(db, [event(id, "contact", id, "contact.undeceased", { v: 1 })], c.get("actor")),
     ]);
   }
   return c.json(await getContactDetail(db, id));
