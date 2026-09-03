@@ -65,18 +65,18 @@ describe("auth", () => {
     expect(created?.event?.actor).toBe("test-admin");
   });
 
-  it("stores per-user preferences and returns them with the identity", async () => {
+  it("returns per-user preferences with the identity and accepts a preferences patch", async () => {
+    // No preferences are defined right now; the plumbing stays for the next one.
     const before = await json<AuthUser>("/api/auth/me");
-    expect(before.body.preferences).toEqual({ dashboardShowContactDetails: true });
-    const upd = await json<AuthUser>("/api/auth/preferences", { method: "PATCH", body: { dashboardShowContactDetails: false } });
+    expect(before.body.preferences).toEqual({});
+    const upd = await json<AuthUser>("/api/auth/preferences", { method: "PATCH", body: { unknownKey: true } });
     expect(upd.status).toBe(200);
-    expect(upd.body.preferences.dashboardShowContactDetails).toBe(false);
+    expect(upd.body.preferences).toEqual({});
     const after = await json<AuthUser>("/api/auth/me");
-    expect(after.body.preferences.dashboardShowContactDetails).toBe(false);
-    // Another user is unaffected.
+    expect(after.body.preferences).toEqual({});
     const other = await apiAs({ sub: "someone-else", roles: ["admin"] }, "/api/auth/me");
-    expect(((await other.json()) as AuthUser).preferences.dashboardShowContactDetails).toBe(true);
-    const bad = await json<ApiErrorBody>("/api/auth/preferences", { method: "PATCH", body: { dashboardShowContactDetails: "yes" } });
+    expect(((await other.json()) as AuthUser).preferences).toEqual({});
+    const bad = await json<ApiErrorBody>("/api/auth/preferences", { method: "PATCH", body: "nope" });
     expect(bad.status).toBe(400);
   });
 

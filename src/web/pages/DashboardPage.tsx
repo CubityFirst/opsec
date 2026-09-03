@@ -11,7 +11,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { errorMessage } from "@/lib/api";
 import { formatBirthday, formatRelative, parseBirthday } from "@/lib/format";
-import { useAuthUser } from "@/lib/queries/auth";
 import { useBets } from "@/lib/queries/bets";
 import { useContacts } from "@/lib/queries/contacts";
 import { useRecentInteractions } from "@/lib/queries/interactions";
@@ -58,7 +57,6 @@ export function DashboardPage() {
   const [logOpen, setLogOpen] = useState(false);
   const recent = useRecentInteractions(20);
   const contacts = useContacts({ limit: 200 });
-  const showDetails = useAuthUser()?.preferences.dashboardShowContactDetails ?? true;
 
   const now = useMemo(() => new Date(), []);
   // Open bets whose review point is within the next two weeks (or already past).
@@ -94,16 +92,6 @@ export function DashboardPage() {
           <h1 className="text-2xl font-semibold tracking-tight">Dashboard</h1>
           <p className="text-sm text-muted-foreground">
             What has been happening with the people in your life.
-            {!showDetails && (
-              <>
-                {" "}
-                Contact details are hidden (
-                <Link to="/account" className="underline">
-                  change
-                </Link>
-                ).
-              </>
-            )}
           </p>
         </div>
         <Button onClick={() => setLogOpen(true)}>
@@ -134,7 +122,7 @@ export function DashboardPage() {
             <>
               <div className="flex flex-col gap-3">
                 {interactions.map((i) => (
-                  <InteractionCard key={i.id} interaction={i} currentContactId="" maskContacts={!showDetails} />
+                  <InteractionCard key={i.id} interaction={i} currentContactId="" />
                 ))}
               </div>
               {recent.hasNextPage && (
@@ -160,7 +148,7 @@ export function DashboardPage() {
                         <span className="min-w-0 flex-1">
                           <span className="block truncate text-sm font-medium">{b.prediction}</span>
                           <span className="block truncate text-xs text-muted-foreground">
-                            {showDetails ? `with ${b.contact.displayName}` : "with a contact"}
+                            with {b.contact.displayName}
                             {b.wager ? ` · ${b.wager}` : ""}
                           </span>
                         </span>
@@ -181,13 +169,6 @@ export function DashboardPage() {
               <Skeleton className="h-16 w-full" />
             ) : birthdays.length === 0 ? (
               <p className="text-sm text-muted-foreground">None in the next 30 days.</p>
-            ) : !showDetails ? (
-              <p className="text-sm text-muted-foreground">
-                {birthdays.length} in the next 30 days.{" "}
-                <Link to="/contacts" className="underline">
-                  Open contacts
-                </Link>
-              </p>
             ) : (
               <ul className="flex flex-col">
                 {birthdays.map(({ c, days }) => (
@@ -202,13 +183,6 @@ export function DashboardPage() {
               <Skeleton className="h-16 w-full" />
             ) : outOfTouch.length === 0 ? (
               <p className="text-sm text-muted-foreground">You have spoken to everyone in the last month.</p>
-            ) : !showDetails ? (
-              <p className="text-sm text-muted-foreground">
-                {outOfTouch.length} {outOfTouch.length === 1 ? "person" : "people"} not spoken to in over a month.{" "}
-                <Link to="/contacts?sort=lastContacted" className="underline">
-                  Open contacts
-                </Link>
-              </p>
             ) : (
               <ul className="flex flex-col">
                 {outOfTouch.map(({ c }) => (

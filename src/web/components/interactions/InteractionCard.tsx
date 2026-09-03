@@ -27,12 +27,9 @@ import { InteractionDialog } from "./InteractionDialog";
 export function InteractionCard({
   interaction,
   currentContactId,
-  maskContacts = false,
 }: {
   interaction: InteractionOut;
   currentContactId: string;
-  /** Hide who the interaction was with (names, avatars, location); used by the dashboard privacy setting. */
-  maskContacts?: boolean;
 }) {
   const [editOpen, setEditOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -71,12 +68,7 @@ export function InteractionCard({
         {interaction.body && (
           <MarkdownBody className="text-sm text-muted-foreground">{interaction.body}</MarkdownBody>
         )}
-        {maskContacts && others.length > 0 && (
-          <div className="text-xs text-muted-foreground">
-            with {others.length} {others.length === 1 ? "contact" : "contacts"} (details hidden)
-          </div>
-        )}
-        {!maskContacts && (others.length > 0 || interaction.location) && (
+        {(others.length > 0 || interaction.location) && (
           <div className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
             {others.length > 0 && <span>with</span>}
             {others.map((p) => (

@@ -1,19 +1,14 @@
-import { EyeOffIcon, LogOutIcon, ShieldAlertIcon, ShieldCheckIcon } from "lucide-react";
-import { toast } from "sonner";
+import { LogOutIcon, ShieldAlertIcon, ShieldCheckIcon } from "lucide-react";
 import { AiProviderCard } from "@/components/settings/AiProviderCard";
 import { ApiTokensCard } from "@/components/settings/ApiTokensCard";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
-import { errorMessage } from "@/lib/api";
-import { useAuthUser, useLogout, useUpdatePreferences } from "@/lib/queries/auth";
+import { useAuthUser, useLogout } from "@/lib/queries/auth";
 
 export function AccountPage() {
   const user = useAuthUser();
   const logout = useLogout();
-  const updatePrefs = useUpdatePreferences();
   if (!user) return null;
 
   const rows: [string, React.ReactNode][] = [
@@ -89,33 +84,6 @@ export function AccountPage() {
             ))}
           </dl>
           <pre className="mt-4 overflow-x-auto rounded-md bg-muted p-3 text-xs">{JSON.stringify(user, null, 2)}</pre>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-base">
-            <EyeOffIcon className="size-4 text-muted-foreground" /> Dashboard
-          </CardTitle>
-          <CardDescription>Preferences are saved to your account and follow you between devices.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center justify-between gap-4">
-            <div className="flex flex-col gap-0.5">
-              <Label htmlFor="pref-dashboard-details">Show contact details on the dashboard</Label>
-              <p className="text-xs text-muted-foreground">
-                When off, the dashboard hides who each interaction was with and shows birthday and out-of-touch counts instead of names. Handy when sharing your screen.
-              </p>
-            </div>
-            <Switch
-              id="pref-dashboard-details"
-              checked={user.preferences.dashboardShowContactDetails}
-              disabled={updatePrefs.isPending}
-              onCheckedChange={(checked) =>
-                updatePrefs.mutate({ dashboardShowContactDetails: checked }, { onError: (e) => toast.error(errorMessage(e)) })
-              }
-            />
-          </div>
         </CardContent>
       </Card>
 
