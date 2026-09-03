@@ -57,7 +57,8 @@ export function ContactDetailPage() {
   return (
     <div className="flex flex-col gap-6">
       <Header contact={contact} editOpen={editOpen} setEditOpen={setEditOpen} />
-      <nav className="flex gap-1 overflow-x-auto border-b">
+      {/* overflow-y-hidden: the tabs' -mb-px would otherwise trigger a 1px vertical scrollbar. */}
+      <nav className="flex gap-1 overflow-x-auto overflow-y-hidden border-b">
         {TABS.map((t) => (
           <NavLink
             key={t.to}
