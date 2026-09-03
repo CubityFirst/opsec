@@ -29,10 +29,11 @@ import { SettleBetDialog } from "./SettleBetDialog";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
-const OUTCOME_STYLE: Record<BetOutcome, { icon: LucideIcon; badge: string }> = {
-  me: { icon: ThumbsUpIcon, badge: "border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"},
-  them: { icon: ThumbsDownIcon, badge: "border-rose-500/40 bg-rose-500/10 text-rose-700 dark:text-rose-400"},
-  void: { icon: BanIcon, badge: "text-muted-foreground"},
+/** Icon and tint for the status circle: dice while open, the outcome once settled. */
+const OUTCOME_STYLE: Record<BetOutcome, { icon: LucideIcon; circle: string }> = {
+  me: { icon: ThumbsUpIcon, circle: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400" },
+  them: { icon: ThumbsDownIcon, circle: "bg-rose-500/15 text-rose-600 dark:text-rose-400" },
+  void: { icon: BanIcon, circle: "bg-muted text-muted-foreground" },
 };
 
 /** Days from today (local) to a YYYY-MM-DD day; negative when it has passed. */
@@ -61,13 +62,15 @@ export function describeRecord(r: BetRecord): string {
   return parts.join(" · ");
 }
 
-export function BetOutcomeBadge({ outcome, className }: { outcome: BetOutcome; className?: string }) {
-  const s = OUTCOME_STYLE[outcome];
-  const Icon = s.icon;
+/** The circle at the left of a card: dice while the bet is open, a coloured outcome icon once settled. */
+export function BetStatusIcon({ outcome, className }: { outcome: BetOutcome | null; className?: string }) {
+  const s = outcome ? OUTCOME_STYLE[outcome] : null;
+  const Icon = s?.icon ?? DicesIcon;
+  const label = outcome ? BET_OUTCOME_LABELS[outcome] : "Open";
   return (
-    <Badge variant="outline" className={cn("gap-1", s.badge, className)}>
-      <Icon className="size-3" /> {BET_OUTCOME_LABELS[outcome]}
-    </Badge>
+    <span className={cn("flex size-8 shrink-0 items-center justify-center rounded-full", s?.circle ?? "bg-primary/10 text-primary", className)} title={label} aria-label={label} role="img">
+      <Icon className="size-4" />
+    </span>
   );
 }
 
@@ -102,15 +105,12 @@ export function BetCard({ bet, showContact = false, compact = false }: { bet: Be
               <ContactAvatar contact={bet.contact} className="size-8" />
             </Link>
           ) : (
-            <span className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
-              <DicesIcon className="size-4" />
-            </span>
+            <BetStatusIcon outcome={bet.outcome} className="mt-0.5" />
           )}
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
               <span className="font-medium">{bet.prediction}</span>
               {bet.wager && <Badge variant="secondary">{bet.wager}</Badge>}
-              {bet.outcome && <BetOutcomeBadge outcome={bet.outcome} />}
             </div>
             <div className="flex flex-wrap items-center gap-x-2 text-xs text-muted-foreground">
               {showContact && (
@@ -131,7 +131,9 @@ export function BetCard({ bet, showContact = false, compact = false }: { bet: Be
                   <CalendarCheckIcon className="size-3" /> {formatDate(bet.reviewOn)} ({review.text})
                 </span>
               ) : (
-                <span>settled {formatDate(bet.settledAt)}</span>
+                <span>
+                  {BET_OUTCOME_LABELS[bet.outcome!].toLowerCase()} · settled {formatDate(bet.settledAt)}
+                </span>
               )}
             </div>
           </div>
