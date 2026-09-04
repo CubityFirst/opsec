@@ -56,7 +56,7 @@ export function LifeEventCard({ lifeEvent, compact = false }: { lifeEvent: LifeE
   };
 
   return (
-    <Card className={cn("border-l-4 border-l-primary/40", compact && "py-3")}>
+    <Card className={cn(compact && "py-3")}>
       <CardContent className={cn("flex flex-col gap-2", compact && "px-4")}>
         <div className="flex items-start gap-3">
           <span className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
