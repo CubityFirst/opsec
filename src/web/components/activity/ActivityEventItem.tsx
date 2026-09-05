@@ -1,4 +1,4 @@
-import { ArchiveIcon, AtSignIcon, DicesIcon, FileIcon, HeartCrackIcon, LinkIcon, MilestoneIcon, PencilIcon, PlusIcon, RotateCcwIcon, SparklesIcon, TagIcon, Trash2Icon, type LucideIcon } from "lucide-react";
+import { ArchiveIcon, AtSignIcon, BellIcon, BellOffIcon, CheckIcon, DicesIcon, FileIcon, HeartCrackIcon, LinkIcon, MilestoneIcon, PencilIcon, PlusIcon, RotateCcwIcon, SparklesIcon, TagIcon, Trash2Icon, type LucideIcon } from "lucide-react";
 import { Link } from "react-router";
 import { BET_OUTCOME_LABELS, type BetOutcome } from "@shared/schemas/bet";
 import type { ActivityEventOut } from "@shared/types";
@@ -70,6 +70,18 @@ export function describeEvent(e: ActivityEventOut): { icon: LucideIcon; text: Re
       return { icon: RotateCcwIcon, text: <>Reopened bet “{str(p, "prediction")}”</> };
     case "bet.deleted":
       return { icon: Trash2Icon, text: <>Removed bet “{str(p, "prediction")}”</> };
+    case "reminder.created":
+      return { icon: BellIcon, text: <>Set a reminder: “{str(p, "title")}”, due {str(p, "dueOn")}{str(p, "repeat") ? `, ${str(p, "repeat")}` : ""}</> };
+    case "reminder.updated":
+      return { icon: PencilIcon, text: <>Edited reminder “{str(p, "title")}” ({changeSummary(p.changes)})</> };
+    case "reminder.completed":
+      return { icon: CheckIcon, text: <>Done: “{str(p, "title")}”{str(p, "nextDueOn") ? ` (next ${str(p, "nextDueOn")})` : ""}</> };
+    case "reminder.skipped":
+      return { icon: BellOffIcon, text: <>Skipped reminder “{str(p, "title")}” for {str(p, "on")}{str(p, "nextDueOn") ? ` (next ${str(p, "nextDueOn")})` : ""}</> };
+    case "reminder.reopened":
+      return { icon: RotateCcwIcon, text: <>Reopened reminder “{str(p, "title")}”</> };
+    case "reminder.deleted":
+      return { icon: Trash2Icon, text: <>Removed reminder “{str(p, "title")}”</> };
     case "interaction.mentioned":
       return {
         icon: AtSignIcon,

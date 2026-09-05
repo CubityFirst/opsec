@@ -1,4 +1,5 @@
-import type { BetOut, ContactRef, ContactSummary, FeedItem, InteractionOut, LifeEventOut } from "@shared/types";
+import { describeRepeat } from "@shared/schemas/reminder";
+import type { BetOut, ContactRef, ContactSummary, FeedItem, InteractionOut, LifeEventOut, ReminderOut } from "@shared/types";
 
 /** Cut text to `max` chars, telling the model how to get the rest. */
 export function truncate(text: string | null | undefined, max: number, hint = ""): string | null {
@@ -66,6 +67,20 @@ export function compactBet(b: BetOut, detailChars: number) {
   };
 }
 
+export function compactReminder(r: ReminderOut, noteChars: number) {
+  return {
+    id: r.id,
+    about: r.contact ? ref(r.contact) : undefined,
+    title: r.title,
+    dueOn: r.dueOn,
+    repeat: describeRepeat(r.repeat),
+    status: r.status,
+    lastCompletedOn: r.lastCompletedOn ?? undefined,
+    completedCount: r.completedCount || undefined,
+    notes: truncate(r.notes, noteChars) ?? undefined,
+  };
+}
+
 const str = (p: Record<string, unknown>, k: string) => (typeof p[k] === "string" ? (p[k] as string) : "");
 
 /** One line per feed item, for the activity tool. */
@@ -117,6 +132,18 @@ export function describeFeedItem(item: FeedItem): { at: string; kind: string; li
     case "bet.reopened":
     case "bet.deleted":
       line = `${e.eventType}: "${str(p, "prediction")}"`;
+      break;
+    case "reminder.created":
+      line = `reminder set: "${str(p, "title")}" due ${str(p, "dueOn")}${str(p, "repeat") ? `, ${str(p, "repeat")}` : ""} [id ${e.entityId}]`;
+      break;
+    case "reminder.completed":
+    case "reminder.skipped":
+      line = `reminder ${e.eventType === "reminder.completed" ? "done" : "skipped"}: "${str(p, "title")}" (${str(p, "on")})${str(p, "nextDueOn") ? `, next ${str(p, "nextDueOn")}` : ""} [id ${e.entityId}]`;
+      break;
+    case "reminder.updated":
+    case "reminder.reopened":
+    case "reminder.deleted":
+      line = `${e.eventType}: "${str(p, "title")}"`;
       break;
     case "file.uploaded":
     case "file.deleted":

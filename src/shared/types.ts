@@ -7,6 +7,7 @@ import type { ActivityEventType } from "./schemas/activity";
 import type { UserPreferences } from "./schemas/preferences";
 import type { LifeEventCategory } from "./schemas/life-event";
 import type { BetOutcome } from "./schemas/bet";
+import type { Repeat } from "./schemas/reminder";
 import type { ContactKind, ContactMethodType, EntityType, FileKind, InteractionType, RelationshipCategory } from "./schemas/common";
 
 export interface ListResult<T> {
@@ -249,6 +250,30 @@ export interface BetRecord {
 export interface BetListResult extends ListResult<BetOut> {
   /** Counts over every bet matching the filters except `status` (so the page can show the full record). */
   record: BetRecord;
+}
+
+export interface ReminderOut {
+  id: string;
+  /** Who it is about, if anyone. */
+  contact: ContactRef | null;
+  title: string;
+  notes: string | null;
+  /** Next (or only) due day, YYYY-MM-DD. */
+  dueOn: string;
+  /** null = one-off. */
+  repeat: Repeat | null;
+  status: "open" | "done";
+  completedAt: string | null;
+  /** The due day most recently marked done. */
+  lastCompletedOn: string | null;
+  completedCount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ReminderListResult extends ListResult<ReminderOut> {
+  /** Open / done counts over every reminder matching the filters except `status` and `dueBy`. */
+  counts: { open: number; done: number };
 }
 
 export type FeedItem =

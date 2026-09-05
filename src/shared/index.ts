@@ -7,6 +7,8 @@ export * from "./schemas/activity";
 export * from "./schemas/preferences";
 export * from "./schemas/life-event";
 export * from "./schemas/bet";
+export * from "./schemas/reminder";
+export * from "./recurrence";
 export * from "./schemas/ask";
 export * from "./schemas/ai-settings";
 export * from "./schemas/token";

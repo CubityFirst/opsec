@@ -1,4 +1,4 @@
-import { LayoutDashboardIcon, LogOutIcon, MenuIcon, SearchIcon, SparklesIcon, TagIcon, UserIcon, UsersIcon } from "lucide-react";
+import { BellIcon, LayoutDashboardIcon, LogOutIcon, MenuIcon, SearchIcon, SparklesIcon, TagIcon, UserIcon, UsersIcon } from "lucide-react";
 import { useState } from "react";
 import { NavLink, Outlet, useNavigate } from "react-router";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -15,6 +15,7 @@ import { ThemeToggle } from "./ThemeToggle";
 const NAV = [
   { to: "/", label: "Dashboard", icon: LayoutDashboardIcon, end: true },
   { to: "/contacts", label: "Contacts", icon: UsersIcon },
+  { to: "/reminders", label: "Reminders", icon: BellIcon },
   { to: "/tags", label: "Tags", icon: TagIcon },
   { to: "/ask", label: "Ask", icon: SparklesIcon },
 ];

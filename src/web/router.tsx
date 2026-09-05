@@ -34,6 +34,7 @@ export const router = createBrowserRouter([
           { path: "files", lazy: async () => ({ Component: (await import("./pages/tabs/FilesTab")).FilesTab }) },
         ],
       },
+      { path: "reminders", lazy: async () => ({ Component: (await import("./pages/RemindersPage")).RemindersPage }) },
       { path: "tags", lazy: async () => ({ Component: (await import("./pages/TagsPage")).TagsPage }) },
       { path: "ask", lazy: async () => ({ Component: (await import("./pages/AskPage")).AskPage }) },
       { path: "account", lazy: async () => ({ Component: (await import("./pages/AccountPage")).AccountPage }) },

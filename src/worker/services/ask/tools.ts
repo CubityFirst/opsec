@@ -1,19 +1,22 @@
 import type OpenAI from "openai";
 import { z } from "zod";
 import { BET_STATUSES } from "@shared/schemas/bet";
+import { REMINDER_STATUSES } from "@shared/schemas/reminder";
 import { CONTACT_KINDS, INTERACTION_TYPES, idSchema, isoDateSchema, isoDateTimeSchema, nonBlank, optionalText } from "@shared/schemas/common";
 import { interactionCreateSchema } from "@shared/schemas/interaction";
 
 import { newId } from "../../lib/ids";
 import { listBets } from "../bets";
+import { listReminders } from "../reminders";
 import { getContactDetail, getContactRow, listContacts } from "../contacts";
 import { contactFeed } from "../feed";
 import { getInteractionOut, listContactInteractions, searchInteractions } from "../interactions";
 import { listLifeEvents } from "../life-events";
 import { listRelationshipsFor } from "../relationships";
 import { BODY_PREVIEW_CHARS, MAX_TOOL_RESULT_BYTES, NOTES_SUMMARY_CHARS } from "./limits";
-import { compactBet, compactContact, compactInteraction, compactLifeEvent, describeFeedItem, ref, truncate } from "./compact";
+import { compactBet, compactContact, compactReminder, compactInteraction, compactLifeEvent, describeFeedItem, ref, truncate } from "./compact";
 import { PROPOSAL_TOOLS, resolveRefs } from "./proposals";
+import { listTagVocabulary } from "./tag-names";
 import { suggestReplies } from "./suggest";
 import { AskToolError, def, type ToolCtx, type ToolDef } from "./tool-def";
 
@@ -163,6 +166,35 @@ const listBetsTool = def({
   },
 });
 
+const listRemindersTool = def({
+  name: "list_reminders",
+  description:
+    "Reminders, one-off or recurring, optionally about a contact: title, the next dueOn day, the repeat rule ('once', 'every week', 'every 2 months until …'), status (open/done), when it was last done and how many times. Open reminders come first, soonest due on top. Filter by contactId, status, or dueBy (open reminders due on or before that day: use today's date for 'what is due' and 'what have I missed').",
+  schema: z.object({
+    contactId: idSchema.optional(),
+    status: z.enum(REMINDER_STATUSES).optional(),
+    dueBy: isoDateSchema.optional(),
+    limit: z.number().int().min(1).max(50).optional(),
+  }),
+  label: (i) => (i.contactId ? "Listing a contact’s reminders" : i.dueBy ? "Listing reminders that are due" : "Listing reminders"),
+  run: async (i, ctx) => {
+    const r = await listReminders(ctx.db, { contactId: i.contactId, status: i.status, dueBy: i.dueBy, limit: i.limit ?? 20, offset: 0 });
+    return { total: r.total, counts: r.counts, items: r.items.map((x) => compactReminder(x, 400)) };
+  },
+});
+
+const listTagsTool = def({
+  name: "list_tags",
+  description:
+    "Every tag in the CRM with how many contacts carry it. Tags are a shared vocabulary: call this before adding tags (propose_tags, or tagNames on propose_contact_create) and reuse an existing tag whenever it means the same thing rather than inventing a near-duplicate.",
+  schema: z.object({}),
+  label: () => "Listing tags",
+  run: async (_i, ctx) => {
+    const items = await listTagVocabulary(ctx.db);
+    return { total: items.length, items };
+  },
+});
+
 const proposeInteraction = def({
   name: "propose_interaction",
   description:
@@ -201,7 +233,7 @@ const proposeContactNote = def({
 });
 
 /** Fixed order: the tool list is part of the prompt prefix. */
-export const TOOLS: ToolDef<z.ZodObject>[] = [searchContacts, getContact, listInteractionsTool, getInteraction, getActivity, listLifeEventsTool, listBetsTool, proposeInteraction, proposeContactNote, ...PROPOSAL_TOOLS, suggestReplies];
+export const TOOLS: ToolDef<z.ZodObject>[] = [searchContacts, getContact, listInteractionsTool, getInteraction, getActivity, listLifeEventsTool, listBetsTool, listRemindersTool, listTagsTool, proposeInteraction, proposeContactNote, ...PROPOSAL_TOOLS, suggestReplies];
 
 export function toolDefinitions(): OpenAI.Chat.Completions.ChatCompletionTool[] {
   return TOOLS.map((t) => {

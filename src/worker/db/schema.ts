@@ -15,9 +15,10 @@ export const CONTACT_METHOD_TYPES = ["phone", "email", "address", "social", "url
 export const RELATIONSHIP_CATEGORIES = ["family", "social", "group", "work", "pet", "care", "other"] as const;
 export const INTERACTION_TYPES = ["call", "text", "email", "meeting", "meal", "gift", "event", "note", "other"] as const;
 export const FILE_KINDS = ["avatar", "avatar_original", "attachment"] as const;
-export const ENTITY_TYPES = ["contact", "contact_method", "tag", "relationship", "interaction", "file", "life_event", "bet"] as const;
+export const ENTITY_TYPES = ["contact", "contact_method", "tag", "relationship", "interaction", "file", "life_event", "bet", "reminder"] as const;
 export const LIFE_EVENT_CATEGORIES = ["work_education", "family_relationships", "home_living", "health_wellness", "travel_experiences"] as const;
 export const BET_OUTCOMES = ["me", "them", "void"] as const;
+export const REPEAT_UNITS = ["day", "week", "month", "year"] as const;
 
 const timestamps = {
   createdAt: text("created_at").notNull(),
@@ -236,6 +237,39 @@ export const bets = sqliteTable(
   (t) => [index("bets_contact_idx").on(t.contactId, t.reviewOn), index("bets_review_idx").on(t.outcome, t.reviewOn)],
 );
 
+/**
+ * A reminder, one-off or recurring, optionally about a contact. `due_on` is the
+ * next open occurrence; a recurring schedule is anchored on `start_on` so month
+ * and year rules do not drift when a month is short. Completing a one-off sets
+ * `completed_at`; completing a recurring one advances `due_on` and only sets
+ * `completed_at` once the series has run past `repeat_until`.
+ */
+export const reminders = sqliteTable(
+  "reminders",
+  {
+    id: text("id").primaryKey(),
+    contactId: text("contact_id").references(() => contacts.id, { onDelete: "cascade" }),
+    title: text("title").notNull(),
+    notes: text("notes"),
+    /** Next (or only) day it is due, YYYY-MM-DD. */
+    dueOn: text("due_on").notNull(),
+    /** Anchor of the schedule: the first due day. Equals due_on for a one-off. */
+    startOn: text("start_on").notNull(),
+    /** null for a one-off; otherwise "every N units". */
+    repeatEvery: integer("repeat_every"),
+    repeatUnit: text("repeat_unit", { enum: REPEAT_UNITS }),
+    /** Last day an occurrence may fall on, YYYY-MM-DD; null = forever. */
+    repeatUntil: text("repeat_until"),
+    /** Set once there is nothing left to do (one-off done, or a series exhausted). */
+    completedAt: text("completed_at"),
+    /** The due day most recently marked done. */
+    lastCompletedOn: text("last_completed_on"),
+    completedCount: integer("completed_count").notNull().default(0),
+    ...timestamps,
+  },
+  (t) => [index("reminders_contact_idx").on(t.contactId, t.dueOn), index("reminders_due_idx").on(t.completedAt, t.dueOn)],
+);
+
 export const files = sqliteTable(
   "files",
   {
@@ -327,3 +361,4 @@ export type ActivityRow = typeof activity.$inferSelect;
 export type UserRow = typeof users.$inferSelect;
 export type LifeEventRow = typeof lifeEvents.$inferSelect;
 export type BetRow = typeof bets.$inferSelect;
+export type ReminderRow = typeof reminders.$inferSelect;

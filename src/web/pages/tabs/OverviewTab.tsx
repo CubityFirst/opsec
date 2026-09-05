@@ -11,9 +11,12 @@ import { CustomFieldsEditor } from "@/components/contacts/CustomFieldsEditor";
 import { InteractionDialog } from "@/components/interactions/InteractionDialog";
 import { BetCard, describeRecord } from "@/components/bets/BetCard";
 import { BetDialog } from "@/components/bets/BetDialog";
+import { ReminderCard } from "@/components/reminders/ReminderCard";
+import { ReminderDialog } from "@/components/reminders/ReminderDialog";
 import { LifeEventCard } from "@/components/life-events/LifeEventCard";
 import { LifeEventDialog } from "@/components/life-events/LifeEventDialog";
 import { useContactBets } from "@/lib/queries/bets";
+import { useContactReminders } from "@/lib/queries/reminders";
 import { useLifeEvents } from "@/lib/queries/life-events";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -47,9 +50,15 @@ export function OverviewTab() {
   const [logOpen, setLogOpen] = useState(false);
   const [lifeOpen, setLifeOpen] = useState(false);
   const [betOpen, setBetOpen] = useState(false);
+  const [reminderOpen, setReminderOpen] = useState(false);
+  const [allDoneReminders, setAllDoneReminders] = useState(false);
   const [allSettled, setAllSettled] = useState(false);
   const lifeEvents = useLifeEvents(contact.id);
   const bets = useContactBets(contact.id);
+  const reminders = useContactReminders(contact.id);
+  const reminderItems = reminders.data?.items ?? [];
+  const openReminders = reminderItems.filter((r) => r.status === "open");
+  const doneReminders = reminderItems.filter((r) => r.status === "done");
   const betItems = bets.data?.items ?? [];
   const openBets = betItems.filter((b) => b.status === "open");
   const settledBets = betItems.filter((b) => b.status === "settled");
@@ -173,6 +182,43 @@ export function OverviewTab() {
                 ))}
                 {lifeEvents.data!.items.length > 5 && (
                   <p className="text-xs text-muted-foreground">{lifeEvents.data!.items.length - 5} more in the Activity tab.</p>
+                )}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle className="text-base">
+              Reminders
+              {reminders.data && reminderItems.length > 0 && (
+                <span className="ml-2 text-xs font-normal text-muted-foreground">
+                  {openReminders.length} open · {doneReminders.length} done
+                </span>
+              )}
+            </CardTitle>
+            <Button variant="outline" size="sm" onClick={() => setReminderOpen(true)}>
+              <PlusIcon /> Set a reminder
+            </Button>
+          </CardHeader>
+          <CardContent>
+            {reminders.isPending ? (
+              <p className="text-sm text-muted-foreground">Loading…</p>
+            ) : reminderItems.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No reminders about {contact.displayName}. Set one for a call to make, a date to remember, or something that comes round every month.</p>
+            ) : (
+              <div className="flex flex-col gap-2">
+                {openReminders.map((r) => (
+                  <ReminderCard key={r.id} reminder={r} compact />
+                ))}
+                {(allDoneReminders ? doneReminders : doneReminders.slice(0, 2)).map((r) => (
+                  <ReminderCard key={r.id} reminder={r} compact />
+                ))}
+                {doneReminders.length > 2 && (
+                  <button type="button" className="self-start text-xs text-muted-foreground underline" onClick={() => setAllDoneReminders((v) => !v)}>
+                    {allDoneReminders ? "Show fewer" : `Show ${doneReminders.length - 2} more done`}
+                  </button>
                 )}
               </div>
             )}
@@ -309,6 +355,7 @@ export function OverviewTab() {
       <InteractionDialog open={logOpen} onOpenChange={setLogOpen} initialParticipants={[contact]} />
       <LifeEventDialog contactId={contact.id} open={lifeOpen} onOpenChange={setLifeOpen} />
       <BetDialog contact={contact} open={betOpen} onOpenChange={setBetOpen} />
+      <ReminderDialog contact={contact} open={reminderOpen} onOpenChange={setReminderOpen} />
     </div>
   );
 }

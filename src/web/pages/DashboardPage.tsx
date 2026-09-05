@@ -1,4 +1,4 @@
-import { CakeIcon, ClockIcon, DicesIcon, MessageSquareIcon, PlusIcon } from "lucide-react";
+import { BellIcon, CakeIcon, ClockIcon, DicesIcon, MessageSquareIcon, PlusIcon } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Link } from "react-router";
 import type { ContactSummary } from "@shared/types";
@@ -6,6 +6,7 @@ import { describeReview } from "@/components/bets/BetCard";
 import { ContactAvatar } from "@/components/contacts/ContactAvatar";
 import { InteractionCard } from "@/components/interactions/InteractionCard";
 import { InteractionDialog } from "@/components/interactions/InteractionDialog";
+import { describeDue } from "@/components/reminders/ReminderCard";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -14,6 +15,7 @@ import { formatBirthday, formatRelative, parseBirthday } from "@/lib/format";
 import { useBets } from "@/lib/queries/bets";
 import { useContacts } from "@/lib/queries/contacts";
 import { useRecentInteractions } from "@/lib/queries/interactions";
+import { useReminders } from "@/lib/queries/reminders";
 import { cn } from "@/lib/utils";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -65,6 +67,12 @@ export function DashboardPage() {
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
   }, [now]);
   const dueBets = useBets({ dueBy, limit: 8 });
+  // Reminders that are overdue, due today or due within the week.
+  const weekEnd = useMemo(() => {
+    const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 7);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  }, [now]);
+  const dueReminders = useReminders({ dueBy: weekEnd, limit: 8 });
   const { birthdays, outOfTouch } = useMemo(() => {
     const items = contacts.data?.items ?? [];
     const birthdays = items
@@ -136,6 +144,51 @@ export function DashboardPage() {
 
         {/* First on narrow screens so it is not buried under the list; pinned on wide ones. */}
         <aside className="order-1 flex flex-col gap-4 lg:sticky lg:top-6 lg:order-2">
+          <SidePanel title="Reminders" icon={BellIcon}>
+            {dueReminders.isPending ? (
+              <Skeleton className="h-16 w-full" />
+            ) : (dueReminders.data?.items.length ?? 0) === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                Nothing due this week.{" "}
+                <Link to="/reminders" className="underline">
+                  All reminders
+                </Link>
+              </p>
+            ) : (
+              <>
+                <ul className="flex flex-col">
+                  {dueReminders.data!.items.map((r) => {
+                    const d = describeDue(r.dueOn, now);
+                    return (
+                      <li key={r.id}>
+                        <Link to={r.contact ? `/contacts/${r.contact.id}` : "/reminders"} className="flex items-center gap-3 rounded-md px-1 py-1.5 hover:bg-accent">
+                          {r.contact ? (
+                            <ContactAvatar contact={r.contact} className="size-8" />
+                          ) : (
+                            <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+                              <BellIcon className="size-4" />
+                            </span>
+                          )}
+                          <span className="min-w-0 flex-1">
+                            <span className="block truncate text-sm font-medium">{r.title}</span>
+                            {r.contact && <span className="block truncate text-xs text-muted-foreground">about {r.contact.displayName}</span>}
+                          </span>
+                          <span className={cn("shrink-0 text-xs", d.overdue ? "font-medium text-rose-600 dark:text-rose-400" : d.due ? "font-medium text-amber-600 dark:text-amber-400" : "text-muted-foreground")}>{d.text}</span>
+                        </Link>
+                      </li>
+                    );
+                  })}
+                </ul>
+                <p className="mt-2 text-xs text-muted-foreground">
+                  {dueReminders.data!.total > dueReminders.data!.items.length ? `${dueReminders.data!.total - dueReminders.data!.items.length} more. ` : ""}
+                  <Link to="/reminders" className="underline">
+                    All reminders
+                  </Link>
+                </p>
+              </>
+            )}
+          </SidePanel>
+
           {(dueBets.data?.items.length ?? 0) > 0 && (
             <SidePanel title="Bets to settle" icon={DicesIcon}>
               <ul className="flex flex-col">

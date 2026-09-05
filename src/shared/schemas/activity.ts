@@ -116,6 +116,31 @@ export const activityEventSchema = z.discriminatedUnion("eventType", [
   }),
 
   z.object({
+    eventType: z.literal("reminder.created"),
+    payload: z.object({ v: v1, title: z.string(), dueOn: z.string(), repeat: z.string().nullable() }),
+  }),
+  z.object({
+    eventType: z.literal("reminder.updated"),
+    payload: z.object({ v: v1, title: z.string(), changes: z.record(z.string(), fieldChangeSchema) }),
+  }),
+  z.object({
+    eventType: z.literal("reminder.completed"),
+    payload: z.object({ v: v1, title: z.string(), on: z.string(), nextDueOn: z.string().nullable() }),
+  }),
+  z.object({
+    eventType: z.literal("reminder.skipped"),
+    payload: z.object({ v: v1, title: z.string(), on: z.string(), nextDueOn: z.string().nullable() }),
+  }),
+  z.object({
+    eventType: z.literal("reminder.reopened"),
+    payload: z.object({ v: v1, title: z.string(), dueOn: z.string() }),
+  }),
+  z.object({
+    eventType: z.literal("reminder.deleted"),
+    payload: z.object({ v: v1, title: z.string(), dueOn: z.string(), repeat: z.string().nullable() }),
+  }),
+
+  z.object({
     eventType: z.literal("file.uploaded"),
     payload: z.object({ v: v1, kind: z.enum(["avatar", "avatar_original", "attachment"]), filename: z.string(), contentType: z.string(), size: z.number() }),
   }),

@@ -11,12 +11,15 @@ import { CONTACT_KINDS, INTERACTION_TYPES, birthdaySchema, contactMethodTypeSche
 import { contactCreateSchema, contactMethodInputSchema, customFieldsSchema, otherNameSchema } from "@shared/schemas/contact";
 import { LIFE_EVENT_CATEGORIES, LIFE_EVENT_CATEGORY_LABELS, lifeEventCreateSchema } from "@shared/schemas/life-event";
 import { BET_OUTCOME_LABELS, betCreateSchema, betOutcomeSchema } from "@shared/schemas/bet";
+import { describeRepeat, reminderCreateSchema, repeatSchema } from "@shared/schemas/reminder";
 import type { ContactDetail, ContactRef } from "@shared/types";
 import { schema } from "../../db";
 import { newId } from "../../lib/ids";
 import { contactRefs, getContactDetail } from "../contacts";
+import { repeatOf } from "../reminders";
 import { assertEmployer } from "../employment";
 import { getInteractionOut } from "../interactions";
+import { resolveTagNames } from "./tag-names";
 import { AskToolError, def, type ToolCtx } from "./tool-def";
 
 type ActionProposal = Extract<AskProposal, { kind: "action" }>;
@@ -230,14 +233,17 @@ const proposeContactCreate = def({
     metHow: text(2000),
     metViaContactId: idSchema.nullable().optional(),
     notes: text(50_000),
-    tagNames: z.array(nonBlank(50)).max(50).optional(),
+    tagNames: z.array(nonBlank(50)).max(50).optional().describe("Reuse existing tags (list_tags); a rewording of an existing tag is refused unless createNewTags is true"),
+    createNewTags: z.boolean().optional(),
     methods: z.array(z.object({ type: contactMethodTypeSchema, label: text(100), value: nonBlank(1000), isPrimary: z.boolean().optional() })).max(50).optional(),
   }),
   label: (i) => `Drafting a new contact “${i.firstName}”`,
   run: async (i, ctx) => {
-    const parsed = contactCreateSchema.safeParse(i);
+    const { createNewTags, ...rest } = i;
+    const parsed = contactCreateSchema.safeParse(rest);
     if (!parsed.success) throw new AskToolError(parsed.error.issues.map((x) => `${x.path.join(".")}: ${x.message}`).join("; "));
     const body = parsed.data;
+    body.tagNames = await resolveTagNames(ctx.db, body.tagNames, createNewTags);
     if (i.kind !== "person" && (body.jobTitle || body.employerContactId || body.pronouns)) throw new AskToolError("Only people have pronouns, a job title or an employer");
     if (i.kind !== "pet" && body.animalType) throw new AskToolError("Only pets have an animal type");
     const lookups = [body.employerContactId, body.metViaContactId].filter((x): x is string => !!x);
@@ -294,8 +300,14 @@ const proposeArchive = def({
 
 const proposeTags = def({
   name: "propose_tags",
-  description: "Draft adding and/or removing tags on a contact. Tags that do not exist yet are created on apply. Shown to the user with an Apply button.",
-  schema: z.object({ contactId: idSchema, add: z.array(nonBlank(50)).max(50).optional(), remove: z.array(nonBlank(50)).max(50).optional() }),
+  description:
+    "Draft adding and/or removing tags on a contact. Tags are a shared vocabulary: call list_tags first and reuse an existing tag whenever it means the same thing (\"colleague of mine\" → the existing \"colleague\"). A name that only rewords an existing tag is refused unless createNew is true. Genuinely new tags are created on apply. Shown to the user with an Apply button.",
+  schema: z.object({
+    contactId: idSchema,
+    add: z.array(nonBlank(50)).max(50).optional(),
+    remove: z.array(nonBlank(50)).max(50).optional(),
+    createNew: z.boolean().optional().describe("Only when the user explicitly wants a new tag that is close to an existing one"),
+  }),
   label: () => "Drafting a tag change for you to review",
   run: async (i, ctx) => {
     const { detail: d, ref, dependsOn } = await contactOrPending(ctx, i.contactId);
@@ -303,7 +315,7 @@ const proposeTags = def({
     const current = d.tags.map((t) => t.name);
     const removeSet = new Set((i.remove ?? []).map((t) => t.toLowerCase()));
     const next = current.filter((t) => !removeSet.has(t.toLowerCase()));
-    for (const t of i.add ?? []) if (!next.some((x) => x.toLowerCase() === t.toLowerCase())) next.push(t);
+    for (const t of await resolveTagNames(ctx.db, i.add ?? [], i.createNew)) if (!next.some((x) => x.toLowerCase() === t.toLowerCase())) next.push(t);
     if (JSON.stringify(next) === JSON.stringify(current)) throw new AskToolError("Nothing would change: those tags are already set (or already absent)");
     return emitAction(ctx, {
       title: `Update tags on ${ref.displayName}`,
@@ -616,6 +628,84 @@ const proposeBet = def({
 });
 
 // ---------------------------------------------------------------------------
+// Reminders
+
+const proposeReminder = def({
+  name: "propose_reminder",
+  description:
+    "Draft a reminder: add one (title, dueOn day, optional repeat rule {every, unit: day|week|month|year, until?} and optional contactId for who it is about), update its fields (repeat: null makes it one-off), complete the current occurrence (a recurring one moves to its next day), skip an occurrence of a recurring one, reopen a done one, or remove it. For anything but add pass the reminderId from list_reminders. Dates are YYYY-MM-DD. Shown to the user with an Apply button.",
+  schema: z.object({
+    action: z.enum(["add", "update", "complete", "skip", "reopen", "remove"]),
+    contactId: idSchema.nullable().optional().describe("Who the reminder is about; omit for a general one"),
+    reminderId: idSchema.optional(),
+    title: z.string().trim().max(200).optional(),
+    notes: text(20_000),
+    dueOn: isoDateSchema.optional(),
+    repeat: repeatSchema.nullable().optional(),
+  }),
+  label: (i) => `Drafting a reminder ${i.action} for you to review`,
+  run: async (i, ctx) => {
+    if (i.action === "add") {
+      const about = i.contactId ? await contactOrPending(ctx, i.contactId) : null;
+      const parsed = reminderCreateSchema.safeParse({ contactId: about?.ref.id ?? null, title: i.title, notes: i.notes ?? null, dueOn: i.dueOn, repeat: i.repeat ?? null });
+      if (!parsed.success) throw new AskToolError(parsed.error.issues.map((x) => `${x.path.join(".")}: ${x.message}`).join("; "));
+      const body = parsed.data;
+      const changes: Change[] = [
+        { label: "Reminder", from: null, to: body.title },
+        { label: "Due", from: null, to: body.dueOn },
+        { label: "Repeats", from: null, to: describeRepeat(body.repeat) },
+      ];
+      if (body.notes) changes.push({ label: "Notes", from: null, to: body.notes });
+      return emitAction(ctx, {
+        title: about ? `Remind me about ${about.ref.displayName}: ${body.title}` : `Remind me: ${body.title}`,
+        contact: about?.ref ?? null,
+        changes,
+        request: { method: "POST", path: "/api/reminders", body },
+        dependsOn: about?.dependsOn,
+      });
+    }
+    if (!i.reminderId) throw new AskToolError("reminderId is required (see list_reminders)");
+    const row = await ctx.db.select().from(schema.reminders).where(eq(schema.reminders.id, i.reminderId)).get();
+    if (!row || (i.contactId && row.contactId !== i.contactId)) throw new AskToolError("Not found");
+    const contact = row.contactId ? ((await contactRefs(ctx.db, [row.contactId])).get(row.contactId) ?? null) : null;
+    const quoted = `“${row.title}”`;
+    const rule = repeatOf(row);
+    if (i.action === "remove") {
+      return emitAction(ctx, {
+        title: `Remove reminder ${quoted}`,
+        contact,
+        changes: [{ label: "Reminder", from: `${row.title} (due ${row.dueOn}, ${describeRepeat(rule)})`, to: null }],
+        request: { method: "DELETE", path: `/api/reminders/${row.id}` },
+        destructive: true,
+      });
+    }
+    if (i.action === "complete" || i.action === "skip") {
+      if (row.completedAt) throw new AskToolError("That reminder is already done");
+      if (i.action === "skip" && !rule) throw new AskToolError("Only a recurring reminder can be skipped; complete or remove a one-off");
+      return emitAction(ctx, {
+        title: `${i.action === "complete" ? "Mark done" : "Skip"}: ${quoted}`,
+        contact,
+        changes: [{ label: "Occurrence", from: row.dueOn, to: rule ? "next occurrence" : "done" }],
+        request: { method: "POST", path: `/api/reminders/${row.id}/${i.action}` },
+      });
+    }
+    if (i.action === "reopen") {
+      if (!row.completedAt) throw new AskToolError("That reminder is still open");
+      return emitAction(ctx, { title: `Reopen reminder ${quoted}`, contact, changes: [{ label: "Status", from: "done", to: "open" }], request: { method: "POST", path: `/api/reminders/${row.id}/reopen` } });
+    }
+    const body: Record<string, unknown> = {};
+    const changes: Change[] = [];
+    const title = i.title?.trim();
+    if (title && title !== row.title) (body.title = title), changes.push({ label: "Reminder", from: row.title, to: title });
+    if (i.notes !== undefined && norm(i.notes) !== row.notes) (body.notes = norm(i.notes) ?? null), changes.push({ label: "Notes", from: row.notes, to: norm(i.notes) ?? null });
+    if (i.dueOn !== undefined && i.dueOn !== row.dueOn) (body.dueOn = i.dueOn), changes.push({ label: "Due", from: row.dueOn, to: i.dueOn });
+    if (i.repeat !== undefined && describeRepeat(i.repeat) !== describeRepeat(rule)) (body.repeat = i.repeat), changes.push({ label: "Repeats", from: describeRepeat(rule), to: describeRepeat(i.repeat) });
+    if (changes.length === 0) throw new AskToolError("Nothing would change");
+    return emitAction(ctx, { title: `Update reminder ${quoted}`, contact, changes, request: { method: "PATCH", path: `/api/reminders/${row.id}`, body } });
+  },
+});
+
+// ---------------------------------------------------------------------------
 // Interactions (existing ones; new ones go through propose_interaction)
 
 const proposeInteractionUpdate = def({
@@ -689,6 +779,7 @@ export const PROPOSAL_TOOLS = [
   proposeRelationship,
   proposeLifeEvent,
   proposeBet,
+  proposeReminder,
   proposeInteractionUpdate,
   proposeInteractionDelete,
   proposeArchive,

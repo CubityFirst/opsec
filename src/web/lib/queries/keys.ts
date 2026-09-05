@@ -11,11 +11,17 @@ export const contactKeys = {
   files: (id: string) => [...contactKeys.all, "files", id] as const,
   lifeEvents: (id: string) => [...contactKeys.all, "life-events", id] as const,
   bets: (id: string) => [...contactKeys.all, "bets", id] as const,
+  reminders: (id: string) => [...contactKeys.all, "reminders", id] as const,
 };
 
 export const betKeys = {
   all: ["bets"] as const,
   list: (q: Record<string, string | number | undefined>) => [...betKeys.all, "list", q] as const,
+};
+
+export const reminderKeys = {
+  all: ["reminders"] as const,
+  list: (q: Record<string, string | number | undefined>) => [...reminderKeys.all, "list", q] as const,
 };
 
 export const tagKeys = {

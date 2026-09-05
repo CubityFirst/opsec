@@ -5,7 +5,7 @@ export const CONTACT_METHOD_TYPES = ["phone", "email", "address", "social", "url
 export const RELATIONSHIP_CATEGORIES = ["family", "social", "group", "work", "pet", "care", "other"] as const;
 export const INTERACTION_TYPES = ["call", "text", "email", "meeting", "meal", "gift", "event", "note", "other"] as const;
 export const FILE_KINDS = ["avatar", "avatar_original", "attachment"] as const;
-export const ENTITY_TYPES = ["contact", "contact_method", "tag", "relationship", "interaction", "file", "life_event", "bet"] as const;
+export const ENTITY_TYPES = ["contact", "contact_method", "tag", "relationship", "interaction", "file", "life_event", "bet", "reminder"] as const;
 
 export const contactKindSchema = z.enum(CONTACT_KINDS);
 export const contactMethodTypeSchema = z.enum(CONTACT_METHOD_TYPES);
