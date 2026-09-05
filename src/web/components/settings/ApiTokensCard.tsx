@@ -52,10 +52,7 @@ export function ApiTokensCard() {
         <CardTitle className="flex items-center gap-2 text-base">
           <KeyRoundIcon className="size-4" /> API tokens
         </CardTitle>
-        <CardDescription>
-          For MCP clients (Claude Code, Claude Desktop, ChatGPT) and scripts. A token acts as you: read-only tokens can search and read; write tokens can also
-          change data. Revoke one at any time.
-        </CardDescription>
+        <CardDescription>For MCP clients (Claude Code, Claude Desktop, ChatGPT) and scripts.</CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
         {created && (
@@ -92,43 +89,53 @@ export function ApiTokensCard() {
         {tokens.data && tokens.data.length > 0 && (
           <ul className="flex flex-col divide-y rounded-md border text-sm">
             {tokens.data.map((t) => (
-              <li key={t.id} className="flex flex-wrap items-center gap-2 px-3 py-2">
-                <span className="font-medium">{t.name}</span>
-                <Badge variant={t.scope === "write" ? "default" : "secondary"}>{SCOPE_LABELS[t.scope]}</Badge>
-                <code className="font-mono text-xs text-muted-foreground">{t.prefix}…</code>
-                <span className="text-xs text-muted-foreground">
-                  created {formatRelative(t.createdAt)}
-                  {t.lastUsedAt ? `, last used ${formatRelative(t.lastUsedAt)}` : ", never used"}
+              <li key={t.id} className="flex items-start gap-3 px-3 py-2.5">
+                <span className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary" aria-hidden>
+                  <KeyRoundIcon className="size-4" />
                 </span>
-                <span className="flex-1" />
-                {confirming === t.id ? (
-                  <>
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="destructive"
-                      disabled={revoke.isPending}
-                      onClick={() =>
-                        revoke.mutate(t.id, {
-                          onSuccess: () => {
-                            setConfirming(null);
-                            toast.success("Token revoked");
-                          },
-                          onError: (e) => toast.error(errorMessage(e)),
-                        })
-                      }
-                    >
-                      Confirm revoke
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="truncate font-medium">{t.name}</span>
+                    <Badge variant={t.scope === "write" ? "default" : "secondary"}>{SCOPE_LABELS[t.scope]}</Badge>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-x-2 text-xs text-muted-foreground">
+                    <code className="font-mono">{t.prefix}…</code>
+                    <span aria-hidden>·</span>
+                    <span>created {formatRelative(t.createdAt)}</span>
+                    <span aria-hidden>·</span>
+                    <span>{t.lastUsedAt ? `last used ${formatRelative(t.lastUsedAt)}` : "never used"}</span>
+                  </div>
+                </div>
+                <div className="flex shrink-0 items-center gap-1">
+                  {confirming === t.id ? (
+                    <>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="destructive"
+                        disabled={revoke.isPending}
+                        onClick={() =>
+                          revoke.mutate(t.id, {
+                            onSuccess: () => {
+                              setConfirming(null);
+                              toast.success("Token revoked");
+                            },
+                            onError: (e) => toast.error(errorMessage(e)),
+                          })
+                        }
+                      >
+                        Confirm revoke
+                      </Button>
+                      <Button type="button" size="sm" variant="ghost" onClick={() => setConfirming(null)}>
+                        Cancel
+                      </Button>
+                    </>
+                  ) : (
+                    <Button type="button" size="sm" variant="ghost" aria-label={`Revoke ${t.name}`} onClick={() => setConfirming(t.id)}>
+                      <Trash2Icon /> Revoke
                     </Button>
-                    <Button type="button" size="sm" variant="ghost" onClick={() => setConfirming(null)}>
-                      Cancel
-                    </Button>
-                  </>
-                ) : (
-                  <Button type="button" size="sm" variant="ghost" aria-label={`Revoke ${t.name}`} onClick={() => setConfirming(t.id)}>
-                    <Trash2Icon /> Revoke
-                  </Button>
-                )}
+                  )}
+                </div>
               </li>
             ))}
           </ul>
