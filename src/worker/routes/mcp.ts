@@ -7,6 +7,7 @@ import { getDb } from "../db";
 import type { AppEnv } from "../env";
 import { ByteBudget } from "../services/ask/limits";
 import type { ToolCtx, ToolDef } from "../services/ask/tool-def";
+import { SUGGEST_REPLIES } from "../services/ask/suggest";
 import { TOOLS, executeTool } from "../services/ask/tools";
 import { authenticateToken } from "../services/tokens";
 
@@ -68,6 +69,8 @@ function writeDescription(t: ToolDef<z.ZodObject>, name: string): string {
 function buildTools(): McpTool[] {
   const out: McpTool[] = [];
   for (const t of TOOLS) {
+    // Quick replies are an Ask UI affordance; an MCP client just asks its own user.
+    if (t.name === SUGGEST_REPLIES) continue;
     if (t.name.startsWith("propose_")) {
       const name = WRITE_NAMES[t.name];
       if (!name) continue;

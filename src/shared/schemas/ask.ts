@@ -7,6 +7,9 @@ export const ASK_IMAGE_MAX_BYTES = 5 * 1024 * 1024;
 /** Long edge the client downscales to before upload. */
 export const ASK_IMAGE_MAX_EDGE = 1568;
 export const ASK_MAX_HISTORY_TURNS = 40;
+/** Quick replies the assistant may offer under a question (`suggest_replies`). */
+export const ASK_MAX_SUGGESTIONS = 4;
+export const ASK_SUGGESTION_MAX_CHARS = 80;
 
 export const askImageSchema = z.object({
   mediaType: z.enum(["image/png", "image/jpeg", "image/webp", "image/gif"]),
@@ -66,6 +69,8 @@ export type AskEvent =
   | { type: "tool_call"; id: string; name: string; label: string; input: unknown }
   | { type: "tool_result"; id: string; ok: boolean; summary: string; bytes: number }
   | { type: "proposal"; proposal: AskProposal }
+  /** Quick replies for the question just asked; picking one sends it as the next user message. */
+  | { type: "suggestions"; replies: string[] }
   | { type: "done"; stop: AskStop; iterations: number; usage: { input: number; output: number } }
   | { type: "error"; code: string; message: string };
 

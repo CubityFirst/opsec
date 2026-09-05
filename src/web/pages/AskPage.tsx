@@ -41,6 +41,12 @@ export function AskPage() {
     setImage(null);
   };
 
+  /** A tapped quick reply goes as-is; an unsent draft stays in the box for the next message. */
+  const reply = (text: string) => {
+    if (streaming) return;
+    void ask.send(text);
+  };
+
   return (
     <div className="flex h-[calc(100svh-4rem)] flex-col gap-4 md:h-[calc(100svh-6rem)]">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -65,7 +71,7 @@ export function AskPage() {
             <p>Paste a screenshot of a chat and ask “Log this.”</p>
           </div>
         ) : (
-          <MessageList turns={ask.turns} streaming={streaming} onProposalChange={ask.markProposal} />
+          <MessageList turns={ask.turns} streaming={streaming} onProposalChange={ask.markProposal} onReply={reply} />
         )}
         <div ref={bottomRef} />
       </div>

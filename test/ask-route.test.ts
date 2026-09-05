@@ -18,6 +18,14 @@ const toolTurn = (id: string, name: string, args: string): Chunk[] => [
   { choices: [{ index: 0, delta: { tool_calls: [{ index: 0, function: { arguments: args.slice(4) } }] }, finish_reason: null }] },
   { choices: [{ index: 0, delta: {}, finish_reason: "tool_calls" }], usage: { prompt_tokens: 20, completion_tokens: 8 } },
 ];
+/** Text plus one or more tool calls in the same assistant message. */
+const mixedTurn = (text: string, calls: { id: string; name: string; args: string }[]): Chunk[] => [
+  { choices: [{ index: 0, delta: { role: "assistant", content: text }, finish_reason: null }] },
+  ...calls.map((c, index) => ({
+    choices: [{ index: 0, delta: { tool_calls: [{ index, id: c.id, type: "function", function: { name: c.name, arguments: c.args } }] }, finish_reason: null }],
+  })),
+  { choices: [{ index: 0, delta: {}, finish_reason: "tool_calls" }], usage: { prompt_tokens: 20, completion_tokens: 8 } },
+];
 
 type Seen = { url: string; headers: Headers; body: Record<string, unknown> };
 
@@ -105,6 +113,48 @@ describe("POST /api/ask", () => {
       { type: "image_url", image_url: { url: "data:image/png;base64,iVBORw0KGgo=" } },
       { type: "text", text: "What is this?" },
     ]);
+  });
+
+  it("turns a final suggest_replies call into quick replies and ends the turn without another provider call", async () => {
+    const seen = installUpstream([
+      () => mixedTurn("Nobody called Sam Lee exists yet. Shall I create them?", [{ id: "call_s", name: "suggest_replies", args: JSON.stringify({ replies: ["Yes, create Sam Lee", " yes, create sam lee ", "", "No, I meant someone else", "Skip it", "One too many"] }) }]),
+    ]);
+    const r = await ask({ question: "Log lunch with Sam Lee" });
+    expect(r.events.map((e) => e.type)).toEqual(["text", "suggestions", "done"]);
+    expect(r.events[1]).toEqual({ type: "suggestions", replies: ["Yes, create Sam Lee", "No, I meant someone else", "Skip it", "One too many"] });
+    expect(r.events.at(-1)).toMatchObject({ type: "done", stop: "end_turn", iterations: 1 });
+    expect(seen).toHaveLength(1);
+    expect((seen[0]!.body.tools as { function: { name: string } }[]).map((t) => t.function.name)).toContain("suggest_replies");
+  });
+
+  it("uses the question argument as the message text when the model wrote none", async () => {
+    installUpstream([() => toolTurn("call_s", "suggest_replies", JSON.stringify({ question: "Which Alice did you mean?", replies: ["Alice Hartley", "Alice Wong"] }))]);
+    const r = await ask({ question: "Call Alice" });
+    expect(r.events).toEqual([
+      { type: "text", delta: "Which Alice did you mean?" },
+      { type: "suggestions", replies: ["Alice Hartley", "Alice Wong"] },
+      expect.objectContaining({ type: "done", stop: "end_turn" }),
+    ]);
+  });
+
+  it("rejects suggest_replies that is mixed with lookups or malformed, and lets the model carry on", async () => {
+    const seen = installUpstream([
+      () =>
+        mixedTurn("Checking…", [
+          { id: "call_a", name: "search_contacts", args: JSON.stringify({ q: "zzz-nobody" }) },
+          { id: "call_b", name: "suggest_replies", args: JSON.stringify({ replies: ["Yes"] }) },
+        ]),
+      () => toolTurn("call_c", "suggest_replies", JSON.stringify({ replies: [] })),
+      () => textTurn("No match. Shall I create them?"),
+    ]);
+    const r = await ask({ question: "Log lunch with zzz-nobody" });
+    expect(r.events.filter((e) => e.type === "suggestions")).toHaveLength(0);
+    const results = r.events.filter((e) => e.type === "tool_result") as { id: string; ok: boolean; summary: string }[];
+    expect(results.find((e) => e.id === "call_a")?.ok).toBe(true);
+    expect(results.find((e) => e.id === "call_b")).toMatchObject({ ok: false, summary: expect.stringMatching(/only tool call/) });
+    expect(results.find((e) => e.id === "call_c")).toMatchObject({ ok: false, summary: expect.stringMatching(/Invalid arguments/) });
+    expect(r.events.at(-1)).toMatchObject({ type: "done", stop: "end_turn", iterations: 3 });
+    expect(seen).toHaveLength(3);
   });
 
   it("stops at the iteration cap when the model keeps calling tools", async () => {

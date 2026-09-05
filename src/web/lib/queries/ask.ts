@@ -24,6 +24,8 @@ export type AskTurn =
       text: string;
       trail: TrailItem[];
       proposals: (AskProposal & { applied?: boolean; dismissed?: boolean; result?: unknown })[];
+      /** Quick replies offered under this message; shown only while it is the latest turn. */
+      suggestions?: string[];
       done?: { stop: AskStop; iterations: number };
       error?: string;
     };
@@ -69,6 +71,8 @@ function reduce(state: State, action: Action): State {
               return { ...t, trail: t.trail.map((x) => (x.id === e.id ? { ...x, ok: e.ok, summary: e.summary } : x)) };
             case "proposal":
               return { ...t, proposals: [...t.proposals, e.proposal] };
+            case "suggestions":
+              return { ...t, suggestions: e.replies };
             case "done":
               return { ...t, done: { stop: e.stop, iterations: e.iterations } };
             case "error":

@@ -6,6 +6,7 @@ import { extraBody } from "./client";
 import type { AiProvider } from "./provider";
 import { ByteBudget, MAX_HISTORY_CHARS_PER_TURN, MAX_HISTORY_TURNS_SENT, MAX_ITERATIONS, MAX_OUTPUT_TOKENS, MAX_RUN_MS, MAX_TOOL_CALLS_PER_ITERATION } from "./limits";
 import { systemMessage } from "./prompt";
+import { SUGGEST_REPLIES, cleanReplies, suggestRepliesSchema } from "./suggest";
 import type { ToolCtx } from "./tool-def";
 import { executeTool, toolDefinitions, type ToolCall } from "./tools";
 
@@ -119,6 +120,20 @@ export async function runAsk(args: RunAskArgs): Promise<RunAskResult> {
     if (iterations >= MAX_ITERATIONS) return finish("max_iterations");
 
     const ordered = [...calls.entries()].sort((a, b) => a[0] - b[0]).map(([, c], i) => ({ ...c, id: c.id || `call_${iterations}_${i}` }));
+
+    // Quick replies are the end of the conversation turn, not a lookup: when the
+    // model's message is its question plus suggest_replies (and nothing else),
+    // surface the options and stop without another round-trip to the provider.
+    if (ordered.every((c) => c.name === SUGGEST_REPLIES)) {
+      const suggestion = parseSuggestion(ordered[0]!.argsJson);
+      if (suggestion) {
+        if (!text.trim() && suggestion.question) await emit({ type: "text", delta: suggestion.question });
+        await emit({ type: "suggestions", replies: suggestion.replies });
+        return finish("end_turn");
+      }
+      // Unusable arguments: fall through so the tool reports the validation error and the model can answer in prose.
+    }
+
     messages.push({
       role: "assistant",
       content: text || null,
@@ -142,4 +157,18 @@ export async function runAsk(args: RunAskArgs): Promise<RunAskResult> {
       // One more turn is allowed so the model can answer from what it has; tools now refuse.
     }
   }
+}
+
+/** Valid, non-empty suggest_replies arguments, or null when the tool should handle (and reject) the call instead. */
+function parseSuggestion(argsJson: string): { question?: string; replies: string[] } | null {
+  let raw: unknown;
+  try {
+    raw = argsJson.trim() ? JSON.parse(argsJson) : {};
+  } catch {
+    return null;
+  }
+  const parsed = suggestRepliesSchema.safeParse(raw);
+  if (!parsed.success) return null;
+  const replies = cleanReplies(parsed.data.replies);
+  return replies ? { question: parsed.data.question, replies } : null;
 }

@@ -53,6 +53,7 @@ describe("MCP server", () => {
     const names = (list.body!.result!.tools as { name: string }[]).map((t) => t.name);
     expect(names).toContain("search_contacts");
     expect(names).not.toContain("create_contact");
+    expect(names).not.toContain("suggest_replies");
 
     const write = await token("write");
     const list2 = await rpc(write, "tools/list");

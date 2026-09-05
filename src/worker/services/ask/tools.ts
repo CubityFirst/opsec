@@ -14,6 +14,7 @@ import { listRelationshipsFor } from "../relationships";
 import { BODY_PREVIEW_CHARS, MAX_TOOL_RESULT_BYTES, NOTES_SUMMARY_CHARS } from "./limits";
 import { compactBet, compactContact, compactInteraction, compactLifeEvent, describeFeedItem, ref, truncate } from "./compact";
 import { PROPOSAL_TOOLS, resolveRefs } from "./proposals";
+import { suggestReplies } from "./suggest";
 import { AskToolError, def, type ToolCtx, type ToolDef } from "./tool-def";
 
 // This module is read-only by construction: it never imports lib/batch or any
@@ -200,7 +201,7 @@ const proposeContactNote = def({
 });
 
 /** Fixed order: the tool list is part of the prompt prefix. */
-export const TOOLS: ToolDef<z.ZodObject>[] = [searchContacts, getContact, listInteractionsTool, getInteraction, getActivity, listLifeEventsTool, listBetsTool, proposeInteraction, proposeContactNote, ...PROPOSAL_TOOLS];
+export const TOOLS: ToolDef<z.ZodObject>[] = [searchContacts, getContact, listInteractionsTool, getInteraction, getActivity, listLifeEventsTool, listBetsTool, proposeInteraction, proposeContactNote, ...PROPOSAL_TOOLS, suggestReplies];
 
 export function toolDefinitions(): OpenAI.Chat.Completions.ChatCompletionTool[] {
   return TOOLS.map((t) => {

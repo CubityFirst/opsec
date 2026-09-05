@@ -2,6 +2,7 @@ import { MENTION_RE } from "@shared/mentions";
 import { ContactPeek } from "@/components/contacts/ContactPeek";
 import { SparklesIcon } from "lucide-react";
 import { MarkdownBody } from "@/components/MarkdownBody";
+import { Button } from "@/components/ui/button";
 import type { AskTurn } from "@/lib/queries/ask";
 import { ProposalCard, type ProposalPatch } from "./ProposalCard";
 import { ApplyAllButton, proposalContext } from "./ProposalQueue";
@@ -11,10 +12,13 @@ export function MessageList({
   turns,
   streaming,
   onProposalChange,
+  onReply,
 }: {
   turns: AskTurn[];
   streaming: boolean;
   onProposalChange: (id: string, patch: ProposalPatch) => void;
+  /** A quick reply was tapped: send it as the next user message. */
+  onReply: (text: string) => void;
 }) {
   return (
     <div className="flex flex-col gap-4">
@@ -49,6 +53,7 @@ export function MessageList({
                 <ProposalList proposals={t.proposals} onChange={(id, patch) => onProposalChange(id, patch)} />
               )}
               {t.error && <p className="text-sm text-destructive">{t.error}</p>}
+              {isLast && !live && t.suggestions && t.suggestions.length > 0 && <QuickReplies replies={t.suggestions} onPick={onReply} />}
               {t.done && t.done.stop !== "end_turn" && (
                 <p className="text-xs text-muted-foreground">
                   {t.done.stop === "max_iterations"
@@ -68,6 +73,19 @@ export function MessageList({
   );
 }
 
+
+/** One-tap answers to the question above; anything typed in the box works too. */
+function QuickReplies({ replies, onPick }: { replies: string[]; onPick: (text: string) => void }) {
+  return (
+    <div className="flex flex-wrap gap-2" role="group" aria-label="Suggested replies">
+      {replies.map((r) => (
+        <Button key={r} type="button" variant="outline" size="sm" className="h-auto whitespace-normal rounded-full text-left" onClick={() => onPick(r)}>
+          {r}
+        </Button>
+      ))}
+    </div>
+  );
+}
 
 /** The user's own text: mention links become chips, everything else is verbatim. */
 function UserText({ text }: { text: string }) {
