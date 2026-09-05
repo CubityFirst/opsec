@@ -165,6 +165,28 @@ describe("ask tools", () => {
     expect(tags.request).toEqual({ method: "PUT", path: `/api/contacts/${a.id}/tags`, body: { tagNames: ["old", "new"] } });
     expect((await run("propose_tags", { contactId: a.id, add: ["old"] })).ok).toBe(false);
 
+    // Tags are a vocabulary: rewordings of an existing tag are refused, exact matches take the stored spelling.
+    await createContact({ firstName: "Tagged", lastName: "Colleague", tagNames: ["Colleague"] });
+    const listed = await run("list_tags", {});
+    expect(listed.ok).toBe(true);
+    expect(listed.json.items).toEqual(expect.arrayContaining([{ name: "Colleague", contacts: 1 }]));
+    const reworded = await run("propose_tags", { contactId: a.id, add: ["colleague of mine"] });
+    expect(reworded.ok).toBe(false);
+    expect(reworded.summary).toMatch(/looks like the existing tag “Colleague”/);
+    const plural = await run("propose_tags", { contactId: a.id, add: ["colleagues"] });
+    expect(plural.ok).toBe(false);
+    const spelled = pick(await run("propose_tags", { contactId: a.id, add: ["COLLEAGUE"] }));
+    expect(spelled.request).toMatchObject({ body: { tagNames: ["old", "Colleague"] } });
+    const forced = pick(await run("propose_tags", { contactId: a.id, add: ["colleague of mine"], createNew: true }));
+    expect(forced.request).toMatchObject({ body: { tagNames: ["old", "colleague of mine"] } });
+    const unrelated = pick(await run("propose_tags", { contactId: a.id, add: ["climbing"] }));
+    expect(unrelated.request).toMatchObject({ body: { tagNames: ["old", "climbing"] } });
+    const createReworded = await run("propose_contact_create", { kind: "person", firstName: "Newbie", tagNames: ["work colleague"] });
+    expect(createReworded.ok).toBe(false);
+    expect(createReworded.summary).toMatch(/existing tag “Colleague”/);
+    const createSpelled = pick(await run("propose_contact_create", { kind: "person", firstName: "Newbie", tagNames: ["colleague"] }));
+    expect(createSpelled.request).toMatchObject({ body: { tagNames: ["Colleague"] } });
+
     const addPhone = pick(await run("propose_contact_method", { contactId: a.id, action: "add", type: "phone", label: "mobile", value: "+44 7000 000000" }));
     expect(addPhone.request).toMatchObject({ method: "POST", path: `/api/contacts/${a.id}/methods`, body: { type: "phone", label: "mobile", value: "+44 7000 000000" } });
     const detail = await run("get_contact", { id: a.id });

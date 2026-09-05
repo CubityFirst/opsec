@@ -26,7 +26,8 @@ export interface RunAskArgs {
 export interface RunAskResult {
   stop: AskStop;
   iterations: number;
-  usage: { input: number; output: number };
+  /** `cached` is the part of `input` the provider served from its prompt cache (OpenAI reports it; others may not). */
+  usage: { input: number; output: number; cached: number };
   toolsUsed: string[];
 }
 
@@ -60,7 +61,7 @@ export async function runAsk(args: RunAskArgs): Promise<RunAskResult> {
   const tools = toolDefinitions();
   const budget = new ByteBudget();
   const pending: ToolCtx["pending"] = new Map();
-  const usage = { input: 0, output: 0 };
+  const usage = { input: 0, output: 0, cached: 0 };
   const toolsUsed: string[] = [];
   let iterations = 0;
 
@@ -94,6 +95,7 @@ export async function runAsk(args: RunAskArgs): Promise<RunAskResult> {
       if (chunk.usage) {
         usage.input += chunk.usage.prompt_tokens ?? 0;
         usage.output += chunk.usage.completion_tokens ?? 0;
+        usage.cached += chunk.usage.prompt_tokens_details?.cached_tokens ?? 0;
       }
       const choice = chunk.choices?.[0];
       if (!choice) continue;

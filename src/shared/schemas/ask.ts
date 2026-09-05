@@ -71,7 +71,7 @@ export type AskEvent =
   | { type: "proposal"; proposal: AskProposal }
   /** Quick replies for the question just asked; picking one sends it as the next user message. */
   | { type: "suggestions"; replies: string[] }
-  | { type: "done"; stop: AskStop; iterations: number; usage: { input: number; output: number } }
+  | { type: "done"; stop: AskStop; iterations: number; usage: { input: number; output: number; cached?: number } }
   | { type: "error"; code: string; message: string };
 
 export interface AskConfig {
