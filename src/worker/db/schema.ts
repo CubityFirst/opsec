@@ -15,10 +15,11 @@ export const CONTACT_METHOD_TYPES = ["phone", "email", "address", "social", "url
 export const RELATIONSHIP_CATEGORIES = ["family", "social", "group", "work", "pet", "care", "other"] as const;
 export const INTERACTION_TYPES = ["call", "text", "email", "meeting", "meal", "gift", "event", "note", "other"] as const;
 export const FILE_KINDS = ["avatar", "avatar_original", "attachment"] as const;
-export const ENTITY_TYPES = ["contact", "contact_method", "tag", "relationship", "interaction", "file", "life_event", "bet", "reminder"] as const;
+export const ENTITY_TYPES = ["contact", "contact_method", "tag", "relationship", "interaction", "file", "life_event", "bet", "reminder", "gift"] as const;
 export const LIFE_EVENT_CATEGORIES = ["work_education", "family_relationships", "home_living", "health_wellness", "travel_experiences"] as const;
 export const BET_OUTCOMES = ["me", "them", "void"] as const;
 export const REPEAT_UNITS = ["day", "week", "month", "year"] as const;
+export const GIFT_STATUSES = ["idea", "given", "received"] as const;
 
 const timestamps = {
   createdAt: text("created_at").notNull(),
@@ -238,6 +239,34 @@ export const bets = sqliteTable(
 );
 
 /**
+ * A gift with one contact: an idea for something to give them, something the
+ * user gave them, or something they gave the user. `given_on` is the day it
+ * changed hands and is null while it is only an idea.
+ */
+export const gifts = sqliteTable(
+  "gifts",
+  {
+    id: text("id").primaryKey(),
+    contactId: text("contact_id")
+      .notNull()
+      .references(() => contacts.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    status: text("status", { enum: GIFT_STATUSES }).notNull(),
+    /** "40th birthday", "Christmas 2026", "housewarming". */
+    occasion: text("occasion"),
+    /** Day it was given or received, YYYY-MM-DD; null for an idea. */
+    givenOn: text("given_on"),
+    /** Free text: "£40", "about $100". */
+    price: text("price"),
+    /** Where to buy it. */
+    url: text("url"),
+    notes: text("notes"),
+    ...timestamps,
+  },
+  (t) => [index("gifts_contact_idx").on(t.contactId, t.status, t.givenOn), index("gifts_status_idx").on(t.status, t.givenOn)],
+);
+
+/**
  * A reminder, one-off or recurring, optionally about a contact. `due_on` is the
  * next open occurrence; a recurring schedule is anchored on `start_on` so month
  * and year rules do not drift when a month is short. Completing a one-off sets
@@ -362,3 +391,4 @@ export type UserRow = typeof users.$inferSelect;
 export type LifeEventRow = typeof lifeEvents.$inferSelect;
 export type BetRow = typeof bets.$inferSelect;
 export type ReminderRow = typeof reminders.$inferSelect;
+export type GiftRow = typeof gifts.$inferSelect;

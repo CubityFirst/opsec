@@ -1,6 +1,7 @@
-import { ArchiveIcon, AtSignIcon, BellIcon, BellOffIcon, CheckIcon, DicesIcon, FileIcon, HeartCrackIcon, LinkIcon, MilestoneIcon, PencilIcon, PlusIcon, RotateCcwIcon, SparklesIcon, TagIcon, Trash2Icon, type LucideIcon } from "lucide-react";
+import { ArchiveIcon, AtSignIcon, BellIcon, BellOffIcon, CheckIcon, DicesIcon, FileIcon, GiftIcon, HeartCrackIcon, LinkIcon, MilestoneIcon, PencilIcon, PlusIcon, RotateCcwIcon, SparklesIcon, TagIcon, Trash2Icon, type LucideIcon } from "lucide-react";
 import { Link } from "react-router";
 import { BET_OUTCOME_LABELS, type BetOutcome } from "@shared/schemas/bet";
+import { GIFT_STATUS_LABELS, type GiftStatus } from "@shared/schemas/gift";
 import type { ActivityEventOut } from "@shared/types";
 import { formatDateTime, formatRelative } from "@/lib/format";
 
@@ -70,6 +71,19 @@ export function describeEvent(e: ActivityEventOut): { icon: LucideIcon; text: Re
       return { icon: RotateCcwIcon, text: <>Reopened bet “{str(p, "prediction")}”</> };
     case "bet.deleted":
       return { icon: Trash2Icon, text: <>Removed bet “{str(p, "prediction")}”</> };
+    case "gift.created": {
+      const status = str(p, "status") as GiftStatus;
+      const label = status === "idea" ? "Gift idea" : status === "given" ? "Gave a gift" : "Received a gift";
+      return { icon: GiftIcon, text: <>{label}: “{str(p, "name")}”{str(p, "occasion") ? ` for ${str(p, "occasion")}` : ""}{str(p, "givenOn") ? ` on ${str(p, "givenOn")}` : ""}</> };
+    }
+    case "gift.updated":
+      return { icon: PencilIcon, text: <>Edited gift “{str(p, "name")}” ({changeSummary(p.changes)})</> };
+    case "gift.given":
+      return { icon: GiftIcon, text: <>Gave “{str(p, "name")}”{str(p, "occasion") ? ` for ${str(p, "occasion")}` : ""} on {str(p, "on")}</> };
+    case "gift.reverted":
+      return { icon: RotateCcwIcon, text: <>Gift “{str(p, "name")}” is an idea again (was {(GIFT_STATUS_LABELS[str(p, "previousStatus") as GiftStatus] ?? str(p, "previousStatus")).toLowerCase()})</> };
+    case "gift.deleted":
+      return { icon: Trash2Icon, text: <>Removed gift “{str(p, "name")}”</> };
     case "reminder.created":
       return { icon: BellIcon, text: <>Set a reminder: “{str(p, "title")}”, due {str(p, "dueOn")}{str(p, "repeat") ? `, ${str(p, "repeat")}` : ""}</> };
     case "reminder.updated":

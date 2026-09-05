@@ -7,6 +7,7 @@ import type { ActivityEventType } from "./schemas/activity";
 import type { UserPreferences } from "./schemas/preferences";
 import type { LifeEventCategory } from "./schemas/life-event";
 import type { BetOutcome } from "./schemas/bet";
+import type { GiftStatus } from "./schemas/gift";
 import type { Repeat } from "./schemas/reminder";
 import type { ContactKind, ContactMethodType, EntityType, FileKind, InteractionType, RelationshipCategory } from "./schemas/common";
 
@@ -250,6 +251,34 @@ export interface BetRecord {
 export interface BetListResult extends ListResult<BetOut> {
   /** Counts over every bet matching the filters except `status` (so the page can show the full record). */
   record: BetRecord;
+}
+
+export interface GiftOut {
+  id: string;
+  /** Who it is for (given / idea) or from (received). */
+  contact: ContactRef;
+  name: string;
+  status: GiftStatus;
+  occasion: string | null;
+  /** YYYY-MM-DD; null while it is only an idea. */
+  givenOn: string | null;
+  price: string | null;
+  url: string | null;
+  notes: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** How many gifts are ideas, given and received. */
+export interface GiftCounts {
+  idea: number;
+  given: number;
+  received: number;
+}
+
+export interface GiftListResult extends ListResult<GiftOut> {
+  /** Counts over every gift matching the filters except `status`. */
+  counts: GiftCounts;
 }
 
 export interface ReminderOut {

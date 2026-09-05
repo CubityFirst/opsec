@@ -14,6 +14,7 @@ import { errorMessage } from "@/lib/api";
 import { formatBirthday, formatRelative, parseBirthday } from "@/lib/format";
 import { useBets } from "@/lib/queries/bets";
 import { useContacts } from "@/lib/queries/contacts";
+import { useGifts } from "@/lib/queries/gifts";
 import { useRecentInteractions } from "@/lib/queries/interactions";
 import { useReminders } from "@/lib/queries/reminders";
 import { cn } from "@/lib/utils";
@@ -73,6 +74,13 @@ export function DashboardPage() {
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
   }, [now]);
   const dueReminders = useReminders({ dueBy: weekEnd, limit: 8 });
+  // Gift ideas, so an upcoming birthday can say how many are waiting.
+  const ideas = useGifts({ status: "idea" });
+  const ideaCounts = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const g of ideas.data?.items ?? []) m.set(g.contact.id, (m.get(g.contact.id) ?? 0) + 1);
+    return m;
+  }, [ideas.data]);
   const { birthdays, outOfTouch } = useMemo(() => {
     const items = contacts.data?.items ?? [];
     const birthdays = items
@@ -224,9 +232,11 @@ export function DashboardPage() {
               <p className="text-sm text-muted-foreground">None in the next 30 days.</p>
             ) : (
               <ul className="flex flex-col">
-                {birthdays.map(({ c, days }) => (
-                  <ContactRow key={c.id} contact={c} meta={days === 0 ? "today" : days === 1 ? "tomorrow" : `in ${days} days · ${formatBirthday(c.birthday ?? null, now).split(" (")[0]}`} />
-                ))}
+                {birthdays.map(({ c, days }) => {
+                  const n = ideaCounts.get(c.id) ?? 0;
+                  const when = days === 0 ? "today" : days === 1 ? "tomorrow" : `in ${days} days · ${formatBirthday(c.birthday ?? null, now).split(" (")[0]}`;
+                  return <ContactRow key={c.id} contact={c} meta={n ? `${when} · ${n} gift ${n === 1 ? "idea" : "ideas"}` : when} />;
+                })}
               </ul>
             )}
           </SidePanel>

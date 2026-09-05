@@ -1,5 +1,5 @@
 import { describeRepeat } from "@shared/schemas/reminder";
-import type { BetOut, ContactRef, ContactSummary, FeedItem, InteractionOut, LifeEventOut, ReminderOut } from "@shared/types";
+import type { BetOut, ContactRef, ContactSummary, FeedItem, GiftOut, InteractionOut, LifeEventOut, ReminderOut } from "@shared/types";
 
 /** Cut text to `max` chars, telling the model how to get the rest. */
 export function truncate(text: string | null | undefined, max: number, hint = ""): string | null {
@@ -64,6 +64,20 @@ export function compactBet(b: BetOut, detailChars: number) {
     settledAt: b.settledAt ?? undefined,
     settledNote: b.settledNote ?? undefined,
     details: truncate(b.details, detailChars) ?? undefined,
+  };
+}
+
+export function compactGift(g: GiftOut, noteChars: number) {
+  return {
+    id: g.id,
+    contact: ref(g.contact),
+    name: g.name,
+    status: g.status,
+    occasion: g.occasion ?? undefined,
+    givenOn: g.givenOn ?? undefined,
+    price: g.price ?? undefined,
+    url: g.url ?? undefined,
+    notes: truncate(g.notes, noteChars) ?? undefined,
   };
 }
 
@@ -132,6 +146,17 @@ export function describeFeedItem(item: FeedItem): { at: string; kind: string; li
     case "bet.reopened":
     case "bet.deleted":
       line = `${e.eventType}: "${str(p, "prediction")}"`;
+      break;
+    case "gift.created":
+      line = `gift ${str(p, "status")}: "${str(p, "name")}"${str(p, "occasion") ? ` for ${str(p, "occasion")}` : ""}${str(p, "givenOn") ? ` on ${str(p, "givenOn")}` : ""} [id ${e.entityId}]`;
+      break;
+    case "gift.given":
+      line = `gift given: "${str(p, "name")}"${str(p, "occasion") ? ` for ${str(p, "occasion")}` : ""} on ${str(p, "on")} [id ${e.entityId}]`;
+      break;
+    case "gift.updated":
+    case "gift.reverted":
+    case "gift.deleted":
+      line = `${e.eventType}: "${str(p, "name")}"`;
       break;
     case "reminder.created":
       line = `reminder set: "${str(p, "title")}" due ${str(p, "dueOn")}${str(p, "repeat") ? `, ${str(p, "repeat")}` : ""} [id ${e.entityId}]`;

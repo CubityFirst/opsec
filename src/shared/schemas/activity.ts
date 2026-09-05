@@ -2,6 +2,7 @@ import { z } from "zod";
 import { contactMethodTypeSchema, interactionTypeSchema } from "./common";
 import { lifeEventCategorySchema } from "./life-event";
 import { betOutcomeSchema } from "./bet";
+import { giftStatusSchema } from "./gift";
 
 /**
  * Versioned payloads for the append-only `activity` log. This union is the
@@ -113,6 +114,27 @@ export const activityEventSchema = z.discriminatedUnion("eventType", [
   z.object({
     eventType: z.literal("bet.deleted"),
     payload: z.object({ v: v1, prediction: z.string(), wager: z.string().nullable(), reviewOn: z.string(), outcome: betOutcomeSchema.nullable() }),
+  }),
+
+  z.object({
+    eventType: z.literal("gift.created"),
+    payload: z.object({ v: v1, name: z.string(), status: giftStatusSchema, occasion: z.string().nullable(), givenOn: z.string().nullable() }),
+  }),
+  z.object({
+    eventType: z.literal("gift.updated"),
+    payload: z.object({ v: v1, name: z.string(), changes: z.record(z.string(), fieldChangeSchema) }),
+  }),
+  z.object({
+    eventType: z.literal("gift.given"),
+    payload: z.object({ v: v1, name: z.string(), occasion: z.string().nullable(), on: z.string() }),
+  }),
+  z.object({
+    eventType: z.literal("gift.reverted"),
+    payload: z.object({ v: v1, name: z.string(), previousStatus: giftStatusSchema }),
+  }),
+  z.object({
+    eventType: z.literal("gift.deleted"),
+    payload: z.object({ v: v1, name: z.string(), status: giftStatusSchema, occasion: z.string().nullable() }),
   }),
 
   z.object({

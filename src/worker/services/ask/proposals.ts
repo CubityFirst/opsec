@@ -11,6 +11,7 @@ import { CONTACT_KINDS, INTERACTION_TYPES, birthdaySchema, contactMethodTypeSche
 import { contactCreateSchema, contactMethodInputSchema, customFieldsSchema, otherNameSchema } from "@shared/schemas/contact";
 import { LIFE_EVENT_CATEGORIES, LIFE_EVENT_CATEGORY_LABELS, lifeEventCreateSchema } from "@shared/schemas/life-event";
 import { BET_OUTCOME_LABELS, betCreateSchema, betOutcomeSchema } from "@shared/schemas/bet";
+import { GIFT_STATUS_LABELS, giftCreateSchema, giftStatusSchema } from "@shared/schemas/gift";
 import { describeRepeat, reminderCreateSchema, repeatSchema } from "@shared/schemas/reminder";
 import type { ContactDetail, ContactRef } from "@shared/types";
 import { schema } from "../../db";
@@ -628,6 +629,92 @@ const proposeBet = def({
 });
 
 // ---------------------------------------------------------------------------
+// Gifts
+
+const proposeGift = def({
+  name: "propose_gift",
+  description:
+    "Draft a gift with a contact: add one (name; status idea = something to give them one day, given = the user gave it, received = they gave it to the user; optional occasion, givenOn day for given/received (defaults to today), price, url, notes), update its fields (including status), give an idea (it becomes given, with an optional givenOn day and occasion), revert a given or received gift back to an idea, or remove it. For anything but add pass the giftId from list_gifts. Dates are YYYY-MM-DD. Shown to the user with an Apply button.",
+  schema: z.object({
+    contactId: idSchema,
+    action: z.enum(["add", "update", "give", "revert", "remove"]),
+    giftId: idSchema.optional(),
+    name: z.string().trim().max(200).optional(),
+    status: giftStatusSchema.optional(),
+    occasion: text(200),
+    givenOn: isoDateSchema.nullable().optional().describe("Day it changed hands; for give, the day it was given"),
+    price: text(100),
+    url: text(2000),
+    notes: text(20_000),
+  }),
+  label: (i) => `Drafting a gift ${i.action} for you to review`,
+  run: async (i, ctx) => {
+    const { detail: d, ref: contact, dependsOn } = await contactOrPending(ctx, i.contactId);
+    if (i.action === "add") {
+      const parsed = giftCreateSchema.safeParse({ name: i.name, status: i.status, occasion: i.occasion ?? null, givenOn: i.givenOn ?? null, price: i.price ?? null, url: i.url ?? null, notes: i.notes ?? null });
+      if (!parsed.success) throw new AskToolError(parsed.error.issues.map((x) => `${x.path.join(".")}: ${x.message}`).join("; "));
+      const body = parsed.data;
+      const changes: Change[] = [
+        { label: "Gift", from: null, to: body.name },
+        { label: "Status", from: null, to: GIFT_STATUS_LABELS[body.status] },
+      ];
+      if (body.occasion) changes.push({ label: "Occasion", from: null, to: body.occasion });
+      if (body.status !== "idea" && body.givenOn) changes.push({ label: body.status === "received" ? "Received on" : "Given on", from: null, to: body.givenOn });
+      if (body.price) changes.push({ label: "Price", from: null, to: body.price });
+      if (body.url) changes.push({ label: "Link", from: null, to: body.url });
+      if (body.notes) changes.push({ label: "Notes", from: null, to: body.notes });
+      const title = body.status === "idea" ? `Add gift idea for ${contact.displayName}` : body.status === "given" ? `Record a gift given to ${contact.displayName}` : `Record a gift from ${contact.displayName}`;
+      return emitAction(ctx, { title, contact, changes, request: { method: "POST", path: `/api/contacts/${contact.id}/gifts`, body }, dependsOn });
+    }
+    if (!d) throw new AskToolError("That contact does not exist yet; only add is possible until the create is applied");
+    if (!i.giftId) throw new AskToolError("giftId is required (see list_gifts)");
+    const row = await ctx.db.select().from(schema.gifts).where(eq(schema.gifts.id, i.giftId)).get();
+    if (!row || row.contactId !== d.id) throw new AskToolError("Not found");
+    const quoted = `“${row.name}”`;
+    if (i.action === "remove") {
+      return emitAction(ctx, {
+        title: `Remove gift ${quoted}`,
+        contact,
+        changes: [{ label: "Gift", from: `${row.name} (${GIFT_STATUS_LABELS[row.status].toLowerCase()})`, to: null }],
+        request: { method: "DELETE", path: `/api/gifts/${row.id}` },
+        destructive: true,
+      });
+    }
+    if (i.action === "give") {
+      if (row.status !== "idea") throw new AskToolError(`That gift is already ${GIFT_STATUS_LABELS[row.status].toLowerCase()}`);
+      const occasion = norm(i.occasion);
+      const price = norm(i.price);
+      const body: Record<string, unknown> = {};
+      const changes: Change[] = [{ label: "Status", from: "Idea", to: "Given" }];
+      if (i.givenOn) (body.on = i.givenOn), changes.push({ label: "Given on", from: null, to: i.givenOn });
+      if (occasion !== undefined && occasion !== row.occasion) (body.occasion = occasion), changes.push({ label: "Occasion", from: row.occasion, to: occasion });
+      if (price !== undefined && price !== row.price) (body.price = price), changes.push({ label: "Price", from: row.price, to: price });
+      return emitAction(ctx, { title: `Mark gift ${quoted} as given`, contact, changes, request: { method: "POST", path: `/api/gifts/${row.id}/give`, body } });
+    }
+    if (i.action === "revert") {
+      if (row.status === "idea") throw new AskToolError("That gift is still an idea");
+      return emitAction(ctx, {
+        title: `Turn gift ${quoted} back into an idea`,
+        contact,
+        changes: [{ label: "Status", from: GIFT_STATUS_LABELS[row.status], to: "Idea" }],
+        request: { method: "POST", path: `/api/gifts/${row.id}/revert` },
+      });
+    }
+    const body: Record<string, unknown> = {};
+    const changes: Change[] = [];
+    if (i.name !== undefined && i.name.trim() && i.name.trim() !== row.name) (body.name = i.name.trim()), changes.push({ label: "Gift", from: row.name, to: i.name.trim() });
+    if (i.status !== undefined && i.status !== row.status) (body.status = i.status), changes.push({ label: "Status", from: GIFT_STATUS_LABELS[row.status], to: GIFT_STATUS_LABELS[i.status] });
+    if (i.occasion !== undefined && norm(i.occasion) !== row.occasion) (body.occasion = norm(i.occasion) ?? null), changes.push({ label: "Occasion", from: row.occasion, to: norm(i.occasion) ?? null });
+    if (i.givenOn !== undefined && i.givenOn !== row.givenOn) (body.givenOn = i.givenOn), changes.push({ label: "Given on", from: row.givenOn, to: i.givenOn });
+    if (i.price !== undefined && norm(i.price) !== row.price) (body.price = norm(i.price) ?? null), changes.push({ label: "Price", from: row.price, to: norm(i.price) ?? null });
+    if (i.url !== undefined && norm(i.url) !== row.url) (body.url = norm(i.url) ?? null), changes.push({ label: "Link", from: row.url, to: norm(i.url) ?? null });
+    if (i.notes !== undefined && norm(i.notes) !== row.notes) (body.notes = norm(i.notes) ?? null), changes.push({ label: "Notes", from: row.notes, to: norm(i.notes) ?? null });
+    if (changes.length === 0) throw new AskToolError("Nothing would change");
+    return emitAction(ctx, { title: `Update gift ${quoted}`, contact, changes, request: { method: "PATCH", path: `/api/gifts/${row.id}`, body } });
+  },
+});
+
+// ---------------------------------------------------------------------------
 // Reminders
 
 const proposeReminder = def({
@@ -779,6 +866,7 @@ export const PROPOSAL_TOOLS = [
   proposeRelationship,
   proposeLifeEvent,
   proposeBet,
+  proposeGift,
   proposeReminder,
   proposeInteractionUpdate,
   proposeInteractionDelete,

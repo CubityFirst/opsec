@@ -1,6 +1,7 @@
 import type OpenAI from "openai";
 import { z } from "zod";
 import { BET_STATUSES } from "@shared/schemas/bet";
+import { GIFT_STATUSES } from "@shared/schemas/gift";
 import { REMINDER_STATUSES } from "@shared/schemas/reminder";
 import { CONTACT_KINDS, INTERACTION_TYPES, idSchema, isoDateSchema, isoDateTimeSchema, nonBlank, optionalText } from "@shared/schemas/common";
 import { interactionCreateSchema } from "@shared/schemas/interaction";
@@ -8,13 +9,14 @@ import { interactionCreateSchema } from "@shared/schemas/interaction";
 import { newId } from "../../lib/ids";
 import { listBets } from "../bets";
 import { listReminders } from "../reminders";
+import { listGifts } from "../gifts";
 import { getContactDetail, getContactRow, listContacts } from "../contacts";
 import { contactFeed } from "../feed";
 import { getInteractionOut, listContactInteractions, searchInteractions } from "../interactions";
 import { listLifeEvents } from "../life-events";
 import { listRelationshipsFor } from "../relationships";
 import { BODY_PREVIEW_CHARS, MAX_TOOL_RESULT_BYTES, NOTES_SUMMARY_CHARS } from "./limits";
-import { compactBet, compactContact, compactReminder, compactInteraction, compactLifeEvent, describeFeedItem, ref, truncate } from "./compact";
+import { compactBet, compactContact, compactGift, compactReminder, compactInteraction, compactLifeEvent, describeFeedItem, ref, truncate } from "./compact";
 import { PROPOSAL_TOOLS, resolveRefs } from "./proposals";
 import { listTagVocabulary } from "./tag-names";
 import { suggestReplies } from "./suggest";
@@ -166,6 +168,22 @@ const listBetsTool = def({
   },
 });
 
+const listGiftsTool = def({
+  name: "list_gifts",
+  description:
+    "Gifts with contacts: ideas for what to give someone, gifts the user has given (status given) and gifts the user has received from them (status received), each with a name, an optional occasion ('40th birthday', 'Christmas 2026'), the givenOn day it changed hands (empty for ideas), an optional price, URL and notes. Ideas come first, then given and received newest first. Filter by contactId and/or status. Use it for 'what could I get X', 'what did I give X last Christmas', 'what did X give me'.",
+  schema: z.object({
+    contactId: idSchema.optional(),
+    status: z.enum(GIFT_STATUSES).optional(),
+    limit: z.number().int().min(1).max(50).optional(),
+  }),
+  label: (i) => (i.contactId ? "Listing a contact’s gifts" : i.status === "idea" ? "Listing gift ideas" : "Listing gifts"),
+  run: async (i, ctx) => {
+    const r = await listGifts(ctx.db, { status: i.status, limit: i.limit ?? 20, offset: 0 }, { contactId: i.contactId });
+    return { total: r.total, counts: r.counts, items: r.items.map((g) => compactGift(g, 400)) };
+  },
+});
+
 const listRemindersTool = def({
   name: "list_reminders",
   description:
@@ -233,7 +251,7 @@ const proposeContactNote = def({
 });
 
 /** Fixed order: the tool list is part of the prompt prefix. */
-export const TOOLS: ToolDef<z.ZodObject>[] = [searchContacts, getContact, listInteractionsTool, getInteraction, getActivity, listLifeEventsTool, listBetsTool, listRemindersTool, listTagsTool, proposeInteraction, proposeContactNote, ...PROPOSAL_TOOLS, suggestReplies];
+export const TOOLS: ToolDef<z.ZodObject>[] = [searchContacts, getContact, listInteractionsTool, getInteraction, getActivity, listLifeEventsTool, listBetsTool, listGiftsTool, listRemindersTool, listTagsTool, proposeInteraction, proposeContactNote, ...PROPOSAL_TOOLS, suggestReplies];
 
 export function toolDefinitions(): OpenAI.Chat.Completions.ChatCompletionTool[] {
   return TOOLS.map((t) => {

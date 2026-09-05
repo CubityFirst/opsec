@@ -11,11 +11,14 @@ import { CustomFieldsEditor } from "@/components/contacts/CustomFieldsEditor";
 import { InteractionDialog } from "@/components/interactions/InteractionDialog";
 import { BetCard, describeRecord } from "@/components/bets/BetCard";
 import { BetDialog } from "@/components/bets/BetDialog";
+import { GiftCard, describeGiftCounts } from "@/components/gifts/GiftCard";
+import { GiftDialog } from "@/components/gifts/GiftDialog";
 import { ReminderCard } from "@/components/reminders/ReminderCard";
 import { ReminderDialog } from "@/components/reminders/ReminderDialog";
 import { LifeEventCard } from "@/components/life-events/LifeEventCard";
 import { LifeEventDialog } from "@/components/life-events/LifeEventDialog";
 import { useContactBets } from "@/lib/queries/bets";
+import { useContactGifts } from "@/lib/queries/gifts";
 import { useContactReminders } from "@/lib/queries/reminders";
 import { useLifeEvents } from "@/lib/queries/life-events";
 import { Button } from "@/components/ui/button";
@@ -50,11 +53,14 @@ export function OverviewTab() {
   const [logOpen, setLogOpen] = useState(false);
   const [lifeOpen, setLifeOpen] = useState(false);
   const [betOpen, setBetOpen] = useState(false);
+  const [giftOpen, setGiftOpen] = useState(false);
+  const [allGifts, setAllGifts] = useState(false);
   const [reminderOpen, setReminderOpen] = useState(false);
   const [allDoneReminders, setAllDoneReminders] = useState(false);
   const [allSettled, setAllSettled] = useState(false);
   const lifeEvents = useLifeEvents(contact.id);
   const bets = useContactBets(contact.id);
+  const gifts = useContactGifts(contact.id);
   const reminders = useContactReminders(contact.id);
   const reminderItems = reminders.data?.items ?? [];
   const openReminders = reminderItems.filter((r) => r.status === "open");
@@ -62,6 +68,9 @@ export function OverviewTab() {
   const betItems = bets.data?.items ?? [];
   const openBets = betItems.filter((b) => b.status === "open");
   const settledBets = betItems.filter((b) => b.status === "settled");
+  const giftItems = gifts.data?.items ?? [];
+  const giftIdeas = giftItems.filter((g) => g.status === "idea");
+  const giftHistory = giftItems.filter((g) => g.status !== "idea");
   const deleteMethod = useDeleteMethod(contact.id);
 
   const onDeleteMethod = async (m: ContactMethodOut) => {
@@ -225,6 +234,39 @@ export function OverviewTab() {
           </CardContent>
         </Card>
 
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle className="text-base">
+              Gifts
+              {gifts.data && giftItems.length > 0 && <span className="ml-2 text-xs font-normal text-muted-foreground">{describeGiftCounts(gifts.data.counts)}</span>}
+            </CardTitle>
+            <Button variant="outline" size="sm" onClick={() => setGiftOpen(true)}>
+              <PlusIcon /> Add
+            </Button>
+          </CardHeader>
+          <CardContent>
+            {gifts.isPending ? (
+              <p className="text-sm text-muted-foreground">Loading…</p>
+            ) : giftItems.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No gifts with {contact.displayName} yet. Jot down ideas for later, and record what you have given and received.</p>
+            ) : (
+              <div className="flex flex-col gap-2">
+                {giftIdeas.map((g) => (
+                  <GiftCard key={g.id} gift={g} compact />
+                ))}
+                {(allGifts ? giftHistory : giftHistory.slice(0, 3)).map((g) => (
+                  <GiftCard key={g.id} gift={g} compact />
+                ))}
+                {giftHistory.length > 3 && (
+                  <button type="button" className="self-start text-xs text-muted-foreground underline" onClick={() => setAllGifts((v) => !v)}>
+                    {allGifts ? "Show fewer" : `Show ${giftHistory.length - 3} more`}
+                  </button>
+                )}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
         {contact.kind !== "pet" && (
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
@@ -355,6 +397,7 @@ export function OverviewTab() {
       <InteractionDialog open={logOpen} onOpenChange={setLogOpen} initialParticipants={[contact]} />
       <LifeEventDialog contactId={contact.id} open={lifeOpen} onOpenChange={setLifeOpen} />
       <BetDialog contact={contact} open={betOpen} onOpenChange={setBetOpen} />
+      <GiftDialog contact={contact} open={giftOpen} onOpenChange={setGiftOpen} />
       <ReminderDialog contact={contact} open={reminderOpen} onOpenChange={setReminderOpen} />
     </div>
   );

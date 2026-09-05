@@ -12,11 +12,17 @@ export const contactKeys = {
   lifeEvents: (id: string) => [...contactKeys.all, "life-events", id] as const,
   bets: (id: string) => [...contactKeys.all, "bets", id] as const,
   reminders: (id: string) => [...contactKeys.all, "reminders", id] as const,
+  gifts: (id: string) => [...contactKeys.all, "gifts", id] as const,
 };
 
 export const betKeys = {
   all: ["bets"] as const,
   list: (q: Record<string, string | number | undefined>) => [...betKeys.all, "list", q] as const,
+};
+
+export const giftKeys = {
+  all: ["gifts"] as const,
+  list: (q: Record<string, string | number | undefined>) => [...giftKeys.all, "list", q] as const,
 };
 
 export const reminderKeys = {
