@@ -42,6 +42,16 @@ export const searchKeys = {
   query: (q: string) => ["search", q] as const,
 };
 
+export const mapKeys = {
+  all: ["map"] as const,
+  pins: (q: Record<string, string | boolean | undefined>) => [...mapKeys.all, "pins", q] as const,
+};
+
+export const geocodeKeys = {
+  search: (q: string) => ["geocode", "search", q] as const,
+  reverse: (lat: number, lng: number) => ["geocode", "reverse", lat, lng] as const,
+};
+
 export const interactionKeys = {
   all: ["interactions"] as const,
   detail: (id: string) => ["interactions", "detail", id] as const,

@@ -9,6 +9,7 @@ import {
   optionalText,
   paginationSchema,
 } from "./common";
+import { coordinatesField } from "./geo";
 
 export const customFieldsSchema = z
   .record(z.string().min(1).max(100), z.union([z.string().max(2000), z.number(), z.boolean(), z.null()]))
@@ -21,6 +22,8 @@ export const contactMethodInputSchema = z.object({
   value: nonBlank(1000),
   isPrimary: z.boolean().optional().default(false),
   sortOrder: z.number().int().optional().default(0),
+  /** Address methods only: where it is on the map. */
+  coordinates: coordinatesField,
 });
 export type ContactMethodInput = z.infer<typeof contactMethodInputSchema>;
 
@@ -52,6 +55,8 @@ const contactFields = {
   birthday: birthdaySchema.nullish().transform((v) => v ?? null),
   notes: optionalText(50_000),
   customFields: customFieldsSchema.optional(),
+  /** false excludes the contact from keep-in-touch checks (dashboard "Out of touch"). Default true. */
+  keepInTouch: z.boolean().optional(),
 };
 
 export const contactCreateSchema = z.object({

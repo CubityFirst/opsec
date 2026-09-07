@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { idSchema, interactionTypeSchema, isoDateTimeSchema, nonBlank, optionalText, paginationSchema } from "./common";
+import { coordinatesField } from "./geo";
 
 export const interactionCreateSchema = z.object({
   type: interactionTypeSchema,
@@ -7,6 +8,8 @@ export const interactionCreateSchema = z.object({
   summary: nonBlank(500),
   body: optionalText(50_000),
   location: optionalText(500),
+  /** Where it happened, for the map. */
+  coordinates: coordinatesField,
   contactIds: z.array(idSchema).min(1).max(50),
 });
 export type InteractionCreateInput = z.infer<typeof interactionCreateSchema>;

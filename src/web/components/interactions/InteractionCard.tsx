@@ -68,7 +68,7 @@ export function InteractionCard({
         {interaction.body && (
           <MarkdownBody className="text-sm text-muted-foreground">{interaction.body}</MarkdownBody>
         )}
-        {(others.length > 0 || interaction.location) && (
+        {(others.length > 0 || interaction.location || interaction.coordinates) && (
           <div className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
             {others.length > 0 && <span>with</span>}
             {others.map((p) => (
@@ -77,10 +77,16 @@ export function InteractionCard({
                 {p.displayName}
               </Link>
             ))}
-            {interaction.location && (
-              <span className="flex items-center gap-1">
-                <MapPinIcon className="size-3" /> {interaction.location}
-              </span>
+            {interaction.coordinates ? (
+              <Link to={`/map?focus=interaction:${interaction.id}`} className="flex items-center gap-1 hover:underline" title="Show on map">
+                <MapPinIcon className="size-3" /> {interaction.location ?? "On the map"}
+              </Link>
+            ) : (
+              interaction.location && (
+                <span className="flex items-center gap-1">
+                  <MapPinIcon className="size-3" /> {interaction.location}
+                </span>
+              )
             )}
           </div>
         )}

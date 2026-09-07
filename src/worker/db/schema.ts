@@ -4,6 +4,7 @@ import {
   index,
   integer,
   primaryKey,
+  real,
   sqliteTable,
   text,
   uniqueIndex,
@@ -66,6 +67,8 @@ export const contacts = sqliteTable(
     deceasedAt: text("deceased_at"),
     /** Date of death when known; partial date like birthday. */
     deceasedOn: text("deceased_on"),
+    /** false: the user does not want to be nudged about this contact going quiet (the dashboard's "Out of touch" list and any other keep-in-touch check). */
+    keepInTouch: integer("keep_in_touch", { mode: "boolean" }).notNull().default(true),
     ...timestamps,
   },
   (t) => [
@@ -87,6 +90,11 @@ export const contactMethods = sqliteTable(
     value: text("value").notNull(),
     isPrimary: integer("is_primary", { mode: "boolean" }).notNull().default(false),
     sortOrder: integer("sort_order").notNull().default(0),
+    /** WGS-84 position of an address method (the Map page pins it). Both or neither, enforced in zod. */
+    lat: real("lat"),
+    lng: real("lng"),
+    /** Radius in metres of the area the position stands for; null = an exact spot. */
+    radiusM: integer("radius_m"),
     ...timestamps,
   },
   (t) => [index("contact_methods_contact_idx").on(t.contactId), index("contact_methods_value_idx").on(t.value)],
@@ -168,6 +176,11 @@ export const interactions = sqliteTable(
     summary: text("summary").notNull(),
     body: text("body"),
     location: text("location"),
+    /** WGS-84 position of where it happened (the Map page pins it). Both or neither, enforced in zod. */
+    lat: real("lat"),
+    lng: real("lng"),
+    /** Radius in metres of the area the position stands for; null = an exact spot. */
+    radiusM: integer("radius_m"),
     ...timestamps,
   },
   (t) => [index("interactions_occurred_at_idx").on(t.occurredAt)],

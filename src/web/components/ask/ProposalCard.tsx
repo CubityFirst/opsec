@@ -133,6 +133,7 @@ export function ProposalCard({ proposal, context, onChange }: { proposal: Propos
             summary: proposal.input.summary,
             body: proposal.input.body ?? null,
             location: proposal.input.location ?? null,
+            coordinates: proposal.input.coordinates ?? null,
           }}
           onSaved={() => onChange({ applied: true })}
         />

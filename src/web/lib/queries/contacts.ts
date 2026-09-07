@@ -2,7 +2,7 @@ import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tansta
 import type { ContactBulkInput, ContactCreateInput, ContactListQuery, ContactUpdateInput } from "@shared/schemas/contact";
 import type { ContactDetail, ContactSummary, FileOut, ListResult } from "@shared/types";
 import { api, toQuery } from "../api";
-import { contactKeys, tagKeys } from "./keys";
+import { contactKeys, mapKeys, tagKeys } from "./keys";
 
 export function useContacts(query: Partial<ContactListQuery>) {
   return useQuery({
@@ -25,6 +25,7 @@ function useInvalidateContact() {
   return (id?: string) => {
     void qc.invalidateQueries({ queryKey: contactKeys.lists() });
     void qc.invalidateQueries({ queryKey: tagKeys.all });
+    void qc.invalidateQueries({ queryKey: mapKeys.all });
     if (id) {
       void qc.invalidateQueries({ queryKey: contactKeys.detail(id) });
       void qc.invalidateQueries({ queryKey: contactKeys.activity(id) });

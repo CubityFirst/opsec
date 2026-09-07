@@ -155,6 +155,27 @@
       "when": 1788626089588,
       "tag": "0021_gifts",
       "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "6",
+      "when": 1788638301623,
+      "tag": "0022_keep_in_touch",
+      "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "6",
+      "when": 1788720840321,
+      "tag": "0023_map_coordinates",
+      "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "6",
+      "when": 1788784618224,
+      "tag": "0024_map_radius",
+      "breakpoints": true
     }
   ]
 }

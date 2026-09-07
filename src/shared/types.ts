@@ -9,6 +9,7 @@ import type { LifeEventCategory } from "./schemas/life-event";
 import type { BetOutcome } from "./schemas/bet";
 import type { GiftStatus } from "./schemas/gift";
 import type { Repeat } from "./schemas/reminder";
+import type { Coordinates } from "./schemas/geo";
 import type { ContactKind, ContactMethodType, EntityType, FileKind, InteractionType, RelationshipCategory } from "./schemas/common";
 
 export interface ListResult<T> {
@@ -18,7 +19,7 @@ export interface ListResult<T> {
 
 export interface ApiErrorBody {
   error: {
-    code: "validation_error" | "not_found" | "conflict" | "payload_too_large" | "bad_request" | "unauthorized" | "forbidden" | "internal";
+    code: "validation_error" | "not_found" | "conflict" | "payload_too_large" | "bad_request" | "unauthorized" | "forbidden" | "geocode_unavailable" | "internal";
     message: string;
     issues?: unknown[];
   };
@@ -59,6 +60,8 @@ export interface ContactMethodOut {
   value: string;
   isPrimary: boolean;
   sortOrder: number;
+  /** Address methods: where it is on the map; null when not placed. */
+  coordinates: Coordinates | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -104,6 +107,8 @@ export interface ContactSummary extends ContactRef {
   deceasedAt: string | null;
   /** Date of death (partial date) when known. */
   deceasedOn: string | null;
+  /** false: left out of keep-in-touch checks such as the dashboard's "Out of touch" list. */
+  keepInTouch: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -191,6 +196,8 @@ export interface InteractionOut {
   summary: string;
   body: string | null;
   location: string | null;
+  /** Where it happened, when pinned on the map. */
+  coordinates: Coordinates | null;
   participants: ContactRef[];
   attachments: FileOut[];
   createdAt: string;
@@ -323,4 +330,46 @@ export interface SearchHit extends ContactRef {
 
 export interface SearchResult {
   contacts: SearchHit[];
+}
+
+// ---- Map ------------------------------------------------------------------
+
+interface MapPinBase {
+  /** "method:<id>" or "interaction:<id>"; also the value of /map?focus=. */
+  id: string;
+  coordinates: Coordinates;
+}
+/** One marker on the map: a contact at one of their addresses, or an interaction where it happened. */
+export type MapPin =
+  | (MapPinBase & { kind: "contact"; methodId: string; contact: ContactRef; label: string | null; address: string })
+  | (MapPinBase & {
+      kind: "interaction";
+      interactionId: string;
+      type: InteractionType;
+      occurredAt: string;
+      summary: string;
+      location: string | null;
+      participants: ContactRef[];
+    });
+
+export interface MapPinsResult {
+  items: MapPin[];
+  counts: { contacts: number; interactions: number };
+}
+
+/** One place from the geocoder. */
+export interface GeocodeResult {
+  label: string;
+  lat: number;
+  lng: number;
+  /** Geocoder category, e.g. "house", "cafe", "city"; null when unknown. */
+  kind: string | null;
+  /** Rough size of the place in metres (half its bounding box), or null for a point-like result such as a house. */
+  radius: number | null;
+}
+export interface GeocodeSearchResult {
+  items: GeocodeResult[];
+}
+export interface ReverseGeocodeResult {
+  result: GeocodeResult | null;
 }

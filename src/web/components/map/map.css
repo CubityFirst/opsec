@@ -1,0 +1,147 @@
+/* Leaflet inside the app: theme tokens for its chrome, and its panes kept below shadcn overlays. */
+.leaflet-container {
+  z-index: 0;
+  isolation: isolate;
+  font-family: inherit;
+  background: var(--muted);
+}
+
+.dark .leaflet-tile-pane {
+  filter: invert(1) hue-rotate(180deg) brightness(0.95) contrast(0.9);
+}
+
+.leaflet-bar a,
+.leaflet-bar a:hover {
+  background: var(--card);
+  color: var(--foreground);
+  border-bottom-color: var(--border);
+}
+.leaflet-bar a.leaflet-disabled {
+  background: var(--muted);
+  color: var(--muted-foreground);
+}
+.leaflet-touch .leaflet-bar,
+.leaflet-touch .leaflet-control-layers {
+  border-color: var(--border);
+}
+
+.leaflet-control-attribution {
+  background: color-mix(in oklab, var(--background) 85%, transparent);
+  color: var(--muted-foreground);
+  font-size: 10px;
+}
+.leaflet-control-attribution a {
+  color: var(--foreground);
+}
+
+.leaflet-popup-content-wrapper,
+.leaflet-popup-tip {
+  background: var(--popover);
+  color: var(--popover-foreground);
+  box-shadow: 0 4px 16px rgb(0 0 0 / 0.18);
+}
+.leaflet-popup-content-wrapper {
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+}
+.leaflet-popup-content {
+  margin: 10px 12px;
+  font-size: 13px;
+  line-height: 1.4;
+}
+.leaflet-container a.leaflet-popup-close-button {
+  color: var(--muted-foreground);
+}
+
+/* Markers are React-rendered elements; Leaflet's default divIcon box must not show. */
+.opsec-pin {
+  background: none;
+  border: 0;
+}
+.opsec-pin-body {
+  --pin-color: var(--primary);
+  position: relative;
+  width: 40px;
+  height: 48px;
+  cursor: pointer;
+  filter: drop-shadow(0 2px 3px rgb(0 0 0 / 0.35));
+}
+.opsec-pin-head {
+  position: absolute;
+  inset: 0 2px auto 2px;
+  height: 36px;
+  border-radius: 9999px;
+  border: 2.5px solid var(--pin-color);
+  background: var(--card);
+  color: var(--pin-color);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+.opsec-pin-stem {
+  position: absolute;
+  left: 50%;
+  bottom: 2px;
+  width: 0;
+  height: 0;
+  transform: translateX(-50%);
+  border-left: 7px solid transparent;
+  border-right: 7px solid transparent;
+  border-top: 11px solid var(--pin-color);
+}
+.opsec-pin-count {
+  position: absolute;
+  top: -4px;
+  right: -2px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 9999px;
+  background: var(--foreground);
+  color: var(--background);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 18px;
+  text-align: center;
+}
+.opsec-pin-body[data-tone="interaction"] {
+  --pin-color: var(--chart-2, #2a9d8f);
+}
+.opsec-pin-body[data-tone="edit"] {
+  --pin-color: var(--destructive);
+}
+
+/* Approximate pins: the area a position stands for, drawn under the marker. */
+.opsec-area {
+  stroke: var(--pin-color);
+  stroke-opacity: 0.7;
+  stroke-dasharray: 5 4;
+  fill: var(--pin-color);
+  fill-opacity: 0.12;
+}
+.opsec-area-contact {
+  --pin-color: var(--primary);
+}
+.opsec-area-interaction {
+  --pin-color: var(--chart-2, #2a9d8f);
+}
+.opsec-area-edit {
+  --pin-color: var(--destructive);
+}
+
+/* The marker whose popup is open. */
+.opsec-pin-body {
+  transform-origin: 50% 100%;
+  transition: transform 120ms ease-out;
+}
+.opsec-pin-body[data-active="true"] {
+  transform: scale(1.2);
+  filter: drop-shadow(0 0 4px var(--pin-color)) drop-shadow(0 3px 5px rgb(0 0 0 / 0.4));
+}
+.opsec-area-active {
+  stroke-opacity: 1;
+  stroke-dasharray: none;
+  stroke-width: 2.5;
+  fill-opacity: 0.28;
+}

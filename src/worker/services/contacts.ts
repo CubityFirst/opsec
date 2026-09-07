@@ -2,6 +2,7 @@ import { and, asc, count, desc, eq, exists, inArray, isNotNull, isNull, like, or
 import { QueryBuilder } from "drizzle-orm/sqlite-core";
 import type { ContactKind } from "@shared/schemas/common";
 import type { ContactListQuery } from "@shared/schemas/contact";
+import type { Coordinates } from "@shared/schemas/geo";
 import type { ContactDetail, ContactMethodOut, ContactRef, ContactSummary, LastInteraction, ListResult, TagOut } from "@shared/types";
 import { schema, type Db } from "../db";
 import type { ContactMethodRow, ContactRow, TagRow } from "../db/schema";
@@ -39,6 +40,12 @@ export function toTagOut(row: Pick<TagRow, "id" | "name" | "color">): TagOut {
   return { id: row.id, name: row.name, color: row.color };
 }
 
+/** The stored lat/lng pair (and radius) as an API object; null unless both are set. */
+export function toCoordinates(lat: number | null, lng: number | null, radiusM: number | null = null): Coordinates | null {
+  if (lat == null || lng == null) return null;
+  return radiusM != null && radiusM > 0 ? { lat, lng, radius: radiusM } : { lat, lng };
+}
+
 export function toMethodOut(row: ContactMethodRow): ContactMethodOut {
   return {
     id: row.id,
@@ -48,6 +55,7 @@ export function toMethodOut(row: ContactMethodRow): ContactMethodOut {
     value: row.value,
     isPrimary: row.isPrimary,
     sortOrder: row.sortOrder,
+    coordinates: toCoordinates(row.lat, row.lng, row.radiusM),
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   };
@@ -151,6 +159,7 @@ export async function hydrateSummaries(db: Db, rows: ContactRow[]): Promise<Cont
     archivedAt: r.archivedAt,
     deceasedAt: r.deceasedAt,
     deceasedOn: r.deceasedOn,
+    keepInTouch: r.keepInTouch,
     createdAt: r.createdAt,
     updatedAt: r.updatedAt,
   }));

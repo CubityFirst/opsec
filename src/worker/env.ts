@@ -24,6 +24,8 @@ export interface AppVars {
   AI_EXTRA_HEADERS?: string;
   /** Test hook: route provider calls to globalThis.__askFakeUpstream. */
   ASK_FAKE_UPSTREAM?: string;
+  /** Test hook: route geocoder calls to globalThis.__geocodeFakeUpstream. */
+  GEOCODE_FAKE_UPSTREAM?: string;
 }
 
 export type WorkerEnv = Env & AppVars;

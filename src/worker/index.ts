@@ -1,8 +1,8 @@
-import { Hono } from "hono";
+import { Hono, type Context } from "hono";
 import { getDb } from "./db";
 import type { AppEnv } from "./env";
 import { ApiError, errorHandler } from "./lib/errors";
-import { rejectCrossSite, requireAuth, sessionMiddleware } from "./middleware/auth";
+import { isLocalDev, rejectCrossSite, requireAuth, sessionMiddleware } from "./middleware/auth";
 import activity from "./routes/activity";
 import aiSettings from "./routes/ai-settings";
 import mcp from "./routes/mcp";
@@ -18,6 +18,7 @@ import dev from "./routes/dev";
 import files from "./routes/files";
 import interactions from "./routes/interactions";
 import lifeEvents from "./routes/life-events";
+import map from "./routes/map";
 import relationshipTypes from "./routes/relationship-types";
 import relationships from "./routes/relationships";
 import search from "./routes/search";
@@ -50,7 +51,7 @@ const SECURITY_HEADERS: Record<string, string> = {
   "X-Content-Type-Options": "nosniff",
   "X-Frame-Options": "DENY",
   "Referrer-Policy": "strict-origin-when-cross-origin",
-  "Permissions-Policy": "camera=(), microphone=(), geolocation=(), payment=(), usb=()",
+  "Permissions-Policy": "camera=(), microphone=(), geolocation=(self), payment=(), usb=()",
   "Content-Security-Policy": [
     "default-src 'self'",
     "script-src 'self'",
@@ -66,16 +67,29 @@ const SECURITY_HEADERS: Record<string, string> = {
     "object-src 'none'",
   ].join("; "),
 };
+// The Vite dev server injects an inline module script (the React refresh
+// preamble) into index.html and talks HMR over a websocket; a strict script-src
+// blanks the page. Only a local dev server ever gets this relaxed policy.
+const DEV_SECURITY_HEADERS: Record<string, string> = {
+  ...SECURITY_HEADERS,
+  "Content-Security-Policy": SECURITY_HEADERS["Content-Security-Policy"]!.replace("script-src 'self'", "script-src 'self' 'unsafe-inline'").replace(
+    "connect-src 'self'",
+    "connect-src 'self' ws: wss:",
+  ),
+};
+function securityHeaders(c: Context<AppEnv>): Record<string, string> {
+  return isLocalDev(new URL(c.req.url), c.env) ? DEV_SECURITY_HEADERS : SECURITY_HEADERS;
+}
 /** Copy of `res` with the security headers added (responses from bindings have immutable headers). */
-function withSecurityHeaders(res: Response): Response {
+function withSecurityHeaders(res: Response, headers: Record<string, string>): Response {
   const out = new Response(res.body, res);
-  for (const [k, v] of Object.entries(SECURITY_HEADERS)) if (!out.headers.has(k)) out.headers.set(k, v);
+  for (const [k, v] of Object.entries(headers)) if (!out.headers.has(k)) out.headers.set(k, v);
   return out;
 }
 app.use("*", async (c, next) => {
   await next();
   try {
-    for (const [k, v] of Object.entries(SECURITY_HEADERS)) if (!c.res.headers.has(k)) c.res.headers.set(k, v);
+    for (const [k, v] of Object.entries(securityHeaders(c))) if (!c.res.headers.has(k)) c.res.headers.set(k, v);
   } catch {
     /* immutable headers (binding responses): handled where the response is produced */
   }
@@ -116,6 +130,7 @@ app.route("/api", lifeEvents);
 app.route("/api", bets);
 app.route("/api", reminders);
 app.route("/api", gifts);
+app.route("/api", map);
 app.route("/api", activity);
 app.route("/api", files);
 app.route("/api", search);
@@ -129,7 +144,7 @@ app.route("/", mcp);
 // Static assets normally never reach the Worker (see `assets` in wrangler.jsonc);
 // this is a belt-and-braces fallback for environments without the binding.
 app.get("*", async (c) => {
-  if (c.env.ASSETS) return withSecurityHeaders(await c.env.ASSETS.fetch(c.req.raw));
+  if (c.env.ASSETS) return withSecurityHeaders(await c.env.ASSETS.fetch(c.req.raw), securityHeaders(c));
   return c.notFound();
 });
 

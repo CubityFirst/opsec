@@ -5,11 +5,13 @@ import { Controller, useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
 import { INTERACTION_TYPES } from "@shared/schemas/common";
+import type { Coordinates } from "@shared/schemas/geo";
 import { interactionCreateSchema, type InteractionCreateInput } from "@shared/schemas/interaction";
 import type { ContactRef, InteractionOut } from "@shared/types";
 import { ContactAvatar } from "@/components/contacts/ContactAvatar";
 import { ContactPicker } from "@/components/contacts/ContactPicker";
 import { FieldError } from "@/components/FieldError";
+import { LocationPicker } from "@/components/map/LocationPicker";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -36,6 +38,7 @@ type FormValues = {
   summary: string;
   body: string;
   location: string;
+  coordinates: Coordinates | null;
   contactIds: string[];
 };
 
@@ -54,7 +57,7 @@ export function InteractionDialog({
   /** When provided, edits this interaction. */
   interaction?: InteractionOut;
   /** Prefilled fields when creating (e.g. from an Ask proposal). */
-  initialValues?: Partial<Pick<InteractionCreateInput, "type" | "occurredAt" | "summary" | "body" | "location">>;
+  initialValues?: Partial<Pick<InteractionCreateInput, "type" | "occurredAt" | "summary" | "body" | "location" | "coordinates">>;
   /** Called after a successful create or update. */
   onSaved?: () => void;
 }) {
@@ -67,10 +70,11 @@ export function InteractionDialog({
   const update = useUpdateInteraction(interaction?.participants.map((p) => p.id) ?? []);
   const upload = useUploadAttachments(participants.map((p) => p.id));
 
-  const { register, control, handleSubmit, reset, setValue, formState } = useForm<FormValues, unknown, InteractionCreateInput>({
+  const { register, control, handleSubmit, reset, setValue, watch, formState } = useForm<FormValues, unknown, InteractionCreateInput>({
     resolver: zodResolver(formSchema as never),
-    defaultValues: { type: "call", occurredAt: toDateTimeLocal(null), summary: "", body: "", location: "", contactIds: [] },
+    defaultValues: { type: "call", occurredAt: toDateTimeLocal(null), summary: "", body: "", location: "", coordinates: null, contactIds: [] },
   });
+  const location = watch("location");
 
   useEffect(() => {
     if (!open) return;
@@ -83,6 +87,7 @@ export function InteractionDialog({
       summary: interaction?.summary ?? initialValues?.summary ?? "",
       body: interaction?.body ?? initialValues?.body ?? "",
       location: interaction?.location ?? initialValues?.location ?? "",
+      coordinates: interaction?.coordinates ?? initialValues?.coordinates ?? null,
       contactIds: p.map((x) => x.id),
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -190,6 +195,20 @@ export function InteractionDialog({
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="i-location">Location</Label>
             <Input id="i-location" placeholder="Optional" {...register("location")} />
+            <Controller
+              control={control}
+              name="coordinates"
+              render={({ field }) => (
+                <LocationPicker
+                  value={field.value}
+                  onChange={field.onChange}
+                  initialQuery={location}
+                  onLabel={(l) => {
+                    if (!location.trim()) setValue("location", l);
+                  }}
+                />
+              )}
+            />
           </div>
 
           <div className="flex flex-col gap-2">

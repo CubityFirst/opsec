@@ -2,7 +2,7 @@ import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tansta
 import type { InteractionCreateInput, InteractionUpdateInput } from "@shared/schemas/interaction";
 import type { FeedResult, FileOut, InteractionOut, ListResult } from "@shared/types";
 import { api, toQuery } from "../api";
-import { contactKeys, interactionKeys } from "./keys";
+import { contactKeys, interactionKeys, mapKeys } from "./keys";
 
 export function useContactInteractions(contactId: string | undefined, limit = 50) {
   return useQuery({
@@ -49,6 +49,7 @@ function useInvalidateParticipants() {
   return (ids: string[]) => {
     void qc.invalidateQueries({ queryKey: contactKeys.lists() });
     void qc.invalidateQueries({ queryKey: interactionKeys.all });
+    void qc.invalidateQueries({ queryKey: mapKeys.all });
     for (const id of ids) {
       void qc.invalidateQueries({ queryKey: contactKeys.detail(id) });
       void qc.invalidateQueries({ queryKey: contactKeys.activity(id) });

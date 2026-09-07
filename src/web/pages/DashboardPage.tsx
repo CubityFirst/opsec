@@ -89,9 +89,10 @@ export function DashboardPage() {
       .sort((a, b) => a.days - b.days)
       .slice(0, 8);
     // Only people you have actually spoken to before; contacts with no logged
-    // interaction are "no data", not out of touch.
+    // interaction are "no data", not out of touch. Contacts with keep-in-touch
+    // switched off are never listed.
     const outOfTouch = items
-      .filter((c) => c.kind === "person" && c.lastInteraction)
+      .filter((c) => c.kind === "person" && c.keepInTouch && c.lastInteraction)
       .map((c) => ({ c, last: new Date(c.lastInteraction!.occurredAt).getTime() }))
       .filter((x) => now.getTime() - x.last > 30 * DAY_MS)
       .sort((a, b) => a.last - b.last)

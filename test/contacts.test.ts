@@ -153,6 +153,23 @@ describe("contacts", () => {
     expect(changes.changes.notes).toEqual({ from: null, to: "Navy" });
   });
 
+  it("keep in touch defaults on, can be switched off and back, and logs the change", async () => {
+    const c = await createContact({ firstName: "Quiet", lastName: "Friend" });
+    expect(c.keepInTouch).toBe(true);
+    const off = await json<ContactDetail>(`/api/contacts/${c.id}`, { method: "PATCH", body: { keepInTouch: false } });
+    expect(off.status).toBe(200);
+    expect(off.body.keepInTouch).toBe(false);
+    const listed = await json<ListResult<ContactSummary>>(`/api/contacts?q=Quiet+Friend`);
+    expect(listed.body.items.find((x) => x.id === c.id)?.keepInTouch).toBe(false);
+    const feed = await json<FeedResult>(`/api/contacts/${c.id}/activity`);
+    const updated = feed.body.items.find((i) => i.kind === "event" && i.event.eventType === "contact.updated");
+    expect((updated!.kind === "event" ? updated!.event.payload : {}) as unknown).toMatchObject({ changes: { keepInTouch: { from: true, to: false } } });
+    const on = await json<ContactDetail>(`/api/contacts/${c.id}`, { method: "PATCH", body: { keepInTouch: true } });
+    expect(on.body.keepInTouch).toBe(true);
+    const created = await createContact({ firstName: "Never", lastName: "Nudge", keepInTouch: false });
+    expect(created.keepInTouch).toBe(false);
+  });
+
   it("archives and unarchives, hiding from the default list", async () => {
     const c = await createContact({ firstName: "Archie" });
     let list = await json<ListResult<ContactSummary>>("/api/contacts");

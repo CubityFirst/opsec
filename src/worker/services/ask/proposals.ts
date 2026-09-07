@@ -9,6 +9,7 @@ import { z } from "zod";
 import { pendingIdFor, type AskProposal } from "@shared/schemas/ask";
 import { CONTACT_KINDS, INTERACTION_TYPES, birthdaySchema, contactMethodTypeSchema, idSchema, isoDateSchema, isoDateTimeSchema, nonBlank } from "@shared/schemas/common";
 import { contactCreateSchema, contactMethodInputSchema, customFieldsSchema, otherNameSchema } from "@shared/schemas/contact";
+import { coordinatesSchema, formatCoordinates, type Coordinates } from "@shared/schemas/geo";
 import { LIFE_EVENT_CATEGORIES, LIFE_EVENT_CATEGORY_LABELS, lifeEventCreateSchema } from "@shared/schemas/life-event";
 import { BET_OUTCOME_LABELS, betCreateSchema, betOutcomeSchema } from "@shared/schemas/bet";
 import { GIFT_STATUS_LABELS, giftCreateSchema, giftStatusSchema } from "@shared/schemas/gift";
@@ -136,12 +137,13 @@ const contactFieldsForUpdate = {
   jobTitle: text(200),
   employerContactId: idSchema.nullable().optional().describe("Must be an existing organisation contact"),
   customFields: customFieldsSchema.optional().describe("Merged into the existing custom fields; a null value removes that key"),
+  keepInTouch: z.boolean().optional().describe("false: leave this contact out of keep-in-touch checks (the dashboard's Out of touch nudges); true: include again"),
 };
 
 const proposeContactUpdate = def({
   name: "propose_contact_update",
   description:
-    "Draft changes to a contact's names, pronouns, other names, birthday, how-we-met details, job title, employer or custom fields. Shown to the user as a before/after with an Apply button; nothing is saved by you. Pass only the fields that change; pass null (or \"\") to clear one. Dates use the partial format (YYYY-MM-DD, YYYY-MM, YYYY, --MM-DD, --MM). employerContactId must be an existing organisation: search_contacts with kind=organization first and, if it is not in the CRM, propose_contact_create it or say so. To change notes use propose_contact_note; for tags use propose_tags; for phones/emails use propose_contact_method.",
+    "Draft changes to a contact's names, pronouns, other names, birthday, how-we-met details, job title, employer, custom fields or keep-in-touch setting. Shown to the user as a before/after with an Apply button; nothing is saved by you. Pass only the fields that change; pass null (or \"\") to clear one. Dates use the partial format (YYYY-MM-DD, YYYY-MM, YYYY, --MM-DD, --MM). employerContactId must be an existing organisation: search_contacts with kind=organization first and, if it is not in the CRM, propose_contact_create it or say so. To change notes use propose_contact_note; for tags use propose_tags; for phones/emails use propose_contact_method.",
   schema: z.object({ contactId: idSchema, ...contactFieldsForUpdate }),
   label: () => "Drafting a contact update for you to review",
   run: async (i, ctx) => {
@@ -203,6 +205,11 @@ const proposeContactUpdate = def({
         if (show(d.customFields[k]) !== show(v)) changes.push({ label: k, from: show(d.customFields[k]), to: show(v) });
       }
       if (JSON.stringify(merged) !== JSON.stringify(d.customFields)) body.customFields = merged;
+    }
+    if (i.keepInTouch !== undefined && i.keepInTouch !== d.keepInTouch) {
+      body.keepInTouch = i.keepInTouch;
+      const yn = (v: boolean) => (v ? "Yes" : "No");
+      changes.push({ label: "Keep in touch", from: yn(d.keepInTouch), to: yn(i.keepInTouch) });
     }
     if (changes.length === 0) throw new AskToolError("Nothing would change: no fields were given, or the contact already has these values");
     return emitAction(ctx, {
@@ -328,6 +335,13 @@ const proposeTags = def({
   },
 });
 
+function sameCoordinates(a: Coordinates | null | undefined, b: Coordinates | null | undefined): boolean {
+  return (a ?? null) === null ? (b ?? null) === null : !!b && a!.lat === b.lat && a!.lng === b.lng && (a!.radius ?? null) === (b.radius ?? null);
+}
+function coordinatesChange(from: Coordinates | null | undefined, to: Coordinates | null | undefined): Change {
+  return { label: "Coordinates", from: from ? formatCoordinates(from) : null, to: to ? formatCoordinates(to) : null };
+}
+
 const proposeContactMethod = def({
   name: "propose_contact_method",
   description:
@@ -340,19 +354,23 @@ const proposeContactMethod = def({
     label: text(100).describe("e.g. mobile, work, home; for social the platform key (linkedin, instagram…)"),
     value: z.string().trim().max(1000).optional(),
     isPrimary: z.boolean().optional(),
+    coordinates: coordinatesSchema.nullish().describe("Addresses only: where it is (WGS-84 lat/lng), when the user gave it or it is already known; null clears it"),
   }),
   label: (i) => `Drafting a contact-method ${i.action} for you to review`,
   run: async (i, ctx) => {
     const { detail: d, ref: contact, dependsOn } = await contactOrPending(ctx, i.contactId);
     if (i.action === "add") {
-      const parsed = contactMethodInputSchema.safeParse({ type: i.type, label: i.label ?? null, value: i.value, isPrimary: i.isPrimary ?? false });
+      const parsed = contactMethodInputSchema.safeParse({ type: i.type, label: i.label ?? null, value: i.value, isPrimary: i.isPrimary ?? false, coordinates: i.coordinates ?? null });
       if (!parsed.success) throw new AskToolError(parsed.error.issues.map((x) => `${x.path.join(".")}: ${x.message}`).join("; "));
       const body = parsed.data;
       if (d?.methods.some((m) => m.type === body.type && m.value.trim().toLowerCase() === body.value.trim().toLowerCase())) throw new AskToolError("That contact method already exists");
       return emitAction(ctx, {
         title: `Add ${body.type} to ${contact.displayName}`,
         contact,
-        changes: [{ label: body.label ? `${body.type} (${body.label})` : body.type, from: null, to: body.value }],
+        changes: [
+          { label: body.label ? `${body.type} (${body.label})` : body.type, from: null, to: body.value },
+          ...(body.coordinates ? [{ label: "Coordinates", from: null, to: formatCoordinates(body.coordinates) }] : []),
+        ],
         request: { method: "POST", path: `/api/contacts/${contact.id}/methods`, body },
         dependsOn,
       });
@@ -376,6 +394,7 @@ const proposeContactMethod = def({
     if (i.label !== undefined && norm(i.label) !== existing.label) (body.label = norm(i.label)), changes.push({ label: "Label", from: existing.label, to: norm(i.label) ?? null });
     if (i.value !== undefined && i.value.trim() && i.value.trim() !== existing.value) (body.value = i.value.trim()), changes.push({ label: "Value", from: existing.value, to: i.value.trim() });
     if (i.isPrimary !== undefined && i.isPrimary !== existing.isPrimary) (body.isPrimary = i.isPrimary), changes.push({ label: "Primary", from: String(existing.isPrimary), to: String(i.isPrimary) });
+    if (i.coordinates !== undefined && !sameCoordinates(i.coordinates, existing.coordinates)) (body.coordinates = i.coordinates), changes.push(coordinatesChange(existing.coordinates, i.coordinates));
     if (changes.length === 0) throw new AskToolError("Nothing would change");
     return emitAction(ctx, { title: `Update ${name} on ${d.displayName}`, contact, changes, request: { method: "PATCH", path: `/api/contacts/${d.id}/methods/${existing.id}`, body } });
   },
@@ -806,6 +825,7 @@ const proposeInteractionUpdate = def({
     summary: z.string().trim().max(500).optional(),
     body: text(50_000),
     location: text(500),
+    coordinates: coordinatesSchema.nullish().describe("Where it happened (WGS-84 lat/lng), when the user gave it; null clears it"),
     contactIds: z.array(idSchema).min(1).max(ID_LIST_MAX).optional(),
   }),
   label: () => "Drafting an interaction edit for you to review",
@@ -819,6 +839,7 @@ const proposeInteractionUpdate = def({
     if (i.summary !== undefined && i.summary.trim() && i.summary.trim() !== x.summary) (body.summary = i.summary.trim()), changes.push({ label: "Summary", from: x.summary, to: i.summary.trim() });
     if (i.body !== undefined && norm(i.body) !== x.body) (body.body = norm(i.body) ?? null), changes.push({ label: "Body", from: x.body, to: norm(i.body) ?? null });
     if (i.location !== undefined && norm(i.location) !== x.location) (body.location = norm(i.location) ?? null), changes.push({ label: "Location", from: x.location, to: norm(i.location) ?? null });
+    if (i.coordinates !== undefined && !sameCoordinates(i.coordinates, x.coordinates)) (body.coordinates = i.coordinates), changes.push(coordinatesChange(x.coordinates, i.coordinates));
     if (i.contactIds !== undefined) {
       const ids = [...new Set(i.contactIds)];
       const { refs, dependsOn: deps } = await resolveRefs(ctx, ids);

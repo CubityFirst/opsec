@@ -5,9 +5,11 @@ import { toast } from "sonner";
 import { z } from "zod";
 import { CONTACT_METHOD_TYPES } from "@shared/schemas/common";
 import { contactMethodInputSchema, type ContactMethodInput } from "@shared/schemas/contact";
+import type { Coordinates } from "@shared/schemas/geo";
 import { SOCIAL_BY_KEY, SOCIAL_PLATFORMS, detectSocial, normalizeSocial } from "@shared/social";
 import type { ContactMethodOut } from "@shared/types";
 import { FieldError } from "@/components/FieldError";
+import { LocationPicker } from "@/components/map/LocationPicker";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -26,7 +28,7 @@ const formSchema = z.preprocess((v) => {
   return o;
 }, contactMethodInputSchema);
 
-type FormValues = { type: (typeof CONTACT_METHOD_TYPES)[number]; label: string; value: string; isPrimary: boolean; sortOrder: number };
+type FormValues = { type: (typeof CONTACT_METHOD_TYPES)[number]; label: string; value: string; isPrimary: boolean; sortOrder: number; coordinates: Coordinates | null };
 
 const LABEL_HINTS: Record<string, string> = {
   phone: "mobile, home, work",
@@ -40,6 +42,7 @@ export function ContactMethodDialog({
   contactId,
   method,
   initialType = "phone",
+  initialValues,
   open,
   onOpenChange,
 }: {
@@ -47,6 +50,8 @@ export function ContactMethodDialog({
   method?: ContactMethodOut;
   /** Type preselected when adding (e.g. "social" from the Social card). */
   initialType?: (typeof CONTACT_METHOD_TYPES)[number];
+  /** Prefilled fields when adding (e.g. a spot picked on the map). Read when the dialog opens. */
+  initialValues?: { value?: string | null; coordinates?: Coordinates | null };
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
@@ -54,7 +59,7 @@ export function ContactMethodDialog({
   const update = useUpdateMethod(contactId);
   const { register, control, handleSubmit, reset, watch, setValue, formState } = useForm<FormValues, unknown, ContactMethodInput>({
     resolver: zodResolver(formSchema as never),
-    defaultValues: { type: "phone", label: "", value: "", isPrimary: false, sortOrder: 0 },
+    defaultValues: { type: "phone", label: "", value: "", isPrimary: false, sortOrder: 0, coordinates: null },
   });
   const type = watch("type");
   const label = watch("label");
@@ -65,11 +70,19 @@ export function ContactMethodDialog({
       reset({
         type: method?.type ?? initialType,
         label: method?.label ?? "",
-        value: method?.value ?? "",
+        value: method?.value ?? initialValues?.value ?? "",
         isPrimary: method?.isPrimary ?? false,
         sortOrder: method?.sortOrder ?? 0,
+        coordinates: method?.coordinates ?? initialValues?.coordinates ?? null,
       });
+    // initialValues is read only at open time, like InteractionDialog.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, method, initialType, reset]);
+
+  // Only addresses sit on the map.
+  useEffect(() => {
+    if (type !== "address") setValue("coordinates", null);
+  }, [type, setValue]);
 
   // Social: a pasted profile URL picks the platform automatically.
   const detected = type === "social" ? detectSocial(value) : null;
@@ -170,6 +183,22 @@ export function ContactMethodDialog({
               />
             )}
             <FieldError message={formState.errors.value?.message} />
+            {type === "address" && (
+              <Controller
+                control={control}
+                name="coordinates"
+                render={({ field }) => (
+                  <LocationPicker
+                    value={field.value}
+                    onChange={field.onChange}
+                    initialQuery={value}
+                    onLabel={(l) => {
+                      if (!value.trim()) setValue("value", l);
+                    }}
+                  />
+                )}
+              />
+            )}
             {preview && preview.platformKey !== "website" && (
               <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
                 <SocialIcon platformKey={preview.platformKey} className="size-3.5" brand />

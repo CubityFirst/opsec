@@ -21,7 +21,7 @@ import { requireAdmin } from "../middleware/auth";
 import { newId } from "../lib/ids";
 import { nowIso } from "../lib/time";
 import { activityInserts, diffChanges, event } from "../services/activity";
-import { computeDisplayName, ensureTags, existingTags, getContactDetail, getContactRow, listContacts, toMethodOut } from "../services/contacts";
+import { computeDisplayName, ensureTags, existingTags, getContactDetail, getContactRow, listContacts, toCoordinates, toMethodOut } from "../services/contacts";
 import { assertEmployer, employerSyncStatements } from "../services/employment";
 import { deleteObjects } from "../services/files";
 
@@ -81,6 +81,7 @@ app.post("/contacts", zValidator("json", contactCreateSchema, validationHook), a
       archivedAt: null,
       deceasedAt: null,
       deceasedOn: null,
+      keepInTouch: input.keepInTouch ?? true,
       createdAt: now,
       updatedAt: now,
     }),
@@ -100,12 +101,15 @@ app.post("/contacts", zValidator("json", contactCreateSchema, validationHook), a
         value: sf.value,
         isPrimary,
         sortOrder: m.sortOrder ?? i,
+        lat: m.coordinates?.lat ?? null,
+        lng: m.coordinates?.lng ?? null,
+        radiusM: m.coordinates?.radius ?? null,
         createdAt: now,
         updatedAt: now,
       };
     });
-    // 9 columns per row: stay under D1's 100 bound parameters per statement.
-    for (const part of chunk(methodRows, 11)) stmts.push(db.insert(contactMethods).values(part));
+    // 12 columns per row: stay under D1's 100 bound parameters per statement.
+    for (const part of chunk(methodRows, 8)) stmts.push(db.insert(contactMethods).values(part));
   }
   if (tagRows.length > 0) {
     for (const part of chunk(tagRows, 33)) stmts.push(db.insert(contactTags).values(part.map((t) => ({ contactId: id, tagId: t.id, createdAt: now }))));
@@ -148,6 +152,7 @@ app.patch("/contacts/:id", zValidator("json", contactUpdateSchema, validationHoo
       employerContactId: before.employerContactId,
       notes: before.notes,
       customFields: before.customFields,
+      keepInTouch: before.keepInTouch,
     },
     patch,
   );
@@ -183,6 +188,7 @@ app.patch("/contacts/:id", zValidator("json", contactUpdateSchema, validationHoo
         employerContactId: employerAfter,
         notes: patch.notes === undefined ? before.notes : patch.notes,
         customFields: patch.customFields === undefined ? before.customFields : patch.customFields,
+        keepInTouch: patch.keepInTouch === undefined ? before.keepInTouch : patch.keepInTouch,
         updatedAt: now,
       })
       .where(eq(contacts.id, id)),
@@ -470,6 +476,9 @@ app.post("/contacts/:id/methods", zValidator("json", contactMethodInputSchema, v
       value: input.value,
       isPrimary: input.isPrimary,
       sortOrder: input.sortOrder,
+      lat: input.coordinates?.lat ?? null,
+      lng: input.coordinates?.lng ?? null,
+      radiusM: input.coordinates?.radius ?? null,
       createdAt: now,
       updatedAt: now,
     }),
@@ -497,7 +506,7 @@ app.patch("/contacts/:id/methods/:methodId", zValidator("json", contactMethodUpd
   if (!before) throw ApiError.notFound("Contact method");
   const patch = c.req.valid("json");
   const changes = diffChanges(
-    { type: before.type, label: before.label, value: before.value, isPrimary: before.isPrimary, sortOrder: before.sortOrder },
+    { type: before.type, label: before.label, value: before.value, isPrimary: before.isPrimary, sortOrder: before.sortOrder, coordinates: toCoordinates(before.lat, before.lng, before.radiusM) },
     patch,
   );
   if (Object.keys(changes).length === 0) return c.json(toMethodOut(before));
@@ -527,6 +536,9 @@ app.patch("/contacts/:id/methods/:methodId", zValidator("json", contactMethodUpd
         value: patch.value ?? before.value,
         isPrimary,
         sortOrder: patch.sortOrder ?? before.sortOrder,
+        lat: patch.coordinates === undefined ? before.lat : (patch.coordinates?.lat ?? null),
+        lng: patch.coordinates === undefined ? before.lng : (patch.coordinates?.lng ?? null),
+        radiusM: patch.coordinates === undefined ? before.radiusM : (patch.coordinates?.radius ?? null),
         updatedAt: now,
       })
       .where(eq(contactMethods.id, methodId)),

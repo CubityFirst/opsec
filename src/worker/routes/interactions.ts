@@ -12,7 +12,7 @@ import { ApiError, validationHook } from "../lib/errors";
 import { newId } from "../lib/ids";
 import { nowIso } from "../lib/time";
 import { activityInserts, diffChanges, event } from "../services/activity";
-import { contactRefs, getContactRow } from "../services/contacts";
+import { contactRefs, getContactRow, toCoordinates } from "../services/contacts";
 import { deleteObjects } from "../services/files";
 import { getInteractionOut, getInteractionRow, hydrateInteractions, listContactInteractions, participantIds } from "../services/interactions";
 
@@ -62,6 +62,9 @@ app.post("/interactions", zValidator("json", interactionCreateSchema, validation
       summary: input.summary,
       body: input.body ?? null,
       location: input.location ?? null,
+      lat: input.coordinates?.lat ?? null,
+      lng: input.coordinates?.lng ?? null,
+      radiusM: input.coordinates?.radius ?? null,
       createdAt: now,
       updatedAt: now,
     }),
@@ -115,8 +118,8 @@ app.patch("/interactions/:id", zValidator("json", interactionUpdateSchema, valid
   const current = await participantIds(db, id);
 
   const fieldChanges = diffChanges(
-    { type: before.type, occurredAt: before.occurredAt, summary: before.summary, body: before.body, location: before.location },
-    { type: patch.type, occurredAt: patch.occurredAt, summary: patch.summary, body: patch.body, location: patch.location },
+    { type: before.type, occurredAt: before.occurredAt, summary: before.summary, body: before.body, location: before.location, coordinates: toCoordinates(before.lat, before.lng, before.radiusM) },
+    { type: patch.type, occurredAt: patch.occurredAt, summary: patch.summary, body: patch.body, location: patch.location, coordinates: patch.coordinates },
   );
   const wanted = patch.contactIds ? [...new Set(patch.contactIds)] : current;
   const toAdd = wanted.filter((x) => !current.includes(x));
@@ -141,6 +144,9 @@ app.patch("/interactions/:id", zValidator("json", interactionUpdateSchema, valid
         summary,
         body: patch.body === undefined ? before.body : patch.body,
         location: patch.location === undefined ? before.location : patch.location,
+        lat: patch.coordinates === undefined ? before.lat : (patch.coordinates?.lat ?? null),
+        lng: patch.coordinates === undefined ? before.lng : (patch.coordinates?.lng ?? null),
+        radiusM: patch.coordinates === undefined ? before.radiusM : (patch.coordinates?.radius ?? null),
         updatedAt: now,
       })
       .where(eq(interactions.id, id)),

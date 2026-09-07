@@ -4,6 +4,7 @@ import { BET_STATUSES } from "@shared/schemas/bet";
 import { GIFT_STATUSES } from "@shared/schemas/gift";
 import { REMINDER_STATUSES } from "@shared/schemas/reminder";
 import { CONTACT_KINDS, INTERACTION_TYPES, idSchema, isoDateSchema, isoDateTimeSchema, nonBlank, optionalText } from "@shared/schemas/common";
+import { coordinatesSchema } from "@shared/schemas/geo";
 import { interactionCreateSchema } from "@shared/schemas/interaction";
 
 import { newId } from "../../lib/ids";
@@ -78,7 +79,7 @@ const getContact = def({
     ]);
     return {
       ...compactContact(d),
-      methods: d.methods.map((m) => ({ id: m.id, type: m.type, label: m.label, value: m.value, primary: m.isPrimary || undefined })),
+      methods: d.methods.map((m) => ({ id: m.id, type: m.type, label: m.label, value: m.value, primary: m.isPrimary || undefined, coordinates: m.coordinates ?? undefined })),
       met: d.metOn || d.metWhere || d.metHow || d.metVia ? { on: d.metOn, where: d.metWhere, how: d.metHow, via: d.metVia ? ref(d.metVia) : null } : null,
       notes: i.notes === "full" ? d.notes : truncate(d.notes, NOTES_SUMMARY_CHARS, "call get_contact with notes: \"full\""),
       customFields: Object.keys(d.customFields).length ? d.customFields : undefined,
@@ -224,6 +225,7 @@ const proposeInteraction = def({
     summary: nonBlank(500),
     body: optionalText(20_000),
     location: optionalText(500),
+    coordinates: coordinatesSchema.nullish().describe("Where it happened (WGS-84 lat/lng), only when the user gave it or it is already known; never guessed"),
   }),
   label: () => "Drafting an interaction for you to review",
   run: async (i, ctx) => {

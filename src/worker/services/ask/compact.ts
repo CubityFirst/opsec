@@ -29,6 +29,8 @@ export function compactContact(c: ContactSummary) {
     primaryPhone: c.primaryPhone,
     lastInteraction: c.lastInteraction ? { occurredAt: c.lastInteraction.occurredAt, type: c.lastInteraction.type, summary: c.lastInteraction.summary } : null,
     archived: c.archivedAt ? true : undefined,
+    /** Only present when off: the user asked not to be nudged about losing touch with this contact. */
+    keepInTouch: c.keepInTouch ? undefined : false,
     /** true, or the (partial) date of death when known. */
     deceased: c.deceasedAt ? (c.deceasedOn ?? true) : undefined,
   };
@@ -41,6 +43,7 @@ export function compactInteraction(i: InteractionOut, bodyChars: number) {
     occurredAt: i.occurredAt,
     summary: i.summary,
     location: i.location ?? undefined,
+    coordinates: i.coordinates ?? undefined,
     participants: i.participants.map(ref),
     body: truncate(i.body, bodyChars, "call get_interaction for the full text"),
     attachments: i.attachments.length ? i.attachments.map((a) => a.filename) : undefined,

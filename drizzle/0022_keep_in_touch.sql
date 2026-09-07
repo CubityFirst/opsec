@@ -1,0 +1,1 @@
+ALTER TABLE `contacts` ADD `keep_in_touch` integer DEFAULT true NOT NULL;

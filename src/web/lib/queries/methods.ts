@@ -2,7 +2,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import type { ContactMethodInput, ContactMethodUpdate } from "@shared/schemas/contact";
 import type { ContactMethodOut } from "@shared/types";
 import { api } from "../api";
-import { contactKeys } from "./keys";
+import { contactKeys, mapKeys } from "./keys";
 
 function useInvalidate(contactId: string) {
   const qc = useQueryClient();
@@ -10,6 +10,7 @@ function useInvalidate(contactId: string) {
     void qc.invalidateQueries({ queryKey: contactKeys.detail(contactId) });
     void qc.invalidateQueries({ queryKey: contactKeys.lists() });
     void qc.invalidateQueries({ queryKey: contactKeys.activity(contactId) });
+    void qc.invalidateQueries({ queryKey: mapKeys.all });
   };
 }
 

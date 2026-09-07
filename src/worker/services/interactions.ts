@@ -1,11 +1,11 @@
 import { and, asc, count, desc, eq, exists, gte, inArray, like, lte, or, sql, type SQL } from "drizzle-orm";
 import { QueryBuilder } from "drizzle-orm/sqlite-core";
-import type { InteractionOut, ListResult } from "@shared/types";
+import type { ContactRef, InteractionOut, ListResult } from "@shared/types";
 import { schema, type Db } from "../db";
 import type { InteractionRow } from "../db/schema";
 import { chunk } from "../lib/batch";
 import { ApiError } from "../lib/errors";
-import { likePattern, toContactRef, contactRefColumns } from "./contacts";
+import { likePattern, toContactRef, toCoordinates, contactRefColumns } from "./contacts";
 import { toFileOut } from "./files";
 
 const { contacts, interactions, interactionContacts, files } = schema;
@@ -26,36 +26,44 @@ export async function participantIds(db: Db, interactionId: string): Promise<str
   return rows.map((r) => r.contactId);
 }
 
-/** Hydrate interaction rows with participants and attachments, preserving input order. */
-export async function hydrateInteractions(db: Db, rows: InteractionRow[]): Promise<InteractionOut[]> {
-  if (rows.length === 0) return [];
-  const ids = rows.map((r) => r.id);
-  const participants = new Map<string, InteractionOut["participants"]>();
-  const attachments = new Map<string, InteractionOut["attachments"]>();
-  for (const part of chunk(ids)) {
-    const [pRows, fRows] = await Promise.all([
-      db
-        .select({
-          interactionId: interactionContacts.interactionId,
-          ...contactRefColumns,
-        })
-        .from(interactionContacts)
-        .innerJoin(contacts, eq(contacts.id, interactionContacts.contactId))
-        .where(inArray(interactionContacts.interactionId, part))
-        .orderBy(asc(contacts.displayName)),
-      db.select().from(files).where(inArray(files.interactionId, part)).orderBy(desc(files.createdAt)),
-    ]);
+/** Participants of each interaction (by display name), keyed by interaction id. */
+export async function participantsFor(db: Db, interactionIds: string[]): Promise<Map<string, ContactRef[]>> {
+  const participants = new Map<string, ContactRef[]>();
+  for (const part of chunk(interactionIds)) {
+    const pRows = await db
+      .select({
+        interactionId: interactionContacts.interactionId,
+        ...contactRefColumns,
+      })
+      .from(interactionContacts)
+      .innerJoin(contacts, eq(contacts.id, interactionContacts.contactId))
+      .where(inArray(interactionContacts.interactionId, part))
+      .orderBy(asc(contacts.displayName));
     for (const p of pRows) {
       const list = participants.get(p.interactionId) ?? [];
       list.push(toContactRef(p));
       participants.set(p.interactionId, list);
     }
-    for (const f of fRows) {
-      const list = attachments.get(f.interactionId!) ?? [];
-      list.push(toFileOut(f));
-      attachments.set(f.interactionId!, list);
-    }
   }
+  return participants;
+}
+
+/** Hydrate interaction rows with participants and attachments, preserving input order. */
+export async function hydrateInteractions(db: Db, rows: InteractionRow[]): Promise<InteractionOut[]> {
+  if (rows.length === 0) return [];
+  const ids = rows.map((r) => r.id);
+  const attachments = new Map<string, InteractionOut["attachments"]>();
+  const [participants] = await Promise.all([
+    participantsFor(db, ids),
+    ...chunk(ids).map(async (part) => {
+      const fRows = await db.select().from(files).where(inArray(files.interactionId, part)).orderBy(desc(files.createdAt));
+      for (const f of fRows) {
+        const list = attachments.get(f.interactionId!) ?? [];
+        list.push(toFileOut(f));
+        attachments.set(f.interactionId!, list);
+      }
+    }),
+  ]);
   return rows.map((r) => ({
     id: r.id,
     type: r.type,
@@ -63,6 +71,7 @@ export async function hydrateInteractions(db: Db, rows: InteractionRow[]): Promi
     summary: r.summary,
     body: r.body,
     location: r.location,
+    coordinates: toCoordinates(r.lat, r.lng, r.radiusM),
     participants: participants.get(r.id) ?? [],
     attachments: attachments.get(r.id) ?? [],
     createdAt: r.createdAt,

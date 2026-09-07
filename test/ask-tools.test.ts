@@ -151,6 +151,16 @@ describe("ask tools", () => {
     expect(orgTitle.summary).toMatch(/Only people/);
   });
 
+  it("propose_contact_update can switch keep-in-touch nudges off and shows it as a change", async () => {
+    const c = await createContact({ firstName: "Nudge", lastName: "Less" });
+    const r = await run("propose_contact_update", { contactId: c.id, keepInTouch: false });
+    expect(r.ok, r.summary).toBe(true);
+    const e = r.events.find((ev) => ev.type === "proposal") as { proposal: Extract<AskProposal, { kind: "action" }> };
+    expect(e.proposal.request).toEqual({ method: "PATCH", path: `/api/contacts/${c.id}`, body: { keepInTouch: false } });
+    expect(e.proposal.changes).toEqual([{ label: "Keep in touch", from: "Yes", to: "No" }]);
+    expect((await run("propose_contact_update", { contactId: c.id, keepInTouch: true })).ok).toBe(false);
+  });
+
   it("proposes tags, contact methods, relationships, life events, edits and deletions as actions with the right requests", async () => {
     const a = await createContact({ firstName: "Action", lastName: "Person", tagNames: ["old"], methods: [{ type: "email", value: "a@example.com" }] });
     const rex = await createContact({ kind: "pet", firstName: "Rexy" });
@@ -275,5 +285,42 @@ describe("ask tools", () => {
     const refused = await run("search_contacts", { q: "Big" }, tight);
     expect(refused.ok).toBe(false);
     expect(refused.summary).toMatch(/budget exhausted/);
+  });
+
+  it("passes coordinates through proposals and reads them back", async () => {
+    const a = await createContact({ firstName: "Geo", methods: [{ type: "address", value: "1 Harbourside", coordinates: { lat: 51.4545, lng: -2.5879 } }] });
+    const pick = (r: Awaited<ReturnType<typeof run>>) => {
+      expect(r.ok, r.summary).toBe(true);
+      const e = r.events.find((ev) => ev.type === "proposal");
+      return (e as { proposal: Extract<AskProposal, { kind: "action" }> }).proposal;
+    };
+    const detail = await run("get_contact", { id: a.id });
+    expect(detail.json.methods[0]).toMatchObject({ type: "address", coordinates: { lat: 51.4545, lng: -2.5879 } });
+    const methodId = detail.json.methods[0].id as string;
+
+    const add = pick(await run("propose_contact_method", { contactId: a.id, action: "add", type: "address", value: "Office", coordinates: { lat: 53.8008, lng: -1.5491 } }));
+    expect(add.request).toMatchObject({ method: "POST", body: { type: "address", value: "Office", coordinates: { lat: 53.8008, lng: -1.5491 } } });
+    expect(add.changes.some((c) => c.label === "Coordinates" && c.to === "53.80080, -1.54910")).toBe(true);
+    const half = await run("propose_contact_method", { contactId: a.id, action: "add", type: "address", value: "Half", coordinates: { lat: 1 } });
+    expect(half.ok).toBe(false);
+
+    const same = await run("propose_contact_method", { contactId: a.id, action: "update", methodId, coordinates: { lat: 51.4545, lng: -2.5879 } });
+    expect(same.ok).toBe(false);
+    expect(same.summary).toMatch(/Nothing would change/);
+    const clear = pick(await run("propose_contact_method", { contactId: a.id, action: "update", methodId, coordinates: null }));
+    expect(clear.request).toEqual({ method: "PATCH", path: `/api/contacts/${a.id}/methods/${methodId}`, body: { coordinates: null } });
+    expect(clear.changes).toEqual([{ label: "Coordinates", from: "51.45450, -2.58790", to: null }]);
+
+    const c = ctx();
+    const draft = await run("propose_interaction", { contactIds: [a.id], type: "meeting", summary: "On site", coordinates: { lat: 51.5, lng: -0.1 } }, c);
+    expect(draft.ok).toBe(true);
+    const proposal = c.events.find((e) => e.type === "proposal") as { proposal: Extract<AskProposal, { kind: "interaction" }> };
+    expect(proposal.proposal.input.coordinates).toEqual({ lat: 51.5, lng: -0.1 });
+
+    const x = await createInteraction([a.id], { summary: "Walk", coordinates: { lat: 51.5, lng: -0.1 } });
+    const listed = await run("list_interactions", { contactId: a.id });
+    expect(listed.json.items.find((i: { id: string }) => i.id === x.id).coordinates).toEqual({ lat: 51.5, lng: -0.1 });
+    const upd = pick(await run("propose_interaction_update", { interactionId: x.id, coordinates: null }));
+    expect(upd.request).toEqual({ method: "PATCH", path: `/api/interactions/${x.id}`, body: { coordinates: null } });
   });
 });

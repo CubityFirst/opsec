@@ -1,4 +1,4 @@
-import { ArchiveIcon, ArchiveRestoreIcon, CameraIcon, DownloadIcon, ExpandIcon, HeartCrackIcon, MailIcon, MoreHorizontalIcon, PencilIcon, PhoneIcon, Trash2Icon } from "lucide-react";
+import { ArchiveIcon, ArchiveRestoreIcon, BellIcon, BellOffIcon, CameraIcon, DownloadIcon, ExpandIcon, HeartCrackIcon, MailIcon, MoreHorizontalIcon, PencilIcon, PhoneIcon, Trash2Icon } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { NavLink, Outlet, useNavigate, useParams } from "react-router";
 import { toast } from "sonner";
@@ -32,7 +32,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { ApiError, errorMessage } from "@/lib/api";
 import { formatDate } from "@/lib/format";
 import { useAuthUser } from "@/lib/queries/auth";
-import { useArchiveContact, useContact, useDeleteAvatar, useDeleteContact, useMarkDeceased, useUploadAvatar } from "@/lib/queries/contacts";
+import { useArchiveContact, useContact, useDeleteAvatar, useDeleteContact, useMarkDeceased, useUpdateContact, useUploadAvatar } from "@/lib/queries/contacts";
 import { cn } from "@/lib/utils";
 import { ErrorState } from "./ContactsPage";
 
@@ -144,8 +144,20 @@ function Header({ contact, editOpen, setEditOpen }: { contact: ContactDetail; ed
   const upload = useUploadAvatar(contact.id);
   const removeAvatar = useDeleteAvatar(contact.id);
   const archive = useArchiveContact(contact.id);
+  const update = useUpdateContact(contact.id);
   const del = useDeleteContact();
   const isAdmin = useAuthUser()?.isAdmin ?? false;
+
+  /** Include or exclude this contact from the dashboard's "Out of touch" nudges. */
+  const onToggleKeepInTouch = async () => {
+    const next = !contact.keepInTouch;
+    try {
+      await update.mutateAsync({ keepInTouch: next });
+      toast.success(next ? "Keep-in-touch nudges are back on" : `You will not be nudged about ${contact.displayName}`);
+    } catch (e) {
+      toast.error(errorMessage(e));
+    }
+  };
 
   const [cropFile, setCropFile] = useState<File | null>(null);
   const [photoOpen, setPhotoOpen] = useState(false);
@@ -253,6 +265,11 @@ function Header({ contact, editOpen, setEditOpen }: { contact: ContactDetail; ed
           </h1>
           <KindBadge kind={contact.kind} />
           {contact.deceasedAt && <DeceasedBadge on={contact.deceasedOn} />}
+          {!contact.keepInTouch && (
+            <span className="flex items-center gap-1 text-xs text-muted-foreground" title="Left out of the dashboard's Out of touch list">
+              <BellOffIcon className="size-3" /> No keep-in-touch nudges
+            </span>
+          )}
           {contact.archivedAt && (
             <span className="flex items-center gap-1 text-xs text-muted-foreground">
               <ArchiveIcon className="size-3" /> Archived {formatDate(contact.archivedAt)}
@@ -336,6 +353,19 @@ function Header({ contact, editOpen, setEditOpen }: { contact: ContactDetail; ed
               </DropdownMenuItem>
             )}
             <DropdownMenuSeparator />
+            {contact.kind === "person" && (
+              <DropdownMenuItem onSelect={() => void onToggleKeepInTouch()}>
+                {contact.keepInTouch ? (
+                  <>
+                    <BellOffIcon /> Stop keep-in-touch nudges
+                  </>
+                ) : (
+                  <>
+                    <BellIcon /> Resume keep-in-touch nudges
+                  </>
+                )}
+              </DropdownMenuItem>
+            )}
             {contact.kind !== "organization" && (
               <DropdownMenuItem onSelect={() => setDeceasedOpen(true)}>
                 <HeartCrackIcon /> {contact.deceasedAt ? "Deceased…" : "Mark as deceased…"}

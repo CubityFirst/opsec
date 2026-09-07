@@ -1,5 +1,5 @@
 import { MentionText } from "@/components/MentionText";
-import { CakeIcon, HandshakeIcon, MessageSquarePlusIcon, PencilIcon, PlusIcon, StarIcon, Trash2Icon } from "lucide-react";
+import { CakeIcon, HandshakeIcon, MapPinIcon, MessageSquarePlusIcon, PencilIcon, PlusIcon, StarIcon, Trash2Icon } from "lucide-react";
 import { useState } from "react";
 import { MarkdownBody } from "@/components/MarkdownBody";
 import { Link, useOutletContext } from "react-router";
@@ -8,6 +8,7 @@ import type { ContactMethodType } from "@shared/schemas/common";
 import type { ContactMethodOut } from "@shared/types";
 import { ContactMethodDialog } from "@/components/contacts/ContactMethodDialog";
 import { CustomFieldsEditor } from "@/components/contacts/CustomFieldsEditor";
+import { ContactMapCard } from "@/components/map/ContactMapCard";
 import { InteractionDialog } from "@/components/interactions/InteractionDialog";
 import { BetCard, describeRecord } from "@/components/bets/BetCard";
 import { BetDialog } from "@/components/bets/BetDialog";
@@ -103,6 +104,9 @@ export function OverviewTab() {
                   const href = methodHref(m);
                   return (
                     <li key={m.id} className="flex items-center gap-3 py-2">
+                      <span className="flex w-3.5 shrink-0 items-center justify-center" aria-hidden={!m.isPrimary}>
+                        {m.isPrimary && <StarIcon className="size-3.5 fill-amber-400 text-amber-400" aria-label="Primary" />}
+                      </span>
                       <div className="w-20 shrink-0 text-xs text-muted-foreground">
                         {capitalize(m.type)}
                         {m.label && <div className="truncate">{m.label}</div>}
@@ -116,7 +120,13 @@ export function OverviewTab() {
                           m.value
                         )}
                       </div>
-                      {m.isPrimary && <StarIcon className="size-3.5 fill-amber-400 text-amber-400" aria-label="Primary" />}
+                      {m.type === "address" && m.coordinates && (
+                        <Button asChild variant="ghost" size="icon-sm" aria-label="Show on map" title="Show on map">
+                          <Link to={`/map?focus=method:${m.id}`}>
+                            <MapPinIcon />
+                          </Link>
+                        </Button>
+                      )}
                       <Button variant="ghost" size="icon-sm" aria-label="Edit" onClick={() => setMethodDialog({ open: true, method: m })}>
                         <PencilIcon />
                       </Button>
@@ -385,6 +395,8 @@ export function OverviewTab() {
             </dl>
           </CardContent>
         </Card>
+
+        <ContactMapCard contact={contact} />
       </div>
 
       <ContactMethodDialog
