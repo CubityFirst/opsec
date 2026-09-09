@@ -1,5 +1,5 @@
-import { ImagePlusIcon, RotateCcwIcon, SendIcon, SquareIcon, XIcon } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { ArrowDownIcon, ImagePlusIcon, RotateCcwIcon, SendIcon, SquareIcon, XIcon } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { mentionMarkdown } from "@shared/mentions";
 import { toast } from "sonner";
 import { MessageList } from "@/components/ask/MessageList";
@@ -16,12 +16,29 @@ export function AskPage() {
   const mentionsRef = useRef(new Map<string, string>());
   const [image, setImage] = useState<PreparedImage | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const streaming = ask.status === "streaming";
+  /** False once the user has scrolled up to read: new text then stops pulling the view down and a "jump to latest" button appears. */
+  const [atBottom, setAtBottom] = useState(true);
+  const atBottomRef = useRef(true);
+
+  const onListScroll = useCallback(() => {
+    const el = listRef.current;
+    if (!el) return;
+    const near = el.scrollHeight - el.scrollTop - el.clientHeight < 48;
+    atBottomRef.current = near;
+    setAtBottom(near);
+  }, []);
+  const scrollToBottom = useCallback((behavior: ScrollBehavior = "auto") => {
+    bottomRef.current?.scrollIntoView({ block: "end", behavior });
+    atBottomRef.current = true;
+    setAtBottom(true);
+  }, []);
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ block: "end" });
-  }, [ask.turns]);
+    if (atBottomRef.current) scrollToBottom();
+  }, [ask.turns, scrollToBottom]);
 
   const attach = async (file: Blob | undefined) => {
     if (!file) return;
@@ -63,17 +80,32 @@ export function AskPage() {
         )}
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto rounded-xl border p-4">
-        {ask.turns.length === 0 ? (
-          <div className="flex h-full flex-col items-center justify-center gap-2 text-center text-sm text-muted-foreground">
-            <p>Try: “When did I last speak to Alice, and what about?”</p>
-            <p>“Who introduced me to the vet Rex goes to?”</p>
-            <p>Paste a screenshot of a chat and ask “Log this.”</p>
-          </div>
-        ) : (
-          <MessageList turns={ask.turns} streaming={streaming} onProposalChange={ask.markProposal} onReply={reply} />
+      <div className="relative min-h-0 flex-1">
+        <div ref={listRef} onScroll={onListScroll} className="h-full overflow-y-auto rounded-xl border p-4">
+          {ask.turns.length === 0 ? (
+            <div className="flex h-full flex-col items-center justify-center gap-2 text-center text-sm text-muted-foreground">
+              <p>Try: “When did I last speak to Alice, and what about?”</p>
+              <p>“Who introduced me to the vet Rex goes to?”</p>
+              <p>Paste a screenshot of a chat and ask “Log this.”</p>
+            </div>
+          ) : (
+            <MessageList turns={ask.turns} streaming={streaming} onProposalChange={ask.markProposal} onReply={reply} />
+          )}
+          <div ref={bottomRef} />
+        </div>
+        {!atBottom && ask.turns.length > 0 && (
+          <Button
+            type="button"
+            variant="outline"
+            size="icon"
+            aria-label="Scroll to latest"
+            title="Scroll to latest"
+            className="absolute bottom-3 left-1/2 -translate-x-1/2 rounded-full shadow-md"
+            onClick={() => scrollToBottom("smooth")}
+          >
+            <ArrowDownIcon />
+          </Button>
         )}
-        <div ref={bottomRef} />
       </div>
 
       <form
