@@ -21,6 +21,8 @@ export interface RunAskArgs {
   emit: (e: AskEvent) => void | Promise<void>;
   signal: AbortSignal;
   now?: Date;
+  /** IANA zone for the prompt's clock: the request's `timeZone`, else the deployment's `TIMEZONE` var. */
+  timeZone?: string;
 }
 
 export interface RunAskResult {
@@ -31,7 +33,7 @@ export interface RunAskResult {
   toolsUsed: string[];
 }
 
-function buildMessages(user: SessionUser, input: AskRequest, now: Date): Msg[] {
+function buildMessages(user: SessionUser, input: AskRequest, now: Date, timeZone?: string): Msg[] {
   const history: Msg[] = input.messages.slice(-MAX_HISTORY_TURNS_SENT).map((t) => ({
     role: t.role,
     content: t.text.length > MAX_HISTORY_CHARS_PER_TURN ? `${t.text.slice(0, MAX_HISTORY_CHARS_PER_TURN)}\n…[earlier turn trimmed]` : t.text,
@@ -45,7 +47,7 @@ function buildMessages(user: SessionUser, input: AskRequest, now: Date): Msg[] {
         ],
       }
     : { role: "user", content: input.question };
-  return [{ role: "system", content: systemMessage(user, now) }, ...history, question];
+  return [{ role: "system", content: systemMessage(user, now, timeZone) }, ...history, question];
 }
 
 /**
@@ -57,7 +59,7 @@ export async function runAsk(args: RunAskArgs): Promise<RunAskResult> {
   const { db, provider, client, user, input, emit, signal } = args;
   // Whole-run deadline on top of the client disconnect signal.
   const runSignal = typeof AbortSignal.any === "function" ? AbortSignal.any([signal, AbortSignal.timeout(MAX_RUN_MS)]) : signal;
-  const messages = buildMessages(user, input, args.now ?? new Date());
+  const messages = buildMessages(user, input, args.now ?? new Date(), args.timeZone);
   const tools = toolDefinitions();
   const budget = new ByteBudget();
   const pending: ToolCtx["pending"] = new Map();

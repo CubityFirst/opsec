@@ -7,6 +7,7 @@ import { ApiError, validationHook } from "../lib/errors";
 import { resolveProvider } from "../services/ai-settings";
 import { askConfig, createAskClient } from "../services/ask/client";
 import { classifyAskError } from "../services/ask/errors";
+import { deploymentTimeZone } from "../services/ask/prompt";
 import { testFetch } from "../services/ask/provider";
 import { runAsk } from "../services/ask/run";
 
@@ -40,7 +41,7 @@ app.post("/ask", zValidator("json", askRequestSchema, validationHook), async (c)
     const started = Date.now();
     try {
       const client = createAskClient(provider, testFetch(c.env));
-      const result = await runAsk({ db, provider, client, user, input, emit, signal: ctrl.signal });
+      const result = await runAsk({ db, provider, client, user, input, emit, signal: ctrl.signal, timeZone: input.timeZone ?? deploymentTimeZone(c.env) });
       console.log(JSON.stringify({ route: "ask", sub: user.sub, ...result, ms: Date.now() - started }));
     } catch (err) {
       if (ctrl.signal.aborted) return;

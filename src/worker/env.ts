@@ -22,6 +22,8 @@ export interface AppVars {
   AI_EXTRA_BODY?: string;
   AI_API_KEY?: string;
   AI_EXTRA_HEADERS?: string;
+  /** IANA zone the owner lives in (e.g. "Europe/London"): the clock Ask and MCP quote when the request names none. */
+  TIMEZONE?: string;
   /** Test hook: route provider calls to globalThis.__askFakeUpstream. */
   ASK_FAKE_UPSTREAM?: string;
   /** Test hook: route geocoder calls to globalThis.__geocodeFakeUpstream. */

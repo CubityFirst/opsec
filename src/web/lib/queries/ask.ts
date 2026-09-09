@@ -4,6 +4,15 @@ import { ASK_MAX_HISTORY_TURNS, type AskConfig, type AskEvent, type AskImage, ty
 import { api, errorMessage } from "../api";
 import { streamEvents } from "../sse";
 
+/** The browser's IANA zone, so the server can read "9am" as 9am here; undefined if the runtime does not know. */
+function browserTimeZone(): string | undefined {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 export function useAskConfig() {
   return useQuery({ queryKey: ["ask", "config"], queryFn: () => api.get<AskConfig>("/api/ask/config"), staleTime: Infinity });
 }
@@ -112,7 +121,7 @@ export function useAsk() {
       const ctrl = new AbortController();
       abortRef.current = ctrl;
       try {
-        const body = { messages: history, question, image: image ? { mediaType: image.mediaType, data: image.data } : undefined };
+        const body = { messages: history, question, image: image ? { mediaType: image.mediaType, data: image.data } : undefined, timeZone: browserTimeZone() };
         for await (const event of streamEvents<AskEvent>("/api/ask", body, ctrl.signal)) {
           dispatch({ type: "event", event });
         }

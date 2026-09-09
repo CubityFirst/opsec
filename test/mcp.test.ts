@@ -45,6 +45,7 @@ describe("MCP server", () => {
     expect(init.status).toBe(200);
     expect(init.body!.result).toMatchObject({ protocolVersion: "2025-06-18", serverInfo: { name: "opsec" }, capabilities: { tools: {} } });
     expect(init.headers.get("mcp-protocol-version")).toBe("2025-06-18");
+    expect((init.body!.result as { instructions: string }).instructions).toMatch(/The current time is \w+ \d{4}-\d{2}-\d{2} \d{2}:\d{2} UTC; the user's time zone is unknown/);
 
     const note = await rpc(read, "notifications/initialized", {}, { notification: true });
     expect(note.status).toBe(202);

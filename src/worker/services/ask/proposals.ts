@@ -821,7 +821,7 @@ const proposeInteractionUpdate = def({
   schema: z.object({
     interactionId: idSchema,
     type: z.enum(INTERACTION_TYPES).optional(),
-    occurredAt: isoDateTimeSchema.optional(),
+    occurredAt: isoDateTimeSchema.optional().describe("ISO-8601 with the user's UTC offset (e.g. 2026-09-09T09:00:00+01:00)"),
     summary: z.string().trim().max(500).optional(),
     body: text(50_000),
     location: text(500),

@@ -104,6 +104,19 @@ describe("POST /api/ask", () => {
     expect(String(toolMsg.content)).toContain(alice.id);
   });
 
+  it("tells the model the user's local time and offset when the browser names a zone", async () => {
+    const seen = installUpstream([() => textTurn("ok")]);
+    await ask({ question: "hi", timeZone: "Europe/London" });
+    const system = String((seen[0]!.body.messages as { content: unknown }[])[0]!.content);
+    // Whatever the date, the zone is named and the offset is one BST/GMT alternative; times the user gives are to be read in it.
+    expect(system).toMatch(/in the user's time zone, Europe\/London \(UTC\+0[01]:00\); that is \d{4}-\d{2}-\d{2} \d{2}:\d{2} UTC\./);
+    expect(system).toContain("write occurredAt with that zone's UTC offset");
+    // No zone: the vitest bindings set no TIMEZONE, so the prompt says so rather than guessing.
+    await ask({ question: "hi" });
+    expect(String((seen[1]!.body.messages as { content: unknown }[])[0]!.content)).toContain("the user's time zone is unknown");
+    expect((await ask({ question: "hi", timeZone: "Mars/Olympus_Mons" })).status).toBe(400);
+  });
+
   it("sends an attached image as an image_url part", async () => {
     const seen = installUpstream([() => textTurn("I can see a chat.")]);
     const r = await ask({ question: "What is this?", image: { mediaType: "image/png", data: "iVBORw0KGgo=" } });

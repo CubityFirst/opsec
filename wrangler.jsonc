@@ -38,6 +38,8 @@
   //   Ask                  AI_BASE_URL, AI_MODEL, AI_LABEL, AI_EXTRA_BODY — or configure Ask from the
   //                        Account page after deploying (README → Ask). Put spend limits on the
   //                        provider / AI Gateway.
+  //   TIMEZONE             IANA zone you live in (e.g. "Europe/London"); Ask uses the browser's zone
+  //                        first, MCP clients only have this one. Unset = UTC.
   //   ENVIRONMENT          "development" only in local .dev.vars (opens the /api/dev/* seed routes)
   "vars": {},
   // Secrets (npx wrangler secret put ...): SESSION_SECRET (needed to encrypt stored provider keys,
@@ -74,6 +76,7 @@
         "OIDC_ISSUER": "https://auth.cubityfir.st",
         "OIDC_CLIENT_ID": "annx_6d092a4c0a09224a32ab96d0",
         "ACCESS_ALLOWED_EMAILS": "cubity@cubityfir.st",
+        "TIMEZONE": "Europe/London",
         "AI_BASE_URL": "https://gateway.ai.cloudflare.com/v1/d843ae90cab33e54f4d284bc65d2fd6a/opsec/compat",
         "AI_MODEL": "openai/gpt-5.6-luna",
         "AI_LABEL": "gpt-5.6-luna via AI Gateway",

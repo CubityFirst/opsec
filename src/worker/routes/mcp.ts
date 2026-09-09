@@ -6,6 +6,7 @@ import { internalFetch } from "../app-ref";
 import { getDb } from "../db";
 import type { AppEnv } from "../env";
 import { ByteBudget } from "../services/ask/limits";
+import { clockSentence, deploymentTimeZone } from "../services/ask/prompt";
 import type { ToolCtx, ToolDef } from "../services/ask/tool-def";
 import { SUGGEST_REPLIES } from "../services/ask/suggest";
 import { TOOLS, executeTool } from "../services/ask/tools";
@@ -22,7 +23,7 @@ const SUPPORTED_VERSIONS = ["2025-11-25", "2025-06-18", "2025-03-26", "2024-11-0
 const DEFAULT_VERSION = "2025-06-18";
 const SERVER_VERSION = "0.1.0";
 
-const INSTRUCTIONS = `opsec▮ is a personal CRM: people, pets and organisations with typed relationships, interactions (calls, meals, notes…), life events, bets (a prediction with a review date and an optional wager, settled as me/them/void), gifts (ideas, given, received), reminders (one-off or recurring, optionally about a contact), tags, contact methods and notes. Ids are ULIDs; always search_contacts first and use ids from results. A relationship reads "from is the <type> of to". Dates: birthdays and "met on" use partial dates (YYYY-MM-DD, YYYY-MM, YYYY, --MM-DD, --MM); interactions use ISO-8601 datetimes and default to now. Write tools apply immediately (they need a write-scoped token); destructive ones must be called again with confirm: true.`;
+const INSTRUCTIONS = `opsec▮ is a personal CRM: people, pets and organisations with typed relationships, interactions (calls, meals, notes…), life events, bets (a prediction with a review date and an optional wager, settled as me/them/void), gifts (ideas, given, received), reminders (one-off or recurring, optionally about a contact), tags, contact methods and notes. Ids are ULIDs; always search_contacts first and use ids from results. A relationship reads "from is the <type> of to". Dates: birthdays and "met on" use partial dates (YYYY-MM-DD, YYYY-MM, YYYY, --MM-DD, --MM); interactions use ISO-8601 datetimes with the user's UTC offset (e.g. 2026-09-09T09:00:00+01:00) and default to now. Write tools apply immediately (they need a write-scoped token); destructive ones must be called again with confirm: true.`;
 
 /** Proposal tool → MCP write tool name. */
 const WRITE_NAMES: Record<string, string> = {
@@ -166,7 +167,7 @@ async function handle(c: C, msg: JsonRpcRequest, setVersion: (v: string) => void
         protocolVersion: version,
         capabilities: { tools: { listChanged: false } },
         serverInfo: { name: "opsec", version: SERVER_VERSION },
-        instructions: INSTRUCTIONS,
+        instructions: `${INSTRUCTIONS} ${clockSentence(new Date(), deploymentTimeZone(c.env))}`,
       };
     }
     case "ping":

@@ -24,11 +24,25 @@ export const askTurnSchema = z.object({
 });
 export type AskTurn = z.infer<typeof askTurnSchema>;
 
+/** True when `Intl` knows the IANA zone name (e.g. "Europe/London"). */
+export function isTimeZone(name: string): boolean {
+  try {
+    new Intl.DateTimeFormat("en", { timeZone: name });
+    return true;
+  } catch {
+    return false;
+  }
+}
+/** IANA zone name; the browser's `Intl.DateTimeFormat().resolvedOptions().timeZone`. */
+export const timeZoneSchema = z.string().trim().min(1).max(64).refine(isTimeZone, "Unknown time zone");
+
 export const askRequestSchema = z.object({
   /** Prior turns, text only, oldest first. */
   messages: z.array(askTurnSchema).max(ASK_MAX_HISTORY_TURNS).default([]),
   question: nonBlank(4_000),
   image: askImageSchema.optional(),
+  /** Where the user is, so "9am" means 9am there. Falls back to the `TIMEZONE` var, then UTC. */
+  timeZone: timeZoneSchema.optional(),
 });
 export type AskRequest = z.infer<typeof askRequestSchema>;
 

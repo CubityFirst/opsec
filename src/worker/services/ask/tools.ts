@@ -221,7 +221,7 @@ const proposeInteraction = def({
   schema: z.object({
     contactIds: z.array(idSchema).min(1).max(20),
     type: z.enum(INTERACTION_TYPES),
-    occurredAt: isoDateTimeSchema.optional().describe("When it happened, ISO-8601 UTC. Omit when the user gave no time: it defaults to right now."),
+    occurredAt: isoDateTimeSchema.optional().describe("When it happened, ISO-8601 with the user's UTC offset (e.g. 2026-09-09T09:00:00+01:00), so a bare '9am' is 9am in their zone. Omit when the user gave no time: it defaults to right now."),
     summary: nonBlank(500),
     body: optionalText(20_000),
     location: optionalText(500),

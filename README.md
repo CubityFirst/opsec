@@ -177,6 +177,7 @@ The backend speaks the **OpenAI Chat Completions** wire format, so any compatibl
 | `AI_EXTRA_BODY` | var, optional JSON object | Merged into every request, e.g. `{"thinking":{"type":"adaptive"}}` |
 | `AI_API_KEY` | secret | Provider key. `none` (or empty) sends **no** `Authorization` header, which is what BYOK gateways need to substitute their stored key and what llama.cpp expects |
 | `AI_EXTRA_HEADERS` | secret, optional JSON object | Extra headers, e.g. `{"cf-aig-authorization":"Bearer <token>"}` |
+| `TIMEZONE` | var, optional | IANA zone you live in (`Europe/London`), so "9am" in a question means 9am there. The Ask tab sends the browser's zone with every question and only falls back to this; MCP clients have nothing else, so set it if you use them. Unset = UTC |
 
 Set vars in `wrangler.jsonc`, secrets with `npx wrangler secret put <NAME>`; locally put all of them in `.dev.vars`. These are the deployment defaults.
 
