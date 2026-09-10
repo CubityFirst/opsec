@@ -1,5 +1,5 @@
 import { MentionText } from "@/components/MentionText";
-import { CakeIcon, HandshakeIcon, MapPinIcon, MessageSquarePlusIcon, PencilIcon, PlusIcon, StarIcon, Trash2Icon } from "lucide-react";
+import { CakeIcon, HandshakeIcon, MessageSquarePlusIcon, PencilIcon, PlusIcon, StarIcon, Trash2Icon } from "lucide-react";
 import { useState } from "react";
 import { MarkdownBody } from "@/components/MarkdownBody";
 import { Link, useOutletContext } from "react-router";
@@ -8,7 +8,7 @@ import type { ContactMethodType } from "@shared/schemas/common";
 import type { ContactMethodOut } from "@shared/types";
 import { ContactMethodDialog } from "@/components/contacts/ContactMethodDialog";
 import { CustomFieldsEditor } from "@/components/contacts/CustomFieldsEditor";
-import { ContactMapCard } from "@/components/map/ContactMapCard";
+import { ContactLocationsCard } from "@/components/map/ContactLocationsCard";
 import { InteractionDialog } from "@/components/interactions/InteractionDialog";
 import { BetCard, describeRecord } from "@/components/bets/BetCard";
 import { BetDialog } from "@/components/bets/BetDialog";
@@ -50,7 +50,8 @@ export function OverviewTab() {
   const { contact, openEdit } = useOutletContext<ContactOutletContext>();
   const [methodDialog, setMethodDialog] = useState<{ open: boolean; method?: ContactMethodOut; initialType?: ContactMethodType }>({ open: false });
   const socials = contact.methods.filter((m) => m.type === "social");
-  const details = contact.methods.filter((m) => m.type !== "social");
+  const addresses = contact.methods.filter((m) => m.type === "address");
+  const details = contact.methods.filter((m) => m.type !== "social" && m.type !== "address");
   const [logOpen, setLogOpen] = useState(false);
   const [lifeOpen, setLifeOpen] = useState(false);
   const [betOpen, setBetOpen] = useState(false);
@@ -90,14 +91,14 @@ export function OverviewTab() {
       <div className="flex flex-col gap-6">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle className="text-base">Phone, email &amp; address</CardTitle>
+            <CardTitle className="text-base">Phone &amp; email</CardTitle>
             <Button variant="outline" size="sm" onClick={() => setMethodDialog({ open: true, initialType: "phone" })}>
               <PlusIcon /> Add
             </Button>
           </CardHeader>
           <CardContent>
             {details.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No phone, email, or address yet.</p>
+              <p className="text-sm text-muted-foreground">No phone or email yet.</p>
             ) : (
               <ul className="divide-y">
                 {details.map((m) => {
@@ -120,13 +121,6 @@ export function OverviewTab() {
                           m.value
                         )}
                       </div>
-                      {m.type === "address" && m.coordinates && (
-                        <Button asChild variant="ghost" size="icon-sm" aria-label="Show on map" title="Show on map">
-                          <Link to={`/map?focus=method:${m.id}`}>
-                            <MapPinIcon />
-                          </Link>
-                        </Button>
-                      )}
                       <Button variant="ghost" size="icon-sm" aria-label="Edit" onClick={() => setMethodDialog({ open: true, method: m })}>
                         <PencilIcon />
                       </Button>
@@ -396,7 +390,7 @@ export function OverviewTab() {
           </CardContent>
         </Card>
 
-        <ContactMapCard contact={contact} />
+        <ContactLocationsCard contact={contact} addresses={addresses} />
       </div>
 
       <ContactMethodDialog
