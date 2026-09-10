@@ -22,14 +22,18 @@ import { Card, CardContent } from "@/components/ui/card";
 import { errorMessage } from "@/lib/api";
 import { INTERACTION_LABELS, formatBytes, formatDateTime, formatRelative } from "@/lib/format";
 import { useDeleteInteraction } from "@/lib/queries/interactions";
+import { cn } from "@/lib/utils";
 import { InteractionDialog } from "./InteractionDialog";
 
 export function InteractionCard({
   interaction,
   currentContactId,
+  hoverActions = false,
 }: {
   interaction: InteractionOut;
   currentContactId: string;
+  /** Show the edit and delete buttons only while the card is hovered or one of them has focus (devices that can hover; always shown on touch screens). */
+  hoverActions?: boolean;
 }) {
   const [editOpen, setEditOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -46,14 +50,14 @@ export function InteractionCard({
   };
 
   return (
-    <Card className="gap-3 py-4">
+    <Card className="group gap-3 py-4">
       <CardContent className="flex flex-col gap-2 px-4">
         <div className="flex items-start gap-2">
           <Badge variant="outline">{INTERACTION_LABELS[interaction.type]}</Badge>
           <span className="text-xs text-muted-foreground" title={formatDateTime(interaction.occurredAt)}>
             {formatRelative(interaction.occurredAt)} · {formatDateTime(interaction.occurredAt)}
           </span>
-          <div className="ml-auto flex gap-0.5">
+          <div className={cn("ml-auto flex gap-0.5", hoverActions && "transition-opacity [@media(hover:hover)]:opacity-0 group-hover:opacity-100 focus-within:opacity-100")}>
             <Button variant="ghost" size="icon-xs" aria-label="Edit interaction" onClick={() => setEditOpen(true)}>
               <PencilIcon />
             </Button>

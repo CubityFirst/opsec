@@ -139,7 +139,7 @@ export function DashboardPage() {
             <>
               <div className="flex flex-col gap-3">
                 {interactions.map((i) => (
-                  <InteractionCard key={i.id} interaction={i} currentContactId="" />
+                  <InteractionCard key={i.id} interaction={i} currentContactId="" hoverActions />
                 ))}
               </div>
               {recent.hasNextPage && (
