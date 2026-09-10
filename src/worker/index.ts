@@ -11,6 +11,8 @@ import { registerApp } from "./app-ref";
 import ask from "./routes/ask";
 import auth from "./routes/auth";
 import bets from "./routes/bets";
+import calendar from "./routes/calendar";
+import calendarFeeds from "./routes/calendar-feeds";
 import reminders from "./routes/reminders";
 import gifts from "./routes/gifts";
 import contacts from "./routes/contacts";
@@ -138,8 +140,11 @@ app.route("/api", dev);
 app.route("/api", ask);
 app.route("/api", aiSettings);
 app.route("/api", tokens);
+app.route("/api", calendarFeeds);
 // MCP lives outside /api: it authenticates with API tokens only (see routes/mcp.ts).
 app.route("/", mcp);
+// So does the iCalendar feed: its secret key is the credential (see routes/calendar.ts).
+app.route("/", calendar);
 
 // Static assets normally never reach the Worker (see `assets` in wrangler.jsonc);
 // this is a belt-and-braces fallback for environments without the binding.

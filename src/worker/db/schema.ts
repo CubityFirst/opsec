@@ -378,6 +378,27 @@ export const apiTokens = sqliteTable(
   (t) => [index("api_tokens_sub_idx").on(t.sub)],
 );
 
+/**
+ * iCalendar subscription feeds (Account → Calendar feeds). Each feed picks the
+ * sources it carries and is read with its own secret key in the URL
+ * (`/calendar/<key>.ics`), since calendar clients cannot send headers or cookies.
+ * The key is stored as-is so the URL can be shown again; it can be rotated.
+ */
+export const calendarFeeds = sqliteTable(
+  "calendar_feeds",
+  {
+    id: text("id").primaryKey(),
+    sub: text("sub").notNull(),
+    name: text("name").notNull(),
+    /** Which record types the feed carries; see CALENDAR_SOURCES in src/shared. */
+    sources: text("sources", { mode: "json" }).$type<string[]>().notNull(),
+    key: text("key").notNull().unique(),
+    lastFetchedAt: text("last_fetched_at"),
+    ...timestamps,
+  },
+  (t) => [index("calendar_feeds_sub_idx").on(t.sub)],
+);
+
 /** Signed-in identities, keyed on the OIDC `sub` claim (never on email). */
 export const users = sqliteTable("users", {
   sub: text("sub").primaryKey(),
@@ -405,3 +426,4 @@ export type LifeEventRow = typeof lifeEvents.$inferSelect;
 export type BetRow = typeof bets.$inferSelect;
 export type ReminderRow = typeof reminders.$inferSelect;
 export type GiftRow = typeof gifts.$inferSelect;
+export type CalendarFeedRow = typeof calendarFeeds.$inferSelect;

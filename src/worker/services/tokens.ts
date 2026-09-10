@@ -27,6 +27,14 @@ export function toTokenOut(r: TokenRow): ApiTokenOut {
   return { id: r.id, name: r.name, scope: r.scope, prefix: r.prefix, createdAt: r.createdAt, lastUsedAt: r.lastUsedAt };
 }
 
+/** Make sure the `users` row exists (it is normally written at sign-in) so a stored `sub` resolves later. */
+export async function ensureUserRow(db: Db, user: SessionUser, now: string): Promise<void> {
+  await db
+    .insert(users)
+    .values({ sub: user.sub, email: user.email, emailVerified: user.emailVerified, name: user.name, picture: user.picture, roles: user.roles, createdAt: now, lastLoginAt: now })
+    .onConflictDoUpdate({ target: users.sub, set: { email: user.email, emailVerified: user.emailVerified, name: user.name, picture: user.picture, roles: user.roles } });
+}
+
 /** Create a token for `user`; only the SHA-256 of it is stored. */
 export async function mintToken(db: Db, user: SessionUser, input: ApiTokenCreateInput): Promise<ApiTokenCreated> {
   const token = randomToken();
@@ -41,11 +49,7 @@ export async function mintToken(db: Db, user: SessionUser, input: ApiTokenCreate
     lastUsedAt: null,
     revokedAt: null,
   };
-  // Make sure the user row exists (it is normally written at sign-in) so the token resolves later.
-  await db
-    .insert(users)
-    .values({ sub: user.sub, email: user.email, emailVerified: user.emailVerified, name: user.name, picture: user.picture, roles: user.roles, createdAt: row.createdAt, lastLoginAt: row.createdAt })
-    .onConflictDoUpdate({ target: users.sub, set: { email: user.email, emailVerified: user.emailVerified, name: user.name, picture: user.picture, roles: user.roles } });
+  await ensureUserRow(db, user, row.createdAt);
   await db.insert(apiTokens).values(row);
   return { ...toTokenOut(row), token };
 }
@@ -71,6 +75,24 @@ export async function revokeToken(db: Db, sub: string, id: string): Promise<bool
   return true;
 }
 
+/**
+ * The user behind a stored `sub` (API tokens, calendar feeds): the `users` row
+ * written at sign-in, so a role change there applies immediately. Null when the
+ * row is gone or the access policy no longer allows the account.
+ */
+export async function resolveUser(db: Db, env: Pick<AppVars, "AUTH_MODE" | "ACCESS_ALLOWED_EMAILS">, sub: string): Promise<SessionUser | null> {
+  let user: SessionUser | null = null;
+  if (sub === OPEN_USER.sub) {
+    user = OPEN_USER;
+  } else {
+    const u = await db.select().from(users).where(eq(users.sub, sub)).get();
+    if (u) user = { sub: u.sub, email: u.email, emailVerified: u.emailVerified, name: u.name, picture: u.picture, roles: u.roles };
+  }
+  if (!user) return null;
+  if (authMode(env) === "oidc" && !isAllowed(user, env)) return null;
+  return user;
+}
+
 export interface TokenAuth {
   user: SessionUser;
   scope: ApiTokenScope;
@@ -94,15 +116,8 @@ export async function authenticateToken(db: Db, env: Pick<AppVars, "AUTH_MODE" |
     .get();
   if (!row) return null;
 
-  let user: SessionUser | null = null;
-  if (row.sub === OPEN_USER.sub) {
-    user = OPEN_USER;
-  } else {
-    const u = await db.select().from(users).where(eq(users.sub, row.sub)).get();
-    if (u) user = { sub: u.sub, email: u.email, emailVerified: u.emailVerified, name: u.name, picture: u.picture, roles: u.roles };
-  }
+  const user = await resolveUser(db, env, row.sub);
   if (!user) return null;
-  if (authMode(env) === "oidc" && !isAllowed(user, env)) return null;
 
   if (!row.lastUsedAt || Date.now() - Date.parse(row.lastUsedAt) > LAST_USED_GRANULARITY_MS) {
     await db.update(apiTokens).set({ lastUsedAt: nowIso() }).where(eq(apiTokens.id, row.id));

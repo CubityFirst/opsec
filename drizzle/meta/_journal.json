@@ -176,6 +176,13 @@
       "when": 1788784618224,
       "tag": "0024_map_radius",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "6",
+      "when": 1789055387243,
+      "tag": "0025_calendar_feeds",
+      "breakpoints": true
     }
   ]
 }

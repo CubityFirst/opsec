@@ -1,6 +1,7 @@
 import { LogOutIcon, ShieldAlertIcon, ShieldCheckIcon } from "lucide-react";
 import { AiProviderCard } from "@/components/settings/AiProviderCard";
 import { ApiTokensCard } from "@/components/settings/ApiTokensCard";
+import { CalendarFeedsCard } from "@/components/settings/CalendarFeedsCard";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -86,6 +87,8 @@ export function AccountPage() {
           <pre className="mt-4 overflow-x-auto rounded-md bg-muted p-3 text-xs">{JSON.stringify(user, null, 2)}</pre>
         </CardContent>
       </Card>
+
+      <CalendarFeedsCard />
 
       <ApiTokensCard />
 

@@ -126,6 +126,7 @@ Text ULID primary keys, ISO-8601 UTC timestamps.
 | `reminders` | a to-do with a `title`, `notes`, the next `due_on` day and, if recurring, `repeat_every` × `repeat_unit` (day / week / month / year) with an optional `repeat_until`, anchored on `start_on` so month and year rules do not drift; optional `contact_id`; `completed_at` once nothing is left, plus `last_completed_on` and `completed_count` |
 | `gifts` | a gift with one contact: `name`, `status` (`idea` / `given` / `received`), optional `occasion`, `given_on` day (null for an idea), `price`, `url`, `notes` |
 | `bets` | a wager with one contact: the user's `prediction` (the contact takes the other side), optional `wager`, `made_on` and `review_on` days, `details`; open until `outcome` (`me` / `them` / `void`) is set with `settled_at` and a `settled_note` on how it fell |
+| `calendar_feeds` | iCalendar subscription feeds per user: `name`, `sources` JSON (which record types it carries), the secret `key` in the URL, `last_fetched_at` |
 | `files` | R2 object metadata: `avatar` (cropped 512×512 WebP), `avatar_original` (the untouched upload, viewable full-size), `attachment` |
 | `activity` | append-only event log per contact with versioned JSON payloads |
 
@@ -160,6 +161,7 @@ errors return `{ error: { code, message, issues? } }`.
 - `GET /contacts/:id/activity` (merged feed), `GET /activity` (raw log)
 - `POST/DELETE /contacts/:id/avatar` (multipart `file` = cropped avatar, optional `original` = full photo), `POST /interactions/:id/files`, `GET /contacts/:id/files`, `GET /files/:id`, `DELETE /files/:id`
 - `GET /search?q=`, `GET/POST /tags`, `PATCH/DELETE /tags/:id`
+- `GET/POST /calendar-feeds`, `PATCH/DELETE /calendar-feeds/:id`, `POST /calendar-feeds/:id/rotate` (new secret URL); the feed itself is `GET /calendar/<key>.ics` outside `/api` (see Calendar feeds)
 - `GET /auth/login`, `GET /auth/callback`, `GET /auth/me`, `POST /auth/logout`
 - `POST /dev/seed` (only when `ENVIRONMENT=development`)
 
@@ -238,6 +240,19 @@ claude mcp add opsec --transport http https://<your host>/mcp --header "Authoriz
 - **Write tools** (write-scoped tokens only) are the Ask proposal tools applied immediately through the app's own API, so validation and the activity log are identical to the UI: `create_contact`, `update_contact`, `set_tags`, `contact_method`, `relationship`, `life_event`, `bet` (add / update / settle / reopen / remove), `gift` (add / update / give / revert / remove), `reminder` (add / update / complete / skip / reopen / remove), `create_interaction`, `update_interaction`, `delete_interaction`, `append_contact_note`, `archive_contact`, `mark_deceased`. Removals, deletions and archiving must be called again with `confirm: true`.
 - The same token works for the JSON API (`Authorization: Bearer …`); read-only tokens are refused for anything but GET. Tokens act as the user who created them, are stored hashed, can be revoked at any time, and cannot mint or revoke other tokens.
 
+## Calendar feeds
+
+**Account → Calendar feeds** publishes your data as iCalendar (`.ics`) subscriptions for Google Calendar, Apple Calendar, Outlook or anything else that reads the format. Create as many feeds as you like, each with its own name and its own choice of sources, so one calendar can carry only birthdays and reminders while another shows the full interaction history:
+
+- **Interactions**: every logged interaction, past and planned (an interaction dated in the future is simply a plan), as a one-hour event at `occurredAt`, with the participants in the title, the body and location, and a link back to the interaction page.
+- **Reminders**: open reminders as all-day events on their next due day; a recurring reminder becomes an `RRULE` (month and year rules keep the app's "31st, or the last day of a shorter month" semantics via `BYMONTHDAY=31,-1;BYSETPOS=1`). Completed reminders are not included.
+- **Birthdays**: a yearly all-day event for every living, unarchived person or pet whose birthday has a known month and day (29 February falls on the 28th in common years).
+- **Life events** with a full date, **bets** that are still open (on their review day) and **gifts** that were given or received (on that day), all as all-day events.
+
+Timed events are always written in UTC (`…Z`); your calendar app converts them to its own zone. All-day events are dates without a zone. Every event has a stable `UID`, so a refresh updates events in place.
+
+Each feed lives at `/calendar/<key>.ics`, where the key is a random 256-bit secret and the only credential: calendar clients send no cookies or headers. Treat the URL like a password; **New URL** replaces the key so the old link stops working, and deleting the feed does the same. Feeds are per user and, in `oidc` mode, stop working if the owner's account is no longer allowed in. They cannot be managed with an API token. The **Subscribe** button opens the `webcal://` form of the URL for Apple Calendar and Outlook; for Google Calendar paste the `https://` URL under *Other calendars → From URL* (Google refreshes subscribed calendars only every several hours).
+
 ## Security notes
 
 - **Sessions**: HS256-signed `HttpOnly; Secure; SameSite=Lax` cookies (oidc mode); the access policy is re-checked on every request. `SESSION_SECRET` must be at least 32 characters.
@@ -245,6 +260,7 @@ claude mcp add opsec --transport http https://<your host>/mcp --header "Authoriz
 - **Headers**: HSTS, a CSP that allows only same-origin scripts and connections (images may also come from any HTTPS host, which is what map tiles use), `X-Frame-Options: DENY`, `nosniff`, referrer and permissions policies (geolocation allowed for the app's own origin only, for the map), on every response including static assets.
 - **Files**: the stored content type of an upload comes from its bytes for the formats shown inline (PNG, JPEG, GIF, WebP, PDF); anything else downloads as an attachment with a generic type, and every file response carries a sandboxing CSP. Avatars must be raster images (never SVG). Uploads require `Content-Length` and JSON bodies are capped.
 - **Ask**: tools are read-only; the model can only propose changes that you apply. Markdown from notes or the model never renders remote images. Stored provider secrets are bound to the base URL's origin: changing the host clears them so the Worker cannot be used to read a key back. Provider error bodies are not echoed to the browser.
+- **Calendar feeds**: `/calendar/<key>.ics` is public by design; the 256-bit key in the path is the credential, unknown keys are a plain 404, and the response is `private, no-cache`. Keys are stored as-is so the URL can be shown again; rotate a leaked one from the Account page.
 - **Dev routes** (`/api/dev/*`) only exist on `localhost` with `ENVIRONMENT=development`.
 - **Admin role** gates cascade deletes of contacts and tags and the provider settings. Everyone allowed in can otherwise edit and delete records; run one instance per person, or put a stricter gate in front.
 
