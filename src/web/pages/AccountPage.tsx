@@ -1,4 +1,5 @@
-import { LogOutIcon, ShieldAlertIcon, ShieldCheckIcon } from "lucide-react";
+import { ChevronDownIcon, LogOutIcon, ShieldAlertIcon, UserRoundIcon } from "lucide-react";
+import { useState } from "react";
 import { AiProviderCard } from "@/components/settings/AiProviderCard";
 import { ApiTokensCard } from "@/components/settings/ApiTokensCard";
 import { CalendarFeedsCard } from "@/components/settings/CalendarFeedsCard";
@@ -10,6 +11,7 @@ import { useAuthUser, useLogout } from "@/lib/queries/auth";
 export function AccountPage() {
   const user = useAuthUser();
   const logout = useLogout();
+  const [signInOpen, setSignInOpen] = useState(false);
   if (!user) return null;
 
   const rows: [string, React.ReactNode][] = [
@@ -47,7 +49,7 @@ export function AccountPage() {
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Account</h1>
         <p className="text-sm text-muted-foreground">
-          {user.authMode === "open" ? "Open access: this instance has no sign-in." : `Signed in with ${user.providerLabel}. These claims come from the verified id_token.`}
+          {user.authMode === "open" ? "Open access: this instance has no sign-in." : `Signed in with ${user.providerLabel}.`}
         </p>
       </div>
 
@@ -68,24 +70,36 @@ export function AccountPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-base">
-            <ShieldCheckIcon className="size-4 text-muted-foreground" /> Verified claims
-          </CardTitle>
+          <button
+            type="button"
+            className="flex w-full items-center gap-2 text-left"
+            aria-expanded={signInOpen}
+            aria-controls="sign-in-details"
+            onClick={() => setSignInOpen((o) => !o)}
+          >
+            <CardTitle className="flex flex-1 items-center gap-2 text-base">
+              <UserRoundIcon className="size-4 text-muted-foreground" /> Sign-in details
+            </CardTitle>
+            <ChevronDownIcon className={`size-4 shrink-0 text-muted-foreground transition-transform ${signInOpen ? "rotate-180" : ""}`} aria-hidden />
+          </button>
           <CardDescription>
             {user.isAdmin ? "You have the admin role: destructive actions such as permanent deletes are enabled." : "Standard access. Permanent deletes need the admin role."}
+            {user.authMode === "oidc" && " The details below come from the verified id_token."}
           </CardDescription>
         </CardHeader>
-        <CardContent>
-          <dl className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-2 text-sm">
-            {rows.map(([k, v]) => (
-              <div key={k} className="contents">
-                <dt className="font-mono text-xs text-muted-foreground">{k}</dt>
-                <dd className="min-w-0 break-all">{v}</dd>
-              </div>
-            ))}
-          </dl>
-          <pre className="mt-4 overflow-x-auto rounded-md bg-muted p-3 text-xs">{JSON.stringify(user, null, 2)}</pre>
-        </CardContent>
+        {signInOpen && (
+          <CardContent id="sign-in-details">
+            <dl className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-2 text-sm">
+              {rows.map(([k, v]) => (
+                <div key={k} className="contents">
+                  <dt className="font-mono text-xs text-muted-foreground">{k}</dt>
+                  <dd className="min-w-0 break-all">{v}</dd>
+                </div>
+              ))}
+            </dl>
+            <pre className="mt-4 overflow-x-auto rounded-md bg-muted p-3 text-xs">{JSON.stringify(user, null, 2)}</pre>
+          </CardContent>
+        )}
       </Card>
 
       <CalendarFeedsCard />
