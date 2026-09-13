@@ -25,6 +25,7 @@ import relationshipTypes from "./routes/relationship-types";
 import relationships from "./routes/relationships";
 import search from "./routes/search";
 import tags from "./routes/tags";
+import timeline from "./routes/timeline";
 
 const app = new Hono<AppEnv>();
 
@@ -134,6 +135,7 @@ app.route("/api", reminders);
 app.route("/api", gifts);
 app.route("/api", map);
 app.route("/api", activity);
+app.route("/api", timeline);
 app.route("/api", files);
 app.route("/api", search);
 app.route("/api", dev);

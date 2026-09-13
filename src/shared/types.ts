@@ -9,6 +9,7 @@ import type { LifeEventCategory } from "./schemas/life-event";
 import type { BetOutcome } from "./schemas/bet";
 import type { GiftStatus } from "./schemas/gift";
 import type { Repeat } from "./schemas/reminder";
+import type { TimelineKind } from "./schemas/timeline";
 import type { Coordinates } from "./schemas/geo";
 import type { ContactKind, ContactMethodType, EntityType, FileKind, InteractionType, RelationshipCategory } from "./schemas/common";
 
@@ -321,6 +322,25 @@ export interface FeedResult {
   items: FeedItem[];
   /** Pass as `before` to fetch the next (older) page; null when exhausted. */
   nextBefore: string | null;
+}
+
+/**
+ * One entry on the cross-contact timeline. `at` is what it sorts and groups by:
+ * an ISO instant for interactions and bet settlements, a YYYY-MM-DD day for
+ * gifts and bets made, and the life event's own partial date (a month- or
+ * year-only date is placed under "sometime in …").
+ */
+export type TimelineItem =
+  | { kind: "interaction"; at: string; interaction: InteractionOut }
+  | { kind: "lifeEvent"; at: string; lifeEvent: LifeEventOut; contact: ContactRef }
+  | { kind: "gift"; at: string; gift: GiftOut }
+  | { kind: "bet"; at: string; bet: BetOut; event: "made" | "settled" };
+
+export interface TimelineResult {
+  /** Newest first. */
+  items: TimelineItem[];
+  /** How many items of each kind fell in the range, regardless of the `kinds` filter. */
+  counts: Record<TimelineKind, number>;
 }
 
 export interface SearchHit extends ContactRef {
