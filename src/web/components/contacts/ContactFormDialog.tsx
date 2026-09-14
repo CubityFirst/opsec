@@ -1,6 +1,6 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { PlusIcon, Trash2Icon } from "lucide-react";
-import { useEffect } from "react";
+import { ChevronDownIcon, PlusIcon, Trash2Icon } from "lucide-react";
+import { useEffect, useState } from "react";
 import { Controller, useFieldArray, useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
@@ -12,13 +12,14 @@ import type { ContactDetail, ContactRef } from "@shared/types";
 import { FieldError } from "@/components/FieldError";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { errorMessage } from "@/lib/api";
-import { KIND_LABELS, capitalize } from "@/lib/format";
+import { KIND_LABELS, capitalize, formatBirthday } from "@/lib/format";
 import { useCreateContact, useUpdateContact } from "@/lib/queries/contacts";
 import { BirthdayInput } from "./BirthdayInput";
 import { ContactPicker } from "./ContactPicker";
@@ -93,6 +94,41 @@ function defaults(contact?: ContactDetail): FormValues {
   };
 }
 
+/**
+ * One collapsed group of fields. Everything but the basics starts shut so the
+ * dialog stays short; a group opens on its own when it already holds something,
+ * when a validation error lands inside it, or when the user asks for it. The
+ * collapsed header shows what is in there so nothing is hidden silently.
+ */
+function Section({
+  title,
+  summary,
+  defaultOpen = false,
+  hasError = false,
+  children,
+}: {
+  title: string;
+  summary?: string;
+  defaultOpen?: boolean;
+  hasError?: boolean;
+  children: React.ReactNode;
+}) {
+  const [open, setOpen] = useState(defaultOpen);
+  useEffect(() => {
+    if (hasError) setOpen(true);
+  }, [hasError]);
+  return (
+    <Collapsible open={open} onOpenChange={setOpen} className="rounded-lg border">
+      <CollapsibleTrigger type="button" className="flex w-full items-center gap-2 px-3 py-2 text-left">
+        <span className="shrink-0 text-sm font-medium">{title}</span>
+        {!open && summary && <span className="min-w-0 flex-1 truncate text-xs text-muted-foreground">{summary}</span>}
+        <ChevronDownIcon className={`ml-auto size-4 shrink-0 text-muted-foreground transition-transform ${open ? "rotate-180" : ""}`} aria-hidden />
+      </CollapsibleTrigger>
+      <CollapsibleContent className="flex flex-col gap-3 border-t p-3">{children}</CollapsibleContent>
+    </Collapsible>
+  );
+}
+
 export function ContactFormDialog({
   open,
   onOpenChange,
@@ -116,8 +152,15 @@ export function ContactFormDialog({
   const { register, control, handleSubmit, reset, watch, formState } = form;
   const methods = useFieldArray({ control, name: "methods" });
   const otherNames = useFieldArray({ control, name: "otherNames" });
-  const kind = watch("kind");
+  const v = watch();
+  const kind = v.kind;
   const isPerson = kind === "person";
+  const errors = formState.errors;
+  const join = (...parts: (string | false | null | undefined)[]) => parts.filter(Boolean).join(" · ");
+  // Sections open themselves when the contact already has something in them.
+  const hasAbout = !!(contact?.pronouns || contact?.religion || contact?.originCountry);
+  const hasWork = !!(contact?.jobTitle || contact?.employer);
+  const hasMet = !!(contact?.metOn || contact?.metWhere || contact?.metHow || contact?.metVia);
 
   useEffect(() => {
     if (open) reset(defaults(contact));
@@ -145,7 +188,7 @@ export function ContactFormDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[90svh] overflow-y-auto sm:max-w-lg">
-        <form onSubmit={onSubmit} className="flex flex-col gap-5">
+        <form onSubmit={onSubmit} className="flex flex-col gap-4">
           <DialogHeader>
             <DialogTitle>{isEdit ? `Edit ${contact.displayName}` : "New contact"}</DialogTitle>
             <DialogDescription>{isEdit ? "Update the basics. Methods and tags are edited on the profile." : "People, pets, and organisations all live here."}</DialogDescription>
@@ -177,34 +220,15 @@ export function ContactFormDialog({
               <Label htmlFor="nickname">Nickname</Label>
               <Input id="nickname" {...register("nickname")} />
             </div>
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="firstName">{nameLabel}</Label>
+              <Input id="firstName" autoFocus {...register("firstName")} aria-invalid={!!errors.firstName} />
+              <FieldError message={errors.firstName?.message} />
+            </div>
             {isPerson && (
               <div className="flex flex-col gap-1.5">
-                <Label htmlFor="pronouns">Pronouns</Label>
-                <Input id="pronouns" placeholder="e.g. she/her, they/them" {...register("pronouns")} />
-              </div>
-            )}
-            {isPerson && (
-              <div className="flex flex-col gap-1.5">
-                <Label htmlFor="religion">Religion</Label>
-                {/* Free text: the list is only a shortcut, so anything typed is kept as typed. */}
-                <Input id="religion" list="religion-suggestions" placeholder="e.g. Muslim, Catholic, None" {...register("religion")} />
-                <datalist id="religion-suggestions">
-                  {RELIGION_SUGGESTIONS.map((r) => (
-                    <option key={r} value={r} />
-                  ))}
-                </datalist>
-              </div>
-            )}
-            {isPerson && (
-              <div className="flex flex-col gap-1.5">
-                <Label htmlFor="originCountry">Country of origin</Label>
-                {/* Free text like religion: the country list is a shortcut, not a constraint. */}
-                <Input id="originCountry" list="country-suggestions" placeholder="e.g. Italy, Hong Kong" {...register("originCountry")} />
-                <datalist id="country-suggestions">
-                  {COUNTRY_SUGGESTIONS.map((c) => (
-                    <option key={c} value={c} />
-                  ))}
-                </datalist>
+                <Label htmlFor="lastName">Last name</Label>
+                <Input id="lastName" {...register("lastName")} />
               </div>
             )}
             {kind === "pet" && (
@@ -213,58 +237,80 @@ export function ContactFormDialog({
                 <Input id="animalType" placeholder="e.g. Dog, Cockapoo, Tortoise" {...register("animalType")} />
               </div>
             )}
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="firstName">{nameLabel}</Label>
-              <Input id="firstName" autoFocus {...register("firstName")} aria-invalid={!!formState.errors.firstName} />
-              <FieldError message={formState.errors.firstName?.message} />
-            </div>
-            {kind === "person" && (
-              <div className="flex flex-col gap-1.5">
-                <Label htmlFor="lastName">Last name</Label>
-                <Input id="lastName" {...register("lastName")} />
-              </div>
-            )}
-            <div className="flex flex-col gap-1.5 sm:col-span-2">
-              <div className="flex items-center justify-between">
-                <Label>Other names</Label>
-                <Button type="button" variant="ghost" size="sm" onClick={() => otherNames.append({ label: "", value: "" })}>
-                  <PlusIcon /> Add name
-                </Button>
-              </div>
-              {otherNames.fields.length === 0 && (
-                <p className="text-xs text-muted-foreground">{kind === "organization" ? "Trading names, former names, abbreviations." : "e.g. a Chinese name, an English name, a maiden name."}</p>
-              )}
-              {otherNames.fields.map((f, i) => (
-                <div key={f.id} className="grid grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)_auto] gap-2">
-                  <div className="flex flex-col gap-1">
-                    <Input placeholder="Label (e.g. Chinese name)" {...register(`otherNames.${i}.label`)} aria-invalid={!!formState.errors.otherNames?.[i]?.label} />
-                    <FieldError message={formState.errors.otherNames?.[i]?.label?.message} />
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    <Input placeholder="Name" {...register(`otherNames.${i}.value`)} aria-invalid={!!formState.errors.otherNames?.[i]?.value} />
-                    <FieldError message={formState.errors.otherNames?.[i]?.value?.message} />
-                  </div>
-                  <Button type="button" variant="ghost" size="icon-sm" aria-label="Remove name" onClick={() => otherNames.remove(i)}>
-                    <Trash2Icon />
-                  </Button>
-                </div>
-              ))}
-            </div>
             <div className="flex min-w-0 flex-col gap-1.5 sm:col-span-2">
               <Label htmlFor="birthday">{kind === "organization" ? "Founded" : "Birthday"}</Label>
               <Controller
                 control={control}
                 name="birthday"
-                render={({ field }) => <BirthdayInput id="birthday" value={field.value} onChange={field.onChange} invalid={!!formState.errors.birthday} />}
+                render={({ field }) => <BirthdayInput id="birthday" value={field.value} onChange={field.onChange} invalid={!!errors.birthday} />}
               />
               <p className="text-xs text-muted-foreground">Fill in whichever parts you know. A day needs a month.</p>
-              <FieldError message={formState.errors.birthday?.message} />
+              <FieldError message={errors.birthday?.message} />
             </div>
           </div>
 
-          {kind === "person" && (
-            <fieldset className="flex flex-col gap-3 rounded-lg border p-3">
-              <legend className="px-1 text-sm font-medium">Work</legend>
+          {isPerson && (
+            <Section title="About" summary={join(v.pronouns, v.religion, v.originCountry)} defaultOpen={hasAbout}>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="pronouns">Pronouns</Label>
+                  <Input id="pronouns" placeholder="e.g. she/her, they/them" {...register("pronouns")} />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="religion">Religion</Label>
+                  {/* Free text: the list is only a shortcut, so anything typed is kept as typed. */}
+                  <Input id="religion" list="religion-suggestions" placeholder="e.g. Muslim, Catholic, None" {...register("religion")} />
+                  <datalist id="religion-suggestions">
+                    {RELIGION_SUGGESTIONS.map((r) => (
+                      <option key={r} value={r} />
+                    ))}
+                  </datalist>
+                </div>
+                <div className="flex flex-col gap-1.5 sm:col-span-2">
+                  <Label htmlFor="originCountry">Country of origin</Label>
+                  {/* Free text like religion: the country list is a shortcut, not a constraint. */}
+                  <Input id="originCountry" list="country-suggestions" placeholder="e.g. Italy, Hong Kong" {...register("originCountry")} />
+                  <datalist id="country-suggestions">
+                    {COUNTRY_SUGGESTIONS.map((c) => (
+                      <option key={c} value={c} />
+                    ))}
+                  </datalist>
+                </div>
+              </div>
+            </Section>
+          )}
+
+          <Section
+            title="Other names"
+            summary={v.otherNames?.map((n) => n.value).filter(Boolean).join(", ")}
+            defaultOpen={!!contact?.otherNames.length}
+            hasError={!!errors.otherNames}
+          >
+            {otherNames.fields.length === 0 && (
+              <p className="text-xs text-muted-foreground">{kind === "organization" ? "Trading names, former names, abbreviations." : "e.g. a Chinese name, an English name, a maiden name."}</p>
+            )}
+            {otherNames.fields.map((f, i) => (
+              <div key={f.id} className="grid grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)_auto] gap-2">
+                <div className="flex flex-col gap-1">
+                  <Input placeholder="Label (e.g. Chinese name)" {...register(`otherNames.${i}.label`)} aria-invalid={!!errors.otherNames?.[i]?.label} />
+                  <FieldError message={errors.otherNames?.[i]?.label?.message} />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <Input placeholder="Name" {...register(`otherNames.${i}.value`)} aria-invalid={!!errors.otherNames?.[i]?.value} />
+                  <FieldError message={errors.otherNames?.[i]?.value?.message} />
+                </div>
+                <Button type="button" variant="ghost" size="icon-sm" aria-label="Remove name" onClick={() => otherNames.remove(i)}>
+                  <Trash2Icon />
+                </Button>
+              </div>
+            ))}
+            <Button type="button" variant="outline" size="sm" className="self-start" onClick={() => otherNames.append({ label: "", value: "" })}>
+              <PlusIcon /> Add name
+            </Button>
+          </Section>
+
+          {isPerson && (
+            <Section title="Work" summary={join(v.jobTitle, v.employer?.displayName && `at ${v.employer.displayName}`)} defaultOpen={hasWork}>
               <div className="grid gap-3 sm:grid-cols-2">
                 <div className="flex flex-col gap-1.5">
                   <Label htmlFor="jobTitle">Job title</Label>
@@ -289,11 +335,15 @@ export function ContactFormDialog({
                   <p className="text-xs text-muted-foreground">Adds the employer relationship for you. The organisation must already be a contact.</p>
                 </div>
               </div>
-            </fieldset>
+            </Section>
           )}
 
-          <fieldset className="flex flex-col gap-3 rounded-lg border p-3">
-            <legend className="px-1 text-sm font-medium">How we met</legend>
+          <Section
+            title="How we met"
+            summary={join(v.metOn && formatBirthday(v.metOn).split(" (")[0], v.metWhere && `at ${v.metWhere}`, v.metVia?.displayName && `via ${v.metVia.displayName}`)}
+            defaultOpen={hasMet}
+            hasError={!!errors.metOn}
+          >
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="flex min-w-0 flex-col gap-1.5 sm:col-span-2">
                 <Label htmlFor="metOn">When</Label>
@@ -330,27 +380,19 @@ export function ContactFormDialog({
                 <Textarea id="metHow" rows={2} placeholder="e.g. Sat next to each other at Priya's wedding" {...register("metHow")} />
               </div>
             </div>
-          </fieldset>
+          </Section>
 
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="notes">Notes</Label>
-            <Textarea id="notes" rows={4} placeholder="Markdown supported" {...register("notes")} />
-          </div>
+          <Section title="Notes" summary={v.notes?.replace(/\s+/g, " ").trim()} defaultOpen={!!contact?.notes}>
+            <Textarea id="notes" rows={5} placeholder="Markdown supported" {...register("notes")} />
+          </Section>
 
           {!isEdit && (
             <>
-              <div className="flex flex-col gap-2">
-                <div className="flex items-center justify-between">
-                  <Label>Contact methods</Label>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="xs"
-                    onClick={() => methods.append({ type: "phone", label: "", value: "", isPrimary: methods.fields.length === 0, sortOrder: methods.fields.length })}
-                  >
-                    <PlusIcon /> Add
-                  </Button>
-                </div>
+              <Section
+                title="Phone, email, address"
+                summary={methods.fields.length ? `${methods.fields.length} to add` : undefined}
+                hasError={!!errors.methods}
+              >
                 {methods.fields.map((f, i) => (
                   <div key={f.id} className="grid grid-cols-[7rem_1fr_auto] gap-2 sm:grid-cols-[7rem_7rem_1fr_auto]">
                     <Controller
@@ -392,12 +434,20 @@ export function ContactFormDialog({
                     </div>
                   </div>
                 ))}
-              </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="self-start"
+                  onClick={() => methods.append({ type: "phone", label: "", value: "", isPrimary: methods.fields.length === 0, sortOrder: methods.fields.length })}
+                >
+                  <PlusIcon /> Add method
+                </Button>
+              </Section>
 
-              <div className="flex flex-col gap-1.5">
-                <Label>Tags</Label>
+              <Section title="Tags" summary={v.tagNames?.join(", ")}>
                 <Controller control={control} name="tagNames" render={({ field }) => <TagNamesInput value={field.value} onChange={field.onChange} />} />
-              </div>
+              </Section>
             </>
           )}
 

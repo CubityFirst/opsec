@@ -6,6 +6,7 @@ import { Link, useOutletContext } from "react-router";
 import { toast } from "sonner";
 import type { ContactMethodType } from "@shared/schemas/common";
 import type { ContactMethodOut } from "@shared/types";
+import { ContactFieldDialog, type ContactFieldGroup } from "@/components/contacts/ContactFieldDialog";
 import { ContactMethodDialog } from "@/components/contacts/ContactMethodDialog";
 import { CustomFieldsEditor } from "@/components/contacts/CustomFieldsEditor";
 import { ContactLocationsCard } from "@/components/map/ContactLocationsCard";
@@ -49,6 +50,8 @@ function methodHref(m: ContactMethodOut): string | undefined {
 export function OverviewTab() {
   const { contact, openEdit } = useOutletContext<ContactOutletContext>();
   const [methodDialog, setMethodDialog] = useState<{ open: boolean; method?: ContactMethodOut; initialType?: ContactMethodType }>({ open: false });
+  /** One line of the About card at a time; the full form stays behind "Edit all details". */
+  const [fieldEdit, setFieldEdit] = useState<ContactFieldGroup | null>(null);
   const socials = contact.methods.filter((m) => m.type === "social");
   const addresses = contact.methods.filter((m) => m.type === "address");
   const details = contact.methods.filter((m) => m.type !== "social" && m.type !== "address");
@@ -349,14 +352,24 @@ export function OverviewTab() {
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Details</CardTitle>
+            <CardTitle className="text-base">About</CardTitle>
           </CardHeader>
           <CardContent>
             <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-sm">
               <dt className="flex items-center gap-1 text-muted-foreground">
                 <CakeIcon className="size-3.5" /> {contact.kind === "organization" ? "Founded" : "Birthday"}
               </dt>
-              <dd>{contact.birthday ? formatBirthday(contact.birthday) : <span className="text-muted-foreground">—</span>}</dd>
+              <dd>
+                {contact.birthday ? (
+                  <button type="button" onClick={() => setFieldEdit("birthday")} className="text-left hover:underline" title="Edit birthday">
+                    {formatBirthday(contact.birthday)}
+                  </button>
+                ) : (
+                  <button type="button" onClick={() => setFieldEdit("birthday")} className="text-muted-foreground hover:text-foreground hover:underline">
+                    Add {contact.kind === "organization" ? "founding date" : "birthday"}…
+                  </button>
+                )}
+              </dd>
               {contact.kind === "person" && (
                 <>
                   <dt className="flex items-center gap-1 text-muted-foreground">
@@ -364,11 +377,11 @@ export function OverviewTab() {
                   </dt>
                   <dd>
                     {contact.religion ? (
-                      <button type="button" onClick={openEdit} className="text-left hover:underline" title="Edit religion">
+                      <button type="button" onClick={() => setFieldEdit("religion")} className="text-left hover:underline" title="Edit religion">
                         {contact.religion}
                       </button>
                     ) : (
-                      <button type="button" onClick={openEdit} className="text-muted-foreground hover:text-foreground hover:underline">
+                      <button type="button" onClick={() => setFieldEdit("religion")} className="text-muted-foreground hover:text-foreground hover:underline">
                         Add religion…
                       </button>
                     )}
@@ -378,11 +391,11 @@ export function OverviewTab() {
                   </dt>
                   <dd>
                     {contact.originCountry ? (
-                      <button type="button" onClick={openEdit} className="text-left hover:underline" title="Edit country of origin">
+                      <button type="button" onClick={() => setFieldEdit("originCountry")} className="text-left hover:underline" title="Edit country of origin">
                         {contact.originCountry}
                       </button>
                     ) : (
-                      <button type="button" onClick={openEdit} className="text-muted-foreground hover:text-foreground hover:underline">
+                      <button type="button" onClick={() => setFieldEdit("originCountry")} className="text-muted-foreground hover:text-foreground hover:underline">
                         Add country of origin…
                       </button>
                     )}
@@ -394,14 +407,14 @@ export function OverviewTab() {
               </dt>
               <dd>
                 {contact.metOn || contact.metWhere || contact.metHow || contact.metVia ? (
-                  <button type="button" onClick={openEdit} className="group flex flex-col items-start gap-0.5 text-left" title="Edit how you met">
+                  <button type="button" onClick={() => setFieldEdit("met")} className="group flex flex-col items-start gap-0.5 text-left" title="Edit how you met">
                     <span className="group-hover:underline">
                       {[contact.metOn && formatBirthday(contact.metOn).split(" (")[0], contact.metWhere && `at ${contact.metWhere}`].filter(Boolean).join(" ") || "—"}
                     </span>
                     {contact.metHow && <span className="text-muted-foreground">{contact.metHow}</span>}
                   </button>
                 ) : (
-                  <button type="button" onClick={openEdit} className="text-muted-foreground hover:text-foreground hover:underline">
+                  <button type="button" onClick={() => setFieldEdit("met")} className="text-muted-foreground hover:text-foreground hover:underline">
                     Add how you met…
                   </button>
                 )}
@@ -419,12 +432,16 @@ export function OverviewTab() {
               <dt className="text-muted-foreground">Updated</dt>
               <dd>{formatRelative(contact.updatedAt)}</dd>
             </dl>
+            <button type="button" onClick={openEdit} className="mt-3 text-xs text-muted-foreground hover:text-foreground hover:underline">
+              Edit all details…
+            </button>
           </CardContent>
         </Card>
 
         <ContactLocationsCard contact={contact} addresses={addresses} />
       </div>
 
+      <ContactFieldDialog contact={contact} group={fieldEdit} onOpenChange={setFieldEdit} />
       <ContactMethodDialog
         contactId={contact.id}
         method={methodDialog.method}
