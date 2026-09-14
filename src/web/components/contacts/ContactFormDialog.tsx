@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { z } from "zod";
 import { CONTACT_KINDS, CONTACT_METHOD_TYPES } from "@shared/schemas/common";
 import { contactCreateSchema, contactUpdateSchema, type ContactCreateInput, type ContactUpdateInput } from "@shared/schemas/contact";
+import { COUNTRY_SUGGESTIONS } from "@shared/countries";
 import { RELIGION_SUGGESTIONS } from "@shared/religion";
 import type { ContactDetail, ContactRef } from "@shared/types";
 import { FieldError } from "@/components/FieldError";
@@ -27,7 +28,7 @@ import { TagNamesInput } from "./TagNamesInput";
 function normalise(v: unknown) {
   if (!v || typeof v !== "object") return v;
   const o = { ...(v as Record<string, unknown>) };
-  for (const k of ["lastName", "nickname", "pronouns", "religion", "animalType", "notes", "birthday", "metOn", "metWhere", "metHow", "jobTitle"]) {
+  for (const k of ["lastName", "nickname", "pronouns", "religion", "originCountry", "animalType", "notes", "birthday", "metOn", "metWhere", "metHow", "jobTitle"]) {
     if (o[k] === "") o[k] = null;
   }
   // The form holds the picked contact; the API wants its id.
@@ -53,6 +54,7 @@ type FormValues = {
   nickname: string;
   pronouns: string;
   religion: string;
+  originCountry: string;
   animalType: string;
   birthday: string;
   notes: string;
@@ -75,6 +77,7 @@ function defaults(contact?: ContactDetail): FormValues {
     nickname: contact?.nickname ?? "",
     pronouns: contact?.pronouns ?? "",
     religion: contact?.religion ?? "",
+    originCountry: contact?.originCountry ?? "",
     animalType: contact?.animalType ?? "",
     otherNames: contact?.otherNames ?? [],
     metOn: contact?.metOn ?? "",
@@ -188,6 +191,18 @@ export function ContactFormDialog({
                 <datalist id="religion-suggestions">
                   {RELIGION_SUGGESTIONS.map((r) => (
                     <option key={r} value={r} />
+                  ))}
+                </datalist>
+              </div>
+            )}
+            {isPerson && (
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="originCountry">Country of origin</Label>
+                {/* Free text like religion: the country list is a shortcut, not a constraint. */}
+                <Input id="originCountry" list="country-suggestions" placeholder="e.g. Italy, Hong Kong" {...register("originCountry")} />
+                <datalist id="country-suggestions">
+                  {COUNTRY_SUGGESTIONS.map((c) => (
+                    <option key={c} value={c} />
                   ))}
                 </datalist>
               </div>

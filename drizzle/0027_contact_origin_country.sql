@@ -1,0 +1,1 @@
+ALTER TABLE `contacts` ADD `origin_country` text;

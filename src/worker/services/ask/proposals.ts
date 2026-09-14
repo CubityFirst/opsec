@@ -112,6 +112,7 @@ const CONTACT_FIELD_LABELS = {
   nickname: "Nickname",
   pronouns: "Pronouns",
   religion: "Religion",
+  originCountry: "Country of origin",
   animalType: "Animal type",
   otherNames: "Other names",
   birthday: "Birthday",
@@ -129,6 +130,7 @@ const contactFieldsForUpdate = {
   nickname: text(200),
   pronouns: text(40),
   religion: text(60).describe("People only: faith or belief in the user's own words, free text"),
+  originCountry: text(100).describe("People only: where they are from, free text — a country name, or any other place the user names"),
   animalType: text(100).describe("Pets only: species or breed"),
   otherNames: z.array(otherNameSchema).max(20).optional().describe("Replaces the whole list"),
   birthday: birthdaySchema.nullable().optional(),
@@ -145,7 +147,7 @@ const contactFieldsForUpdate = {
 const proposeContactUpdate = def({
   name: "propose_contact_update",
   description:
-    "Draft changes to a contact's names, pronouns, religion, other names, birthday, how-we-met details, job title, employer, custom fields or keep-in-touch setting. Shown to the user as a before/after with an Apply button; nothing is saved by you. Pass only the fields that change; pass null (or \"\") to clear one. Dates use the partial format (YYYY-MM-DD, YYYY-MM, YYYY, --MM-DD, --MM). employerContactId must be an existing organisation: search_contacts with kind=organization first and, if it is not in the CRM, propose_contact_create it or say so. To change notes use propose_contact_note; for tags use propose_tags; for phones/emails use propose_contact_method.",
+    "Draft changes to a contact's names, pronouns, religion, country of origin, other names, birthday, how-we-met details, job title, employer, custom fields or keep-in-touch setting. Shown to the user as a before/after with an Apply button; nothing is saved by you. Pass only the fields that change; pass null (or \"\") to clear one. Dates use the partial format (YYYY-MM-DD, YYYY-MM, YYYY, --MM-DD, --MM). employerContactId must be an existing organisation: search_contacts with kind=organization first and, if it is not in the CRM, propose_contact_create it or say so. To change notes use propose_contact_note; for tags use propose_tags; for phones/emails use propose_contact_method.",
   schema: z.object({ contactId: idSchema, ...contactFieldsForUpdate }),
   label: () => "Drafting a contact update for you to review",
   run: async (i, ctx) => {
@@ -154,12 +156,12 @@ const proposeContactUpdate = def({
     const changes: Change[] = [];
     const isPerson = d.kind === "person";
 
-    const simple: (keyof typeof CONTACT_FIELD_LABELS & keyof ContactDetail)[] = ["firstName", "lastName", "nickname", "pronouns", "religion", "animalType", "birthday", "metOn", "metWhere", "metHow", "jobTitle"];
+    const simple: (keyof typeof CONTACT_FIELD_LABELS & keyof ContactDetail)[] = ["firstName", "lastName", "nickname", "pronouns", "religion", "originCountry", "animalType", "birthday", "metOn", "metWhere", "metHow", "jobTitle"];
     for (const f of simple) {
       const raw = i[f as keyof typeof i] as string | null | undefined;
       const next = f === "firstName" ? (raw as string | undefined) : norm(raw);
       if (next === undefined) continue;
-      if ((f === "pronouns" || f === "jobTitle" || f === "religion") && !isPerson) throw new AskToolError(`Only people have a ${CONTACT_FIELD_LABELS[f].toLowerCase()}`);
+      if ((f === "pronouns" || f === "jobTitle" || f === "religion" || f === "originCountry") && !isPerson) throw new AskToolError(`Only people have a ${CONTACT_FIELD_LABELS[f].toLowerCase()}`);
       if (f === "animalType" && d.kind !== "pet") throw new AskToolError("Only pets have an animal type");
       if (next === (d[f] ?? null)) continue;
       body[f] = next;
@@ -235,6 +237,7 @@ const proposeContactCreate = def({
     nickname: text(200),
     pronouns: text(40),
     religion: text(60).describe("People only: faith or belief in the user's own words, free text"),
+    originCountry: text(100).describe("People only: where they are from, free text — a country name, or any other place the user names"),
     animalType: text(100).describe("Pets only: species or breed, e.g. Dog, Cockapoo"),
     birthday: birthdaySchema.nullable().optional(),
     jobTitle: text(200),
@@ -255,8 +258,8 @@ const proposeContactCreate = def({
     if (!parsed.success) throw new AskToolError(parsed.error.issues.map((x) => `${x.path.join(".")}: ${x.message}`).join("; "));
     const body = parsed.data;
     body.tagNames = await resolveTagNames(ctx.db, body.tagNames, createNewTags);
-    if (i.kind !== "person" && (body.jobTitle || body.employerContactId || body.pronouns || body.religion))
-      throw new AskToolError("Only people have pronouns, a religion, a job title or an employer");
+    if (i.kind !== "person" && (body.jobTitle || body.employerContactId || body.pronouns || body.religion || body.originCountry))
+      throw new AskToolError("Only people have pronouns, a religion, a country of origin, a job title or an employer");
     if (i.kind !== "pet" && body.animalType) throw new AskToolError("Only pets have an animal type");
     const lookups = [body.employerContactId, body.metViaContactId].filter((x): x is string => !!x);
     const { refs, dependsOn } = await resolveRefs(ctx, lookups);
@@ -269,6 +272,7 @@ const proposeContactCreate = def({
       ["Nickname", body.nickname],
       ["Pronouns", body.pronouns],
       ["Religion", body.religion],
+      ["Country of origin", body.originCountry],
       ["Animal type", body.animalType],
       ["Birthday", body.birthday],
       ["Job title", body.jobTitle],

@@ -147,6 +147,7 @@ export async function hydrateSummaries(db: Db, rows: ContactRow[]): Promise<Cont
     nickname: r.nickname,
     pronouns: r.pronouns,
     religion: r.religion,
+    originCountry: r.originCountry,
     animalType: r.animalType,
     otherNames: Array.isArray(r.otherNames) ? r.otherNames : [],
     jobTitle: r.jobTitle,

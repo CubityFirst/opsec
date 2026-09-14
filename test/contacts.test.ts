@@ -336,14 +336,19 @@ describe("list and search", () => {
     expect(patched.body.pronouns).toBeNull();
   });
 
-  it("stores a religion as typed and clears it with null", async () => {
-    const a = await createContact({ firstName: "Faith", religion: "Reform Jewish" });
+  it("stores a religion and a country of origin as typed and clears them with null", async () => {
+    const a = await createContact({ firstName: "Faith", religion: "Reform Jewish", originCountry: "Hong Kong" });
     expect(a.religion).toBe("Reform Jewish");
-    const detail = await json<{ religion: string | null }>(`/api/contacts/${a.id}`);
-    expect(detail.body.religion).toBe("Reform Jewish");
-    const patched = await json<{ religion: string | null }>(`/api/contacts/${a.id}`, { method: "PATCH", body: { religion: null } });
+    expect(a.originCountry).toBe("Hong Kong");
+    const detail = await json<{ religion: string | null; originCountry: string | null }>(`/api/contacts/${a.id}`);
+    expect(detail.body).toMatchObject({ religion: "Reform Jewish", originCountry: "Hong Kong" });
+    const patched = await json<{ religion: string | null; originCountry: string | null }>(`/api/contacts/${a.id}`, {
+      method: "PATCH",
+      body: { religion: null, originCountry: null },
+    });
     expect(patched.status).toBe(200);
     expect(patched.body.religion).toBeNull();
+    expect(patched.body.originCountry).toBeNull();
   });
 
   it("marks a person or pet as deceased: hidden from the default list, relationships kept, reversible", async () => {

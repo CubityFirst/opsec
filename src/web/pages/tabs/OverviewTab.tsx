@@ -1,5 +1,5 @@
 import { MentionText } from "@/components/MentionText";
-import { CakeIcon, CompassIcon, HandshakeIcon, MessageSquarePlusIcon, PencilIcon, PlusIcon, StarIcon, Trash2Icon } from "lucide-react";
+import { CakeIcon, CompassIcon, GlobeIcon, HandshakeIcon, MessageSquarePlusIcon, PencilIcon, PlusIcon, StarIcon, Trash2Icon } from "lucide-react";
 import { useState } from "react";
 import { MarkdownBody } from "@/components/MarkdownBody";
 import { Link, useOutletContext } from "react-router";
@@ -370,6 +370,20 @@ export function OverviewTab() {
                     ) : (
                       <button type="button" onClick={openEdit} className="text-muted-foreground hover:text-foreground hover:underline">
                         Add religion…
+                      </button>
+                    )}
+                  </dd>
+                  <dt className="flex items-center gap-1 text-muted-foreground">
+                    <GlobeIcon className="size-3.5" /> From
+                  </dt>
+                  <dd>
+                    {contact.originCountry ? (
+                      <button type="button" onClick={openEdit} className="text-left hover:underline" title="Edit country of origin">
+                        {contact.originCountry}
+                      </button>
+                    ) : (
+                      <button type="button" onClick={openEdit} className="text-muted-foreground hover:text-foreground hover:underline">
+                        Add country of origin…
                       </button>
                     )}
                   </dd>

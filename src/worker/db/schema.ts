@@ -40,6 +40,8 @@ export const contacts = sqliteTable(
     pronouns: text("pronouns"),
     /** Faith or belief in the words the user would use, e.g. "Muslim", "Catholic", "None"; free text, people only in the UI. */
     religion: text("religion"),
+    /** Where they are from, in the user's words: usually a country, but any place ("Hong Kong", "Kurdistan"); free text, people only in the UI. */
+    originCountry: text("origin_country"),
     /** Pets only: species or breed in the owner's words, e.g. "Dog", "Cockapoo", "Tortoise". */
     animalType: text("animal_type"),
     /** Other names this contact goes by: [{ label: "Chinese name", value: "陈伟" }, …]. */

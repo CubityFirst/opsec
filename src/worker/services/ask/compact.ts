@@ -20,6 +20,7 @@ export function compactContact(c: ContactSummary) {
     nickname: c.nickname,
     pronouns: c.pronouns ?? undefined,
     religion: c.religion ?? undefined,
+    originCountry: c.originCountry ?? undefined,
     animalType: c.animalType ?? undefined,
     otherNames: c.otherNames.length ? c.otherNames : undefined,
     tags: c.tags.map((t) => t.name),

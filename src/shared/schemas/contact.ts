@@ -42,6 +42,8 @@ const contactFields = {
   pronouns: optionalText(40),
   /** Faith or belief, free text ({@link RELIGION_SUGGESTIONS} only fills the picker); people only. */
   religion: optionalText(60),
+  /** Where they are from, free text ({@link COUNTRY_SUGGESTIONS} only fills the picker); people only. */
+  originCountry: optionalText(100),
   /** Pets only: species or breed, free text. */
   animalType: optionalText(100),
   otherNames: z.array(otherNameSchema).max(20).optional(),
