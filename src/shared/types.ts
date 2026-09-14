@@ -88,6 +88,8 @@ export interface ContactSummary extends ContactRef {
   lastName: string | null;
   nickname: string | null;
   pronouns: string | null;
+  /** People only: faith or belief in the user's own words; free text. */
+  religion: string | null;
   /** Pets only: species or breed, e.g. "Dog", "Cockapoo". */
   animalType: string | null;
   /** Other names this contact goes by (Chinese name, English name, maiden name, …). */

@@ -183,6 +183,13 @@
       "when": 1789055387243,
       "tag": "0025_calendar_feeds",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "6",
+      "when": 1789398504264,
+      "tag": "0026_contact_religion",
+      "breakpoints": true
     }
   ]
 }

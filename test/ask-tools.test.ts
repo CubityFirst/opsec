@@ -149,6 +149,13 @@ describe("ask tools", () => {
     expect(badDate.ok).toBe(false);
     const orgTitle = await run("propose_contact_update", { contactId: org.id, jobTitle: "x" });
     expect(orgTitle.summary).toMatch(/Only people/);
+    const faith = await run("propose_contact_update", { contactId: p.id, religion: "Quaker" });
+    expect(faith.ok, faith.summary).toBe(true);
+    expect(faith.events.find((e) => e.type === "proposal")).toMatchObject({
+      proposal: { request: { body: { religion: "Quaker" } }, changes: [{ label: "Religion", from: null, to: "Quaker" }] },
+    });
+    const orgFaith = await run("propose_contact_update", { contactId: org.id, religion: "Quaker" });
+    expect(orgFaith.summary).toMatch(/Only people/);
   });
 
   it("propose_contact_update can switch keep-in-touch nudges off and shows it as a change", async () => {

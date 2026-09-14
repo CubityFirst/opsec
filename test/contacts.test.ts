@@ -336,6 +336,16 @@ describe("list and search", () => {
     expect(patched.body.pronouns).toBeNull();
   });
 
+  it("stores a religion as typed and clears it with null", async () => {
+    const a = await createContact({ firstName: "Faith", religion: "Reform Jewish" });
+    expect(a.religion).toBe("Reform Jewish");
+    const detail = await json<{ religion: string | null }>(`/api/contacts/${a.id}`);
+    expect(detail.body.religion).toBe("Reform Jewish");
+    const patched = await json<{ religion: string | null }>(`/api/contacts/${a.id}`, { method: "PATCH", body: { religion: null } });
+    expect(patched.status).toBe(200);
+    expect(patched.body.religion).toBeNull();
+  });
+
   it("marks a person or pet as deceased: hidden from the default list, relationships kept, reversible", async () => {
     const owner = await createContact({ firstName: "Grieving", lastName: "Owner" });
     const rex = await createContact({ kind: "pet", firstName: "Old Rex" });

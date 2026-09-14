@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { z } from "zod";
 import { CONTACT_KINDS, CONTACT_METHOD_TYPES } from "@shared/schemas/common";
 import { contactCreateSchema, contactUpdateSchema, type ContactCreateInput, type ContactUpdateInput } from "@shared/schemas/contact";
+import { RELIGION_SUGGESTIONS } from "@shared/religion";
 import type { ContactDetail, ContactRef } from "@shared/types";
 import { FieldError } from "@/components/FieldError";
 import { Button } from "@/components/ui/button";
@@ -26,7 +27,7 @@ import { TagNamesInput } from "./TagNamesInput";
 function normalise(v: unknown) {
   if (!v || typeof v !== "object") return v;
   const o = { ...(v as Record<string, unknown>) };
-  for (const k of ["lastName", "nickname", "pronouns", "animalType", "notes", "birthday", "metOn", "metWhere", "metHow", "jobTitle"]) {
+  for (const k of ["lastName", "nickname", "pronouns", "religion", "animalType", "notes", "birthday", "metOn", "metWhere", "metHow", "jobTitle"]) {
     if (o[k] === "") o[k] = null;
   }
   // The form holds the picked contact; the API wants its id.
@@ -51,6 +52,7 @@ type FormValues = {
   lastName: string;
   nickname: string;
   pronouns: string;
+  religion: string;
   animalType: string;
   birthday: string;
   notes: string;
@@ -72,6 +74,7 @@ function defaults(contact?: ContactDetail): FormValues {
     lastName: contact?.lastName ?? "",
     nickname: contact?.nickname ?? "",
     pronouns: contact?.pronouns ?? "",
+    religion: contact?.religion ?? "",
     animalType: contact?.animalType ?? "",
     otherNames: contact?.otherNames ?? [],
     metOn: contact?.metOn ?? "",
@@ -175,6 +178,18 @@ export function ContactFormDialog({
               <div className="flex flex-col gap-1.5">
                 <Label htmlFor="pronouns">Pronouns</Label>
                 <Input id="pronouns" placeholder="e.g. she/her, they/them" {...register("pronouns")} />
+              </div>
+            )}
+            {isPerson && (
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="religion">Religion</Label>
+                {/* Free text: the list is only a shortcut, so anything typed is kept as typed. */}
+                <Input id="religion" list="religion-suggestions" placeholder="e.g. Muslim, Catholic, None" {...register("religion")} />
+                <datalist id="religion-suggestions">
+                  {RELIGION_SUGGESTIONS.map((r) => (
+                    <option key={r} value={r} />
+                  ))}
+                </datalist>
               </div>
             )}
             {kind === "pet" && (

@@ -1,5 +1,5 @@
 import { MentionText } from "@/components/MentionText";
-import { CakeIcon, HandshakeIcon, MessageSquarePlusIcon, PencilIcon, PlusIcon, StarIcon, Trash2Icon } from "lucide-react";
+import { CakeIcon, CompassIcon, HandshakeIcon, MessageSquarePlusIcon, PencilIcon, PlusIcon, StarIcon, Trash2Icon } from "lucide-react";
 import { useState } from "react";
 import { MarkdownBody } from "@/components/MarkdownBody";
 import { Link, useOutletContext } from "react-router";
@@ -357,6 +357,24 @@ export function OverviewTab() {
                 <CakeIcon className="size-3.5" /> {contact.kind === "organization" ? "Founded" : "Birthday"}
               </dt>
               <dd>{contact.birthday ? formatBirthday(contact.birthday) : <span className="text-muted-foreground">—</span>}</dd>
+              {contact.kind === "person" && (
+                <>
+                  <dt className="flex items-center gap-1 text-muted-foreground">
+                    <CompassIcon className="size-3.5" /> Religion
+                  </dt>
+                  <dd>
+                    {contact.religion ? (
+                      <button type="button" onClick={openEdit} className="text-left hover:underline" title="Edit religion">
+                        {contact.religion}
+                      </button>
+                    ) : (
+                      <button type="button" onClick={openEdit} className="text-muted-foreground hover:text-foreground hover:underline">
+                        Add religion…
+                      </button>
+                    )}
+                  </dd>
+                </>
+              )}
               <dt className="flex items-center gap-1 text-muted-foreground">
                 <HandshakeIcon className="size-3.5" /> Met
               </dt>
