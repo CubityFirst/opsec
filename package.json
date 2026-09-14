@@ -9,6 +9,7 @@
     "preview": "vite preview",
     "deploy": "npm run build && npx wrangler d1 migrations apply DB --remote && npx wrangler deploy",
     "types": "npx wrangler types",
+    "icons": "node scripts/make-icons.mjs",
     "db:generate": "drizzle-kit generate",
     "db:migrate:local": "npx wrangler d1 migrations apply DB --local",
     "db:migrate:remote": "npx wrangler d1 migrations apply DB --remote --env prod",

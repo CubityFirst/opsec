@@ -1,0 +1,28 @@
+{
+  "id": "/",
+  "name": "opsec▮",
+  "short_name": "opsec",
+  "description": "Personal CRM: people, pets and organisations with typed relationships, interactions, reminders, bets, gifts and a timeline.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
+  "orientation": "any",
+  "lang": "en-GB",
+  "dir": "ltr",
+  "theme_color": "#0a0a0a",
+  "background_color": "#0a0a0a",
+  "categories": ["productivity", "utilities"],
+  "icons": [
+    { "src": "/favicon.svg", "type": "image/svg+xml", "sizes": "any", "purpose": "any" },
+    { "src": "/icon-192.png", "type": "image/png", "sizes": "192x192", "purpose": "any" },
+    { "src": "/icon-512.png", "type": "image/png", "sizes": "512x512", "purpose": "any" },
+    { "src": "/icon-maskable-512.png", "type": "image/png", "sizes": "512x512", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    { "name": "Contacts", "url": "/contacts" },
+    { "name": "Reminders", "url": "/reminders" },
+    { "name": "Timeline", "url": "/timeline" },
+    { "name": "Ask", "url": "/ask" }
+  ]
+}

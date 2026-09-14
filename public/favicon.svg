@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="opsec">
+  <!-- Same geometry as the PNGs in scripts/make-icons.mjs: a typed line and the wordmark's cursor block. -->
+  <rect width="512" height="512" rx="112.64" fill="#0a0a0a" />
+  <rect x="122.88" y="327.68" width="122.88" height="30.72" rx="10.24" fill="#fafafa" />
+  <rect x="276.48" y="153.6" width="112.64" height="204.8" rx="10.24" fill="#fafafa" />
+</svg>
