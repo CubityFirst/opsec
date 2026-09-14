@@ -20,7 +20,7 @@ type Field = (typeof FIELDS)[number];
 const LABELS: Record<Field, string> = {
   originCountry: "Country of origin",
   religion: "Religion",
-  religionObservance: "How much they practise",
+  religionObservance: "How devoted",
   jobTitle: "Job title",
   employerContactId: "Place of work",
   keepInTouch: "Keep-in-touch nudges",

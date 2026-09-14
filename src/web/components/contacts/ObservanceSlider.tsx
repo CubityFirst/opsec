@@ -24,7 +24,7 @@ export function ObservanceSlider({
   return (
     <div className="flex flex-col gap-1.5">
       <div className="flex items-center gap-2">
-        <Label>How much they practise</Label>
+        <Label>How devoted</Label>
         {recorded && !disabled && (
           <button type="button" onClick={() => onChange(null)} className="ml-auto text-xs text-muted-foreground hover:text-foreground hover:underline">
             Clear
@@ -38,7 +38,7 @@ export function ObservanceSlider({
         value={[value ?? UNSET_POSITION]}
         disabled={disabled}
         onValueChange={([v]) => onChange(v ?? null)}
-        aria-label="How much they practise"
+        aria-label="How devoted"
         aria-valuetext={recorded ? OBSERVANCE_LABELS[value] : "Not recorded"}
         className={!recorded || disabled ? "opacity-50" : undefined}
       />
