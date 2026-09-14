@@ -168,6 +168,16 @@ describe("contacts", () => {
     expect(on.body.keepInTouch).toBe(true);
     const created = await createContact({ firstName: "Never", lastName: "Nudge", keepInTouch: false });
     expect(created.keepInTouch).toBe(false);
+
+    // ?keepInTouch= splits the list both ways, so the dashboard's settings dialog
+    // can show the "do not remind me" contacts without paging the whole book.
+    const muted = await json<ListResult<ContactSummary>>("/api/contacts?keepInTouch=false&limit=200");
+    expect(muted.body.items.map((x) => x.id)).toContain(created.id);
+    expect(muted.body.items.map((x) => x.id)).not.toContain(c.id);
+    expect(muted.body.items.every((x) => x.keepInTouch === false)).toBe(true);
+    const nudged = await json<ListResult<ContactSummary>>("/api/contacts?keepInTouch=true&limit=200");
+    expect(nudged.body.items.map((x) => x.id)).toContain(c.id);
+    expect(nudged.body.items.map((x) => x.id)).not.toContain(created.id);
   });
 
   it("archives and unarchives, hiding from the default list", async () => {

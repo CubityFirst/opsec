@@ -1,17 +1,19 @@
-import { BellIcon, CakeIcon, ClockIcon, DicesIcon, MessageSquareIcon, PlusIcon } from "lucide-react";
+import { BellIcon, CakeIcon, ClockIcon, DicesIcon, MessageSquareIcon, PlusIcon, SettingsIcon } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Link } from "react-router";
 import type { ContactSummary } from "@shared/types";
 import { describeReview } from "@/components/bets/BetCard";
 import { ContactAvatar } from "@/components/contacts/ContactAvatar";
+import { OutOfTouchSettingsDialog } from "@/components/dashboard/OutOfTouchSettingsDialog";
 import { InteractionCard } from "@/components/interactions/InteractionCard";
 import { InteractionDialog } from "@/components/interactions/InteractionDialog";
 import { describeDue } from "@/components/reminders/ReminderCard";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { errorMessage } from "@/lib/api";
 import { formatBirthday, formatRelative, parseBirthday } from "@/lib/format";
+import { useAuthUser } from "@/lib/queries/auth";
 import { useBets } from "@/lib/queries/bets";
 import { useContacts } from "@/lib/queries/contacts";
 import { useGifts } from "@/lib/queries/gifts";
@@ -20,6 +22,8 @@ import { useReminders } from "@/lib/queries/reminders";
 import { cn } from "@/lib/utils";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
+/** How long a silence has to last before the dashboard mentions it. */
+const QUIET_DAYS = 30;
 
 /** Days until the next occurrence of a month/day, ignoring the year. */
 function daysUntilBirthday(birthday: string | null, now: Date): number | null {
@@ -43,23 +47,89 @@ function ContactRow({ contact, meta }: { contact: ContactSummary; meta: string }
   );
 }
 
-function SidePanel({ title, icon: Icon, children }: { title: string; icon: typeof CakeIcon; children: React.ReactNode }) {
+function SidePanel({
+  title,
+  icon: Icon,
+  action,
+  children,
+}: {
+  title: string;
+  icon: typeof CakeIcon;
+  /** Optional control in the header, e.g. the Out of touch settings button. */
+  action?: React.ReactNode;
+  children: React.ReactNode;
+}) {
   return (
     <Card>
       <CardHeader className="pb-2">
         <CardTitle className="flex items-center gap-2 text-base">
           <Icon className="size-4 text-muted-foreground" /> {title}
         </CardTitle>
+        {action && <CardAction>{action}</CardAction>}
       </CardHeader>
       <CardContent>{children}</CardContent>
     </Card>
   );
 }
 
+/** One line of the Out of touch list: a real silence, or a contact nothing has ever been logged against. */
+type QuietContact = { c: ContactSummary; since: number; never: boolean };
+
+/**
+ * What the Out of touch panel says when it has nothing to list. "You have spoken
+ * to everyone" is only true when there is someone to have spoken to and nobody
+ * is missing from the check, so the no-people, all-muted and nothing-logged
+ * cases each get their own line, and the people the panel is not counting are
+ * always accounted for underneath.
+ */
+function quietEmptyState(
+  stats: { people: number; tracked: number; spoken: number; never: number },
+  includeNever: boolean,
+): { text: string; hint?: string } {
+  const n = stats.never;
+  // The never-spoken-to people the panel is not listing: either because the
+  // preference leaves them out, or because they are too newly added to count.
+  const neverHint = includeNever
+    ? `${n === 1 ? "One person has" : `${n} people have`} nothing logged yet; they turn up here a month after you added them.`
+    : `${n === 1 ? "One person has" : `${n} people have`} nothing logged at all, so they are left out.`;
+
+  if (stats.people === 0) return { text: "No people yet. Add someone and this is where a long silence turns up." };
+  if (stats.tracked === 0) {
+    return {
+      text: `Keep-in-touch nudges are off for ${stats.people === 1 ? "the one person you have" : `all ${stats.people} people you have`}.`,
+      hint: "Turn them back on in the settings above.",
+    };
+  }
+  if (stats.spoken === 0) {
+    return {
+      text: `Nothing logged yet for the ${stats.tracked === 1 ? "one person" : `${stats.tracked} people`} you keep up with.`,
+      hint: includeNever ? "They turn up here a month after you added them." : "Log an interaction, or count people you have never spoken to in the settings above.",
+    };
+  }
+  return {
+    text: `You have spoken to everyone in the last ${QUIET_DAYS} days.`,
+    hint: n === 0 ? undefined : neverHint,
+  };
+}
+
+function QuietEmpty({ stats, includeNever }: { stats: Parameters<typeof quietEmptyState>[0]; includeNever: boolean }) {
+  const { text, hint } = quietEmptyState(stats, includeNever);
+  return (
+    <>
+      <p className="text-sm text-muted-foreground">{text}</p>
+      {hint && <p className="mt-1 text-xs text-muted-foreground">{hint}</p>}
+    </>
+  );
+}
+
 export function DashboardPage() {
   const [logOpen, setLogOpen] = useState(false);
+  const [quietSettingsOpen, setQuietSettingsOpen] = useState(false);
   const recent = useRecentInteractions(20);
   const contacts = useContacts({ limit: 200 });
+  // Whether "Out of touch" also counts people with nothing logged; the choice
+  // lives on the user, so it follows them between browsers.
+  const includeNever = useAuthUser()?.preferences.outOfTouchIncludeNever ?? false;
 
   const now = useMemo(() => new Date(), []);
   // Open bets whose review point is within the next two weeks (or already past).
@@ -81,24 +151,39 @@ export function DashboardPage() {
     for (const g of ideas.data?.items ?? []) m.set(g.contact.id, (m.get(g.contact.id) ?? 0) + 1);
     return m;
   }, [ideas.data]);
-  const { birthdays, outOfTouch } = useMemo(() => {
+  const { birthdays, outOfTouch, quietStats } = useMemo(() => {
     const items = contacts.data?.items ?? [];
     const birthdays = items
       .map((c) => ({ c, days: daysUntilBirthday(c.birthday ?? null, now) }))
       .filter((x): x is { c: ContactSummary; days: number } => x.days !== null && x.days <= 30)
       .sort((a, b) => a.days - b.days)
       .slice(0, 8);
-    // Only people you have actually spoken to before; contacts with no logged
-    // interaction are "no data", not out of touch. Contacts with keep-in-touch
-    // switched off are never listed.
-    const outOfTouch = items
-      .filter((c) => c.kind === "person" && c.keepInTouch && c.lastInteraction)
-      .map((c) => ({ c, last: new Date(c.lastInteraction!.occurredAt).getTime() }))
-      .filter((x) => now.getTime() - x.last > 30 * DAY_MS)
-      .sort((a, b) => a.last - b.last)
-      .slice(0, 8);
-    return { birthdays, outOfTouch };
-  }, [contacts.data, now]);
+    // People only, and never the ones with keep-in-touch switched off. A contact
+    // with no logged interaction is "no data" rather than a silence, so it only
+    // counts when the preference says so — and then the date the contact was
+    // added stands in for the last word, so someone added yesterday is not
+    // already overdue.
+    const people = items.filter((c) => c.kind === "person");
+    const tracked = people.filter((c) => c.keepInTouch);
+    const rows: QuietContact[] = [];
+    for (const c of tracked) {
+      const never = !c.lastInteraction;
+      if (never && !includeNever) continue;
+      const since = new Date(never ? c.createdAt : c.lastInteraction!.occurredAt).getTime();
+      if (now.getTime() - since > QUIET_DAYS * DAY_MS) rows.push({ c, since, never });
+    }
+    rows.sort((a, b) => a.since - b.since);
+    return {
+      birthdays,
+      outOfTouch: rows.slice(0, 8),
+      quietStats: {
+        people: people.length,
+        tracked: tracked.length,
+        spoken: tracked.filter((c) => c.lastInteraction).length,
+        never: tracked.filter((c) => !c.lastInteraction).length,
+      },
+    };
+  }, [contacts.data, now, includeNever]);
 
   const interactions = recent.data?.pages.flatMap((p) => p.items) ?? [];
 
@@ -242,15 +327,29 @@ export function DashboardPage() {
             )}
           </SidePanel>
 
-          <SidePanel title="Out of touch" icon={ClockIcon}>
+          <SidePanel
+            title="Out of touch"
+            icon={ClockIcon}
+            action={
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                aria-label="Out of touch settings"
+                title="Out of touch settings"
+                onClick={() => setQuietSettingsOpen(true)}
+              >
+                <SettingsIcon />
+              </Button>
+            }
+          >
             {contacts.isPending ? (
               <Skeleton className="h-16 w-full" />
             ) : outOfTouch.length === 0 ? (
-              <p className="text-sm text-muted-foreground">You have spoken to everyone in the last month.</p>
+              <QuietEmpty stats={quietStats} includeNever={includeNever} />
             ) : (
               <ul className="flex flex-col">
-                {outOfTouch.map(({ c }) => (
-                  <ContactRow key={c.id} contact={c} meta={formatRelative(c.lastInteraction?.occurredAt)} />
+                {outOfTouch.map(({ c, never }) => (
+                  <ContactRow key={c.id} contact={c} meta={never ? "never spoken" : formatRelative(c.lastInteraction?.occurredAt)} />
                 ))}
               </ul>
             )}
@@ -259,6 +358,7 @@ export function DashboardPage() {
       </div>
 
       <InteractionDialog open={logOpen} onOpenChange={setLogOpen} initialParticipants={[]} />
+      <OutOfTouchSettingsDialog open={quietSettingsOpen} onOpenChange={setQuietSettingsOpen} />
     </div>
   );
 }

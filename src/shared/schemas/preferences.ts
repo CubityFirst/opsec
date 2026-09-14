@@ -12,6 +12,12 @@ export const userPreferencesSchema = z.object({
     .array(z.enum(CONTACT_COLUMNS))
     .max(CONTACT_COLUMNS.length)
     .default(() => [...DEFAULT_CONTACT_COLUMNS]),
+  /**
+   * Dashboard "Out of touch": also nudge about people with nothing logged at
+   * all. Off by default, because a contact with no interactions is usually
+   * "no data" rather than a friendship going quiet.
+   */
+  outOfTouchIncludeNever: z.boolean().default(false),
 });
 export type UserPreferences = z.infer<typeof userPreferencesSchema>;
 

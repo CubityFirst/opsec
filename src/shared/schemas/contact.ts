@@ -92,6 +92,8 @@ export const contactListQuerySchema = paginationSchema.extend({
   archived: boolQuery.optional().default(false),
   /** true: only deceased contacts (archived is then ignored). false (default): deceased contacts are left out. */
   deceased: boolQuery.optional().default(false),
+  /** Filter on the keep-in-touch opt-out: false lists only the "do not remind me" contacts, true only the nudged ones. Omitted: both. */
+  keepInTouch: boolQuery.optional(),
   sort: contactSortSchema.optional().default("name"),
 });
 export type ContactListQuery = z.infer<typeof contactListQuerySchema>;

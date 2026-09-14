@@ -199,6 +199,7 @@ export async function listContacts(db: Db, query: ContactListQuery): Promise<Lis
     ? [isNotNull(contacts.deceasedAt)]
     : [isNull(contacts.deceasedAt), query.archived ? isNotNull(contacts.archivedAt) : isNull(contacts.archivedAt)];
   if (query.kind) conditions.push(eq(contacts.kind, query.kind));
+  if (query.keepInTouch !== undefined) conditions.push(eq(contacts.keepInTouch, query.keepInTouch));
   if (query.tag) {
     conditions.push(
       exists(

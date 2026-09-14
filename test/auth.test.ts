@@ -69,9 +69,11 @@ describe("auth", () => {
   it("returns per-user preferences with the identity and accepts a preferences patch", async () => {
     const before = await json<AuthUser>("/api/auth/me");
     expect(before.body.preferences.contactColumns).toEqual(DEFAULT_CONTACT_COLUMNS);
+    expect(before.body.preferences.outOfTouchIncludeNever).toBe(false);
     const upd = await json<AuthUser>("/api/auth/preferences", { method: "PATCH", body: { contactColumns: ["country", "lastSpoke"], unknownKey: true } });
     expect(upd.status).toBe(200);
-    expect(upd.body.preferences).toEqual({ contactColumns: ["country", "lastSpoke"] });
+    // A patch merges into the stored preferences: the untouched keys keep their values.
+    expect(upd.body.preferences).toEqual({ contactColumns: ["country", "lastSpoke"], outOfTouchIncludeNever: false });
     // The choice belongs to the user, not the session or the browser.
     const after = await json<AuthUser>("/api/auth/me");
     expect(after.body.preferences.contactColumns).toEqual(["country", "lastSpoke"]);
@@ -82,6 +84,10 @@ describe("auth", () => {
     expect(reset.body.preferences.contactColumns).toEqual(DEFAULT_CONTACT_COLUMNS);
     const unknownColumn = await json<ApiErrorBody>("/api/auth/preferences", { method: "PATCH", body: { contactColumns: ["nope"] } });
     expect(unknownColumn.status).toBe(400);
+    // The dashboard's "Out of touch" switch is another key on the same row.
+    const quiet = await json<AuthUser>("/api/auth/preferences", { method: "PATCH", body: { outOfTouchIncludeNever: true } });
+    expect(quiet.body.preferences).toEqual({ contactColumns: DEFAULT_CONTACT_COLUMNS, outOfTouchIncludeNever: true });
+    await json<AuthUser>("/api/auth/preferences", { method: "PATCH", body: { outOfTouchIncludeNever: false } });
     const bad = await json<ApiErrorBody>("/api/auth/preferences", { method: "PATCH", body: "nope" });
     expect(bad.status).toBe(400);
   });
