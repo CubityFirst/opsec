@@ -253,10 +253,10 @@ export function ContactsPage() {
 
 /** Breakpoints below which a column is not worth the width, whatever the preference says. */
 const COLUMN_CLASS: Record<ContactColumn, string> = {
+  country: "hidden sm:table-cell",
   tags: "hidden md:table-cell",
   contact: "hidden lg:table-cell",
   lastSpoke: "",
-  country: "hidden sm:table-cell",
   birthday: "hidden md:table-cell",
   job: "hidden lg:table-cell",
   added: "hidden lg:table-cell",

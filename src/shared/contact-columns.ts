@@ -3,17 +3,18 @@
  * line of nicknames and job under it) is always there, so it is not listed here.
  *
  * The order is the order the table renders them in, whatever order the stored
- * preference happens to be in. Add to the end; the keys are persisted per user in
+ * preference happens to be in. Preferences hold keys rather than positions, so this
+ * list can be reordered freely; they are persisted per user in
  * `users.preferences.contactColumns`.
  */
-export const CONTACT_COLUMNS = ["tags", "contact", "lastSpoke", "country", "birthday", "job", "added"] as const;
+export const CONTACT_COLUMNS = ["country", "tags", "contact", "lastSpoke", "birthday", "job", "added"] as const;
 export type ContactColumn = (typeof CONTACT_COLUMNS)[number];
 
 export const CONTACT_COLUMN_LABELS: Record<ContactColumn, string> = {
+  country: "Country",
   tags: "Tags",
   contact: "Phone & email",
   lastSpoke: "Last spoke",
-  country: "Country",
   birthday: "Birthday",
   job: "Job",
   added: "Added",
