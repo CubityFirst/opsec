@@ -1,7 +1,7 @@
-import { ArchiveIcon, ArchiveRestoreIcon, TagPlusIcon, TagXIcon, Trash2Icon, XIcon } from "lucide-react";
+import { ArchiveIcon, ArchiveRestoreIcon, PencilIcon, TagPlusIcon, TagXIcon, Trash2Icon, XIcon } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
-import type { ContactBulkAction } from "@shared/schemas/contact";
+import type { ContactBulkAction, ContactBulkFields } from "@shared/schemas/contact";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -17,6 +17,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { errorMessage } from "@/lib/api";
 import { useAuthUser } from "@/lib/queries/auth";
 import { useBulkContacts } from "@/lib/queries/contacts";
+import { BulkFieldsDialog } from "./BulkFieldsDialog";
 import { TagNamesInput } from "./TagNamesInput";
 
 function TagsPopover({
@@ -84,18 +85,22 @@ export function BulkActionBar({
   const bulk = useBulkContacts();
   const isAdmin = useAuthUser()?.isAdmin ?? false;
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [fieldsOpen, setFieldsOpen] = useState(false);
 
-  const run = async (action: ContactBulkAction, tagNames: string[] = []) => {
+  const run = async (action: ContactBulkAction, tagNames: string[] = [], fields: ContactBulkFields = {}) => {
     try {
-      const { updated } = await bulk.mutateAsync({ ids, action, tagNames });
+      const { updated, skipped } = await bulk.mutateAsync({ ids, action, tagNames, fields });
       const verb: Record<ContactBulkAction, string> = {
         addTags: "Tagged",
         removeTags: "Untagged",
+        setFields: "Updated",
         archive: "Archived",
         unarchive: "Unarchived",
         delete: "Deleted",
       };
-      toast.success(`${verb[action]} ${updated} ${updated === 1 ? "contact" : "contacts"}`);
+      // Contacts a field could not apply to (a pet, or one that already had the value) are worth saying.
+      const left = skipped ? ` · ${skipped} unchanged` : "";
+      toast.success(`${verb[action]} ${updated} ${updated === 1 ? "contact" : "contacts"}${left}`);
       if (action === "delete") onClear();
     } catch (e) {
       toast.error(errorMessage(e));
@@ -117,6 +122,9 @@ export function BulkActionBar({
       <span className="mx-1 hidden h-5 w-px bg-border sm:block" />
       <TagsPopover label="Add tags" icon={<TagPlusIcon />} pending={bulk.isPending} onApply={(names) => run("addTags", names)} />
       <TagsPopover label="Remove tags" icon={<TagXIcon />} pending={bulk.isPending} onApply={(names) => run("removeTags", names)} />
+      <Button variant="outline" size="sm" disabled={bulk.isPending} onClick={() => setFieldsOpen(true)}>
+        <PencilIcon /> Set fields
+      </Button>
       <Button variant="outline" size="sm" disabled={bulk.isPending} onClick={() => void run("archive")}>
         <ArchiveIcon /> Archive
       </Button>
@@ -131,6 +139,17 @@ export function BulkActionBar({
       <Button variant="ghost" size="sm" className="ml-auto" onClick={onClear} title="Clear selection (Esc)">
         <XIcon /> Clear
       </Button>
+
+      <BulkFieldsDialog
+        count={ids.length}
+        open={fieldsOpen}
+        onOpenChange={setFieldsOpen}
+        pending={bulk.isPending}
+        onApply={async (fields) => {
+          await run("setFields", [], fields);
+          setFieldsOpen(false);
+        }}
+      />
 
       <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
         <AlertDialogContent>

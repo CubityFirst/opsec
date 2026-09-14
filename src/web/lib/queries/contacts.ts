@@ -36,7 +36,7 @@ function useInvalidateContact() {
 export function useBulkContacts() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (input: ContactBulkInput) => api.post<{ updated: number }>("/api/contacts/bulk", input),
+    mutationFn: (input: ContactBulkInput) => api.post<{ updated: number; skipped?: number }>("/api/contacts/bulk", input),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: contactKeys.all });
       void qc.invalidateQueries({ queryKey: tagKeys.all });

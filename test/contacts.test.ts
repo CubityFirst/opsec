@@ -257,6 +257,47 @@ describe("bulk actions", () => {
     expect(bad.status).toBe(400);
   });
 
+  it("sets the same fields on many contacts at once, skipping the ones they do not apply to", async () => {
+    const a = await createContact({ firstName: "Mass A" });
+    const b = await createContact({ firstName: "Mass B", originCountry: "United Kingdom" });
+    const pet = await createContact({ kind: "pet", firstName: "Mass Pet" });
+    const org = await createContact({ kind: "organization", firstName: "Mass Ltd" });
+    const ids = [a.id, b.id, pet.id, org.id];
+
+    // B already has the country and the pet and the org cannot have one: only A changes.
+    const country = await json<{ updated: number; skipped: number }>("/api/contacts/bulk", {
+      method: "POST",
+      body: { ids, action: "setFields", fields: { originCountry: "United Kingdom" } },
+    });
+    expect(country.body).toEqual({ updated: 1, skipped: 3 });
+    expect((await json<ContactDetail>(`/api/contacts/${a.id}`)).body.originCountry).toBe("United Kingdom");
+    expect((await json<ContactDetail>(`/api/contacts/${pet.id}`)).body.originCountry).toBeNull();
+
+    // Employing both people keeps the employer relationship in step for each of them.
+    const employ = await json<{ updated: number }>("/api/contacts/bulk", {
+      method: "POST",
+      body: { ids, action: "setFields", fields: { employerContactId: org.id, jobTitle: "Analyst" } },
+    });
+    expect(employ.body.updated).toBe(2);
+    const detailA = await json<ContactDetail>(`/api/contacts/${a.id}`);
+    expect(detailA.body.employer?.id).toBe(org.id);
+    expect(detailA.body.jobTitle).toBe("Analyst");
+    const links = await json<{ items: { otherContact: { id: string }; typeKey: string }[] }>(`/api/contacts/${org.id}/relationships`);
+    expect(links.body.items.filter((i) => i.typeKey === "employee").map((i) => i.otherContact.id).sort()).toEqual([a.id, b.id].sort());
+
+    // A ticked but empty field clears; the change is in each contact's activity log.
+    const clear = await json<{ updated: number }>("/api/contacts/bulk", { method: "POST", body: { ids, action: "setFields", fields: { jobTitle: null } } });
+    expect(clear.body.updated).toBe(2);
+    expect((await json<ContactDetail>(`/api/contacts/${a.id}`)).body.jobTitle).toBeNull();
+    const feed = await json<{ items: { kind: string; event?: { eventType: string; payload: { changes?: Record<string, unknown> } } }[] }>(`/api/contacts/${a.id}/activity`);
+    expect(feed.body.items.some((i) => i.event?.eventType === "contact.updated" && !!i.event.payload.changes?.jobTitle)).toBe(true);
+
+    const noFields = await json<ApiErrorBody>("/api/contacts/bulk", { method: "POST", body: { ids, action: "setFields", fields: {} } });
+    expect(noFields.status).toBe(400);
+    const badEmployer = await json<ApiErrorBody>("/api/contacts/bulk", { method: "POST", body: { ids, action: "setFields", fields: { employerContactId: a.id } } });
+    expect(badEmployer.status).toBe(400);
+  });
+
   it("bulk delete is admin-only and cascades", async () => {
     const a = await createContact({ firstName: "Del A" });
     const b = await createContact({ firstName: "Del B" });

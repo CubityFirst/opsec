@@ -334,6 +334,57 @@ app.post("/contacts/bulk", zValidator("json", contactBulkSchema, validationHook)
     return c.json({ updated: rows.length });
   }
 
+  if (action === "setFields") {
+    const fields = c.req.valid("json").fields;
+    // The employer is the same for every contact, so it is checked once; the
+    // "cannot employ themselves" case is per contact and simply skips that one.
+    if (fields.employerContactId) await assertEmployer(db, "", fields.employerContactId);
+    const targets: { id: string; kind: string; religion: string | null; religionObservance: number | null; originCountry: string | null; jobTitle: string | null; employerContactId: string | null; keepInTouch: boolean }[] = [];
+    for (const part of chunk(requested)) {
+      targets.push(
+        ...(await db
+          .select({
+            id: contacts.id,
+            kind: contacts.kind,
+            religion: contacts.religion,
+            religionObservance: contacts.religionObservance,
+            originCountry: contacts.originCountry,
+            jobTitle: contacts.jobTitle,
+            employerContactId: contacts.employerContactId,
+            keepInTouch: contacts.keepInTouch,
+          })
+          .from(contacts)
+          .where(inArray(contacts.id, part))),
+      );
+    }
+
+    const stmts: Stmt[] = [];
+    let updated = 0;
+    for (const row of targets) {
+      const isPerson = row.kind === "person";
+      // Everything but keepInTouch belongs to people; other kinds keep what they have.
+      const patch: Partial<typeof contacts.$inferInsert> = {};
+      if (fields.keepInTouch !== undefined) patch.keepInTouch = fields.keepInTouch;
+      if (isPerson) {
+        if (fields.religion !== undefined) patch.religion = fields.religion;
+        if (fields.religionObservance !== undefined) patch.religionObservance = fields.religionObservance;
+        if (fields.originCountry !== undefined) patch.originCountry = fields.originCountry;
+        if (fields.jobTitle !== undefined) patch.jobTitle = fields.jobTitle;
+        if (fields.employerContactId !== undefined && fields.employerContactId !== row.id) patch.employerContactId = fields.employerContactId;
+      }
+      const changes = diffChanges(row, patch);
+      if (Object.keys(changes).length === 0) continue;
+      updated++;
+      stmts.push(db.update(contacts).set({ ...patch, updatedAt: now }).where(eq(contacts.id, row.id)));
+      stmts.push(...activityInserts(db, [event(row.id, "contact", row.id, "contact.updated", { v: 1, changes })], actor));
+      if (patch.employerContactId !== undefined) {
+        stmts.push(...(await employerSyncStatements(db, row.id, row.employerContactId, patch.employerContactId ?? null, actor)));
+      }
+    }
+    await runBatch(db, stmts);
+    return c.json({ updated, skipped: targets.length - updated });
+  }
+
   if (action === "archive" || action === "unarchive") {
     const targets = rows.filter((r) => (action === "archive" ? !r.archivedAt : !!r.archivedAt)).map((r) => r.id);
     const stmts: Stmt[] = [];
