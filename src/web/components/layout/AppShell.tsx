@@ -9,6 +9,8 @@ import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/s
 import { initials } from "@/lib/format";
 import { useAccessIdentity } from "@/lib/queries/access";
 import { useAuthUser, useLogout } from "@/lib/queries/auth";
+import { useMediaQuery } from "@/lib/useMediaQuery";
+import { useSwipeDrawer } from "@/lib/useSwipeDrawer";
 import { cn } from "@/lib/utils";
 import { CommandSearch } from "./CommandSearch";
 import { ThemeToggle } from "./ThemeToggle";
@@ -106,6 +108,10 @@ function Brand() {
 export function AppShell() {
   const [searchOpen, setSearchOpen] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  // Below Tailwind's md the nav lives in the sheet, so a swipe right anywhere opens it
+  // (and a swipe left puts it away). Above md the sidebar is always on screen.
+  const handheld = useMediaQuery("(max-width: 47.99rem)");
+  useSwipeDrawer({ open: mobileOpen, onOpenChange: setMobileOpen, enabled: handheld });
 
   return (
     <div className="flex min-h-svh bg-background text-foreground">
