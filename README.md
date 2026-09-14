@@ -32,7 +32,7 @@ It runs as a single Cloudflare Worker at [opsec.cubityfir.st](https://opsec.cubi
 - **Reminders.** Things to do, one-off or recurring (every N days, weeks, months or years, optionally until a date), about a contact ("call Mum", "Rex's vaccination") or nobody in particular ("renew passport"). They live on a Reminders page grouped by urgency, on the contact's Overview tab, and the dashboard shows what is overdue or due this week. Ticking a recurring reminder moves it to its next occurrence; a month-end reminder stays on the last day of every month.
 - **Timeline.** One month at a time across everyone: interactions, life events, gifts given or received, and bets made or settled, grouped by day, with each kind switchable on or off. Life events dated only to a month or a year sit under "sometime".
 - **Map.** Contacts as avatar pins at their addresses and interactions where they happened, on a Map page and in the Locations card on each contact's Overview tab. A place is set by searching for it, by using the device's current location, or by pinning a spot on a small map; people at the same address share one marker. Tiles come from OpenStreetMap, address search runs through the Worker, and nothing is looked up unless you ask.
-- **Names as people use them.** Nickname, pronouns and any number of other names (a Chinese name, a maiden name), all searchable. People can carry a religion and a country of origin, written the way they would put it themselves (the pickers suggest the common answers and every country, but keep whatever you type — “Raised Catholic”, “Kurdistan”). Pets carry an animal type (species or breed).
+- **Names as people use them.** Nickname, pronouns and any number of other names (a Chinese name, a maiden name), all searchable. People can carry a religion — with a slider for how much of it they practise, from not practising to devout, left blank when you have never asked — and a country of origin, written the way they would put it themselves — the contacts list shows it as a flag (the pickers suggest the common answers and every country, but keep whatever you type — “Raised Catholic”, “Kurdistan”). Pets carry an animal type (species or breed).
 - **Ask.** A chat over your own data: "When did I last talk to Alice about Lisbon?", "Who introduced me to Rex's vet?", or paste a screenshot and say "log this". The model investigates with read-only tools and can propose any change, from logging an interaction to creating an organisation and setting someone's job there in one go. Nothing is written until you press Apply. It speaks the OpenAI chat-completions format, so the provider is configuration: Cloudflare AI Gateway, OpenAI, Anthropic, OpenRouter or a llama.cpp box at home, switchable from the Account page.
 - **Installable.** A web app manifest, icons and a small service worker make it installable from the browser: it opens in its own window without browser chrome, keeps the app shell offline so a dropped connection shows the app rather than a dinosaur, and never caches your data — every request for contacts, files or Ask goes to the network.
 - **Yours.** Sign-in through Annex (OpenID Connect with PKCE), access limited to an allow-list, secrets encrypted at rest, a per-user daily spend guard on the model, and no analytics or third-party scripts.
@@ -299,6 +299,11 @@ The same trap applies to the dashboard's automatic builds, whose defaults are `n
 The build emits `dist/opsec/wrangler.json` already flattened to `env.prod`, and `npx wrangler deploy`
 picks it up through `.wrangler/deploy/config.json`. Secrets (`SESSION_SECRET`, `OIDC_CLIENT_SECRET`,
 `AI_API_KEY`) live on the Worker and survive deploys.
+
+## Contributing
+
+Bug reports and pull requests are welcome. `CONTRIBUTING.md` has the checks to run and the commit
+convention (Conventional Commits).
 
 ## Schema changes
 
