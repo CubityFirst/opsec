@@ -1,276 +1,98 @@
+import { COUNTRY_NAMES } from "./country-names";
+
 /**
- * Suggestions for the country-of-origin field, nothing more: `contacts.originCountry`
- * is free text and any value is accepted, so somewhere that is not a country on this
- * list ("Kurdistan", "Kashmir", "Yorkshire") is kept exactly as typed. The names are
- * ICU's en-GB region names, territories included, minus the groupings nobody is from
- * (the EU, the UN, "Unknown Region"). To refresh the list after an ICU update, run the
- * probe below in Node and paste the result:
+ * Suggestions for the country-of-origin field, and the flag shown beside one.
+ * `contacts.origin_country` is free text and any value is accepted, so somewhere
+ * that is not a country on this list ("Kurdistan", "Kashmir", "Yorkshire") is kept
+ * exactly as typed and simply gets no flag.
  *
- *   const dn = new Intl.DisplayNames(["en-GB"], { type: "region" });
- *   const A = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
- *   const drop = new Set(["European Union", "Eurozone", "United Nations", "Unknown Region", "Outlying Oceania", "Pseudo-Accents", "Pseudo-Bidi"]);
- *   const out = new Set();
- *   for (const a of A) for (const b of A) { const n = dn.of(a + b); if (n && n !== a + b && !drop.has(n)) out.add(n); }
- *   console.log([...out].sort((x, y) => x.localeCompare(y, "en")));
- *
- * Deprecated codes alias onto current names (AN → Curaçao), so the Set dedupes them.
+ * The names come from ICU (`npm run countries` regenerates `country-names.ts`).
  */
-export const COUNTRY_SUGGESTIONS = [
-  "Afghanistan",
-  "Åland Islands",
-  "Albania",
-  "Algeria",
-  "American Samoa",
-  "Andorra",
-  "Angola",
-  "Anguilla",
-  "Antarctica",
-  "Antigua & Barbuda",
-  "Argentina",
-  "Armenia",
-  "Aruba",
-  "Ascension Island",
-  "Australia",
-  "Austria",
-  "Azerbaijan",
-  "Bahamas",
-  "Bahrain",
-  "Bangladesh",
-  "Barbados",
-  "Belarus",
-  "Belgium",
-  "Belize",
-  "Benin",
-  "Bermuda",
-  "Bhutan",
-  "Bolivia",
-  "Bosnia & Herzegovina",
-  "Botswana",
-  "Bouvet Island",
-  "Brazil",
-  "British Indian Ocean Territory",
-  "British Virgin Islands",
-  "Brunei",
-  "Bulgaria",
-  "Burkina Faso",
-  "Burundi",
-  "Cambodia",
-  "Cameroon",
-  "Canada",
-  "Canary Islands",
-  "Cape Verde",
-  "Caribbean Netherlands",
-  "Cayman Islands",
-  "Central African Republic",
-  "Ceuta & Melilla",
-  "Chad",
-  "Chile",
-  "China",
-  "Christmas Island",
-  "Clipperton Island",
-  "Cocos (Keeling) Islands",
-  "Colombia",
-  "Comoros",
-  "Congo - Brazzaville",
-  "Congo - Kinshasa",
-  "Cook Islands",
-  "Costa Rica",
-  "Côte d’Ivoire",
-  "Croatia",
-  "Cuba",
-  "Curaçao",
-  "Cyprus",
-  "Czechia",
-  "Denmark",
-  "Diego Garcia",
-  "Djibouti",
-  "Dominica",
-  "Dominican Republic",
-  "Ecuador",
-  "Egypt",
-  "El Salvador",
-  "Equatorial Guinea",
-  "Eritrea",
-  "Estonia",
-  "Eswatini",
-  "Ethiopia",
-  "Falkland Islands",
-  "Faroe Islands",
-  "Fiji",
-  "Finland",
-  "France",
-  "French Guiana",
-  "French Polynesia",
-  "French Southern Territories",
-  "Gabon",
-  "Gambia",
-  "Georgia",
-  "Germany",
-  "Ghana",
-  "Gibraltar",
-  "Greece",
-  "Greenland",
-  "Grenada",
-  "Guadeloupe",
-  "Guam",
-  "Guatemala",
-  "Guernsey",
-  "Guinea",
-  "Guinea-Bissau",
-  "Guyana",
-  "Haiti",
-  "Heard & McDonald Islands",
-  "Honduras",
-  "Hong Kong SAR China",
-  "Hungary",
-  "Iceland",
-  "India",
-  "Indonesia",
-  "Iran",
-  "Iraq",
-  "Ireland",
-  "Isle of Man",
-  "Israel",
-  "Italy",
-  "Jamaica",
-  "Japan",
-  "Jersey",
-  "Jordan",
-  "Kazakhstan",
-  "Kenya",
-  "Kiribati",
-  "Kosovo",
-  "Kuwait",
-  "Kyrgyzstan",
-  "Laos",
-  "Latvia",
-  "Lebanon",
-  "Lesotho",
-  "Liberia",
-  "Libya",
-  "Liechtenstein",
-  "Lithuania",
-  "Luxembourg",
-  "Macao SAR China",
-  "Madagascar",
-  "Malawi",
-  "Malaysia",
-  "Maldives",
-  "Mali",
-  "Malta",
-  "Marshall Islands",
-  "Martinique",
-  "Mauritania",
-  "Mauritius",
-  "Mayotte",
-  "Mexico",
-  "Micronesia",
-  "Moldova",
-  "Monaco",
-  "Mongolia",
-  "Montenegro",
-  "Montserrat",
-  "Morocco",
-  "Mozambique",
-  "Myanmar (Burma)",
-  "Namibia",
-  "Nauru",
-  "Nepal",
-  "Netherlands",
-  "New Caledonia",
-  "New Zealand",
-  "Nicaragua",
-  "Niger",
-  "Nigeria",
-  "Niue",
-  "Norfolk Island",
-  "North Korea",
-  "North Macedonia",
-  "Northern Mariana Islands",
-  "Norway",
-  "Oman",
-  "Pakistan",
-  "Palau",
-  "Palestinian Territories",
-  "Panama",
-  "Papua New Guinea",
-  "Paraguay",
-  "Peru",
-  "Philippines",
-  "Pitcairn Islands",
-  "Poland",
-  "Portugal",
-  "Puerto Rico",
-  "Qatar",
-  "Réunion",
-  "Romania",
-  "Russia",
-  "Rwanda",
-  "Samoa",
-  "San Marino",
-  "São Tomé & Príncipe",
-  "Sark",
-  "Saudi Arabia",
-  "Senegal",
-  "Serbia",
-  "Seychelles",
-  "Sierra Leone",
-  "Singapore",
-  "Sint Maarten",
-  "Slovakia",
-  "Slovenia",
-  "Solomon Islands",
-  "Somalia",
-  "South Africa",
-  "South Georgia & South Sandwich Islands",
-  "South Korea",
-  "South Sudan",
-  "Spain",
-  "Sri Lanka",
-  "St Barthélemy",
-  "St Helena",
-  "St Kitts & Nevis",
-  "St Lucia",
-  "St Martin",
-  "St Pierre & Miquelon",
-  "St Vincent & the Grenadines",
-  "Sudan",
-  "Suriname",
-  "Svalbard & Jan Mayen",
-  "Sweden",
-  "Switzerland",
-  "Syria",
-  "Taiwan",
-  "Tajikistan",
-  "Tanzania",
-  "Thailand",
-  "Timor-Leste",
-  "Togo",
-  "Tokelau",
-  "Tonga",
-  "Trinidad & Tobago",
-  "Tristan da Cunha",
-  "Tunisia",
-  "Türkiye",
-  "Turkmenistan",
-  "Turks & Caicos Islands",
-  "Tuvalu",
-  "Uganda",
-  "Ukraine",
-  "United Arab Emirates",
-  "United Kingdom",
-  "United States",
-  "Uruguay",
-  "US Outlying Islands",
-  "US Virgin Islands",
-  "Uzbekistan",
-  "Vanuatu",
-  "Vatican City",
-  "Venezuela",
-  "Vietnam",
-  "Wallis & Futuna",
-  "Western Sahara",
-  "Yemen",
-  "Zambia",
-  "Zimbabwe",
-] as const;
+export const COUNTRY_SUGGESTIONS: string[] = Object.values(COUNTRY_NAMES);
+
+/**
+ * Assigned to a code by ISO but not part of the emoji flag set, so a regional
+ * indicator pair renders as two letters in a box on most platforms. Better no flag
+ * than a broken one. Kosovo (XK) is user-assigned and in the same boat.
+ */
+const NO_FLAG = new Set(["AC", "CP", "DG", "EA", "IC", "TA", "XK"]);
+
+/** How people actually write it, when that is not ICU's name. */
+const ALIASES: Record<string, string> = {
+  america: "US",
+  britain: "GB",
+  burma: "MM",
+  "cape verde islands": "CV",
+  "czech republic": "CZ",
+  "east timor": "TL",
+  england: "GB-ENG",
+  "great britain": "GB",
+  holland: "NL",
+  "hong kong": "HK",
+  "ivory coast": "CI",
+  korea: "KR",
+  macao: "MO",
+  macau: "MO",
+  macedonia: "MK",
+  "northern ireland": "GB-NIR",
+  palestine: "PS",
+  scotland: "GB-SCT",
+  swaziland: "SZ",
+  "the gambia": "GM",
+  "the netherlands": "NL",
+  uae: "AE",
+  uk: "GB",
+  usa: "US",
+  "united states of america": "US",
+  vatican: "VA",
+  wales: "GB-WLS",
+};
+
+/** Lowercase, unaccented, straight apostrophes: "Côte d’Ivoire" and "cote d'ivoire" are the same answer. */
+function normalise(value: string): string {
+  return value
+    .normalize("NFD")
+    .replace(/\p{Diacritic}/gu, "")
+    .replace(/[‘’`]/g, "'")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
+}
+
+const BY_NAME: Record<string, string> = {};
+/** Short forms ("Congo - Kinshasa" → "congo"), dropped when two countries would answer to one. */
+const SHORT_FORMS: Record<string, string> = {};
+const AMBIGUOUS = new Set<string>();
+for (const [code, name] of Object.entries(COUNTRY_NAMES)) {
+  BY_NAME[normalise(name)] = code;
+  BY_NAME[code.toLowerCase()] = code;
+  const short = normalise(name.split(/ [-–(] | sar /i)[0]!);
+  if (!short || short === normalise(name)) continue;
+  if (short in SHORT_FORMS) AMBIGUOUS.add(short);
+  else SHORT_FORMS[short] = code;
+}
+for (const key of AMBIGUOUS) delete SHORT_FORMS[key];
+
+/** The ISO code a written-out country resolves to, or null when it is not a country we know. */
+export function countryCode(value: string | null | undefined): string | null {
+  if (!value) return null;
+  const key = normalise(value);
+  return ALIASES[key] ?? BY_NAME[key] ?? SHORT_FORMS[key] ?? null;
+}
+
+/**
+ * The flag emoji for a country as the user wrote it, or null when there is none
+ * to show. Two-letter codes become regional indicators; England, Scotland, Wales
+ * and Northern Ireland have their own tag sequences.
+ */
+export function countryFlag(value: string | null | undefined): string | null {
+  const code = countryCode(value);
+  if (!code || NO_FLAG.has(code)) return null;
+  if (code.includes("-")) {
+    const [, subdivision] = code.toLowerCase().split("-");
+    // 🏴 + "gb" + the subdivision, each character as a tag, closed by the cancel tag.
+    const tags = [...`gb${subdivision}`].map((c) => String.fromCodePoint(0xe0000 + c.codePointAt(0)!));
+    return `\u{1F3F4}${tags.join("")}\u{E007F}`;
+  }
+  return String.fromCodePoint(...[...code].map((c) => 0x1f1e6 + c.charCodeAt(0) - 65));
+}

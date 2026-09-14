@@ -4,9 +4,11 @@ import { useState } from "react";
 import { MarkdownBody } from "@/components/MarkdownBody";
 import { Link, useOutletContext } from "react-router";
 import { toast } from "sonner";
+import { observanceLabel } from "@shared/religion";
 import type { ContactMethodType } from "@shared/schemas/common";
 import type { ContactMethodOut } from "@shared/types";
 import { ContactFieldDialog, type ContactFieldGroup } from "@/components/contacts/ContactFieldDialog";
+import { CountryFlag } from "@/components/contacts/CountryFlag";
 import { ContactMethodDialog } from "@/components/contacts/ContactMethodDialog";
 import { CustomFieldsEditor } from "@/components/contacts/CustomFieldsEditor";
 import { ContactLocationsCard } from "@/components/map/ContactLocationsCard";
@@ -379,6 +381,9 @@ export function OverviewTab() {
                     {contact.religion ? (
                       <button type="button" onClick={() => setFieldEdit("religion")} className="text-left hover:underline" title="Edit religion">
                         {contact.religion}
+                        {observanceLabel(contact.religionObservance) && (
+                          <span className="text-muted-foreground"> · {observanceLabel(contact.religionObservance)?.toLowerCase()}</span>
+                        )}
                       </button>
                     ) : (
                       <button type="button" onClick={() => setFieldEdit("religion")} className="text-muted-foreground hover:text-foreground hover:underline">
@@ -391,7 +396,8 @@ export function OverviewTab() {
                   </dt>
                   <dd>
                     {contact.originCountry ? (
-                      <button type="button" onClick={() => setFieldEdit("originCountry")} className="text-left hover:underline" title="Edit country of origin">
+                      <button type="button" onClick={() => setFieldEdit("originCountry")} className="flex items-center gap-1.5 text-left hover:underline" title="Edit country of origin">
+                        <CountryFlag country={contact.originCountry} />
                         {contact.originCountry}
                       </button>
                     ) : (

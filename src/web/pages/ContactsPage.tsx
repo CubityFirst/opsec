@@ -8,6 +8,8 @@ import type { ContactSort } from "@shared/schemas/contact";
 import type { ContactSummary } from "@shared/types";
 import { BulkActionBar } from "@/components/contacts/BulkActionBar";
 import { ContactAvatar } from "@/components/contacts/ContactAvatar";
+import { countryFlag } from "@shared/countries";
+import { CountryFlag } from "@/components/contacts/CountryFlag";
 import { ContactFormDialog } from "@/components/contacts/ContactFormDialog";
 import { DeceasedBadge } from "@/components/contacts/DeceasedBadge";
 import { KindBadge } from "@/components/contacts/KindBadge";
@@ -232,6 +234,8 @@ export function ContactsPage() {
 }
 
 function ContactRow({ contact, selected, onToggle }: { contact: ContactSummary; selected: boolean; onToggle: (e: React.MouseEvent) => void }) {
+  // A country we cannot flag still shows, as text on the second line.
+  const unflagged = contact.originCountry && !countryFlag(contact.originCountry) ? contact.originCountry : null;
   const last = contact.lastInteraction;
   return (
     <TableRow className={cn(selected && "bg-primary/5 hover:bg-primary/10")} data-state={selected ? "selected" : undefined}>
@@ -262,6 +266,7 @@ function ContactRow({ contact, selected, onToggle }: { contact: ContactSummary; 
           <Link to={`/contacts/${contact.id}`} className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
               <span className="truncate font-medium">{contact.displayName}</span>
+              <CountryFlag country={contact.originCountry} className="shrink-0 text-base" />
               <KindBadge kind={contact.kind} />
               {contact.deceasedAt && <DeceasedBadge on={contact.deceasedOn} />}
               {contact.archivedAt && (
@@ -270,13 +275,15 @@ function ContactRow({ contact, selected, onToggle }: { contact: ContactSummary; 
                 </span>
               )}
             </div>
-            {(contact.nickname || contact.animalType || contact.otherNames.length > 0 || contact.jobTitle || contact.employer) && (
+            {(contact.nickname || contact.animalType || contact.otherNames.length > 0 || contact.jobTitle || contact.employer || unflagged) && (
               <div className="truncate text-xs text-muted-foreground">
                 {[
                   contact.nickname && `“${contact.nickname}”`,
                   contact.animalType,
                   ...contact.otherNames.map((n) => n.value),
                   [contact.jobTitle, contact.employer?.displayName].filter(Boolean).join(" at "),
+                  // Somewhere with no flag of its own ("Kurdistan") still deserves to show.
+                  unflagged,
                 ]
                   .filter(Boolean)
                   .join(" · ")}
