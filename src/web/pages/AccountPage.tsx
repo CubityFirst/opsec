@@ -1,4 +1,4 @@
-import { ChevronDownIcon, LogOutIcon, ShieldAlertIcon, UserRoundIcon } from "lucide-react";
+import { ChevronDownIcon, LogOutIcon, ShieldAlertIcon, ShieldCheckIcon, UserRoundIcon } from "lucide-react";
 import { useState } from "react";
 import { AiProviderCard } from "@/components/settings/AiProviderCard";
 import { ApiTokensCard } from "@/components/settings/ApiTokensCard";
@@ -6,13 +6,18 @@ import { CalendarFeedsCard } from "@/components/settings/CalendarFeedsCard";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { useAccessIdentity } from "@/lib/queries/access";
 import { useAuthUser, useLogout } from "@/lib/queries/auth";
 
 export function AccountPage() {
   const user = useAuthUser();
   const logout = useLogout();
   const [signInOpen, setSignInOpen] = useState(false);
+  // Open mode is only alarming when nothing guards the hostname, so ask Cloudflare Access first.
+  const access = useAccessIdentity(user?.authMode === "open");
   if (!user) return null;
+  const open = user.authMode === "open";
+  const behindAccess = access.data != null;
 
   const rows: [string, React.ReactNode][] = [
     ["sub", <code key="sub" className="font-mono text-xs">{user.sub}</code>],
@@ -49,11 +54,31 @@ export function AccountPage() {
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Account</h1>
         <p className="text-sm text-muted-foreground">
-          {user.authMode === "open" ? "Open access: this instance has no sign-in." : `Signed in with ${user.providerLabel}.`}
+          {!open
+            ? `Signed in with ${user.providerLabel}.`
+            : behindAccess
+              ? "Open access: no sign-in of its own, gated by Cloudflare Access."
+              : "Open access: this instance has no sign-in."}
         </p>
       </div>
 
-      {user.authMode === "open" && (
+      {open && behindAccess && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <ShieldCheckIcon className="size-4 text-muted-foreground" /> Cloudflare Access guards this instance
+            </CardTitle>
+            <CardDescription>
+              AUTH_MODE is “open”, so the app has no sign-in of its own and treats every visitor as the owner — but this hostname sits behind a Cloudflare
+              Access application, which let you through as {access.data?.email ?? "an approved visitor"}
+              {access.data?.idp && ` (${access.data.idp})`}. Access identities are not mapped onto app users, so everyone your policy admits shares the same owner
+              account and its admin rights.
+            </CardDescription>
+          </CardHeader>
+        </Card>
+      )}
+
+      {open && !behindAccess && !access.isLoading && (
         <Card className="border-amber-500/40 bg-amber-500/5">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
@@ -84,7 +109,7 @@ export function AccountPage() {
           </button>
           <CardDescription>
             {user.isAdmin ? "You have the admin role: destructive actions such as permanent deletes are enabled." : "Standard access. Permanent deletes need the admin role."}
-            {user.authMode === "oidc" && " The details below come from the verified id_token."}
+            {!open && " The details below come from the verified id_token."}
           </CardDescription>
         </CardHeader>
         {signInOpen && (
@@ -108,7 +133,7 @@ export function AccountPage() {
 
       {user.isAdmin && <AiProviderCard />}
 
-      {user.authMode === "oidc" && (
+      {!open && (
       <div>
         <Button variant="outline" onClick={() => logout.mutate()} disabled={logout.isPending}>
           <LogOutIcon /> Sign out

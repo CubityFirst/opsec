@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { initials } from "@/lib/format";
+import { useAccessIdentity } from "@/lib/queries/access";
 import { useAuthUser, useLogout } from "@/lib/queries/auth";
 import { cn } from "@/lib/utils";
 import { CommandSearch } from "./CommandSearch";
@@ -50,11 +51,13 @@ function UserMenu() {
   const user = useAuthUser();
   const logout = useLogout();
   const navigate = useNavigate();
+  const access = useAccessIdentity(user?.authMode === "open");
   if (!user) return null;
   const label = user.name ?? user.email ?? user.sub;
   if (user.authMode === "open") {
+    const title = access.data ? "Open access, gated by Cloudflare Access" : "Open access: no sign-in is configured";
     return (
-      <Button variant="ghost" className="h-auto w-full min-w-0 justify-start gap-2 px-2 py-1.5" onClick={() => navigate("/account")} title="Open access: no sign-in is configured">
+      <Button variant="ghost" className="h-auto w-full min-w-0 justify-start gap-2 px-2 py-1.5" onClick={() => navigate("/account")} title={title}>
         <Avatar className="size-7">
           <AvatarFallback className="text-[0.65rem] uppercase">{initials(label)}</AvatarFallback>
         </Avatar>
