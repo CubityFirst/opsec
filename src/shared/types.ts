@@ -92,7 +92,7 @@ export interface ContactSummary extends ContactRef {
   religion: string | null;
   /** How observant they are, 0 (not practising) to 4 (devout); null when never recorded. */
   religionObservance: number | null;
-  /** People only: where they are from, in the user's words — a country, or any other place. */
+  /** Where they are from, in the user's words — a country, or any other place. Any kind of contact can have one. */
   originCountry: string | null;
   /** Pets only: species or breed, e.g. "Dog", "Cockapoo". */
   animalType: string | null;

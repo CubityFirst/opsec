@@ -102,8 +102,8 @@ export function BulkFieldsDialog({
             Set fields on {count} {count === 1 ? "contact" : "contacts"}
           </DialogTitle>
           <DialogDescription>
-            Tick a field to set it on all of them; leave it unticked and it is left alone. A ticked but empty field clears the value. Everything except the
-            nudges belongs to people, so pets and organisations in the selection are skipped.
+            Tick a field to set it on all of them; leave it unticked and it is left alone. A ticked but empty field clears the value. The country and the
+            nudges suit every kind; religion, job and place of work are for people, so pets and organisations in the selection skip those.
           </DialogDescription>
         </DialogHeader>
 

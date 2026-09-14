@@ -257,32 +257,35 @@ export function ContactFormDialog({
             </div>
           </div>
 
-          {isPerson && (
-            <Section title="About" summary={join(v.pronouns, join2(v.religion, observanceLabel(v.religionObservance)), v.originCountry)} defaultOpen={hasAbout}>
-              <div className="grid gap-3 sm:grid-cols-2">
-                <div className="flex flex-col gap-1.5">
-                  <Label htmlFor="pronouns">Pronouns</Label>
-                  <Input id="pronouns" placeholder="e.g. she/her, they/them" {...register("pronouns")} />
-                </div>
-                <div className="flex flex-col gap-1.5">
-                  <Label htmlFor="religion">Religion</Label>
-                  {/* Free text: the list is only a shortcut, so anything typed is kept as typed. */}
-                  <Input id="religion" list="religion-suggestions" placeholder="e.g. Muslim, Catholic, None" {...register("religion")} />
-                  <datalist id="religion-suggestions">
-                    {RELIGION_SUGGESTIONS.map((r) => (
-                      <option key={r} value={r} />
-                    ))}
-                  </datalist>
-                </div>
-                <div className="sm:col-span-2">
-                  <Controller
-                    control={control}
-                    name="religionObservance"
-                    render={({ field }) => <ObservanceSlider value={field.value} onChange={field.onChange} disabled={!v.religion} />}
-                  />
-                </div>
+          <Section title="About" summary={join(v.pronouns, join2(v.religion, observanceLabel(v.religionObservance)), v.originCountry)} defaultOpen={hasAbout}>
+            <div className="grid gap-3 sm:grid-cols-2">
+              {isPerson && (
+                <>
+                  <div className="flex flex-col gap-1.5">
+                    <Label htmlFor="pronouns">Pronouns</Label>
+                    <Input id="pronouns" placeholder="e.g. she/her, they/them" {...register("pronouns")} />
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <Label htmlFor="religion">Religion</Label>
+                    {/* Free text: the list is only a shortcut, so anything typed is kept as typed. */}
+                    <Input id="religion" list="religion-suggestions" placeholder="e.g. Muslim, Catholic, None" {...register("religion")} />
+                    <datalist id="religion-suggestions">
+                      {RELIGION_SUGGESTIONS.map((r) => (
+                        <option key={r} value={r} />
+                      ))}
+                    </datalist>
+                  </div>
+                  <div className="sm:col-span-2">
+                    <Controller
+                      control={control}
+                      name="religionObservance"
+                      render={({ field }) => <ObservanceSlider value={field.value} onChange={field.onChange} disabled={!v.religion} />}
+                    />
+                  </div>
+                </>
+              )}
                 <div className="flex flex-col gap-1.5 sm:col-span-2">
-                  <Label htmlFor="originCountry">Country of origin</Label>
+                  <Label htmlFor="originCountry">{isPerson ? "Country of origin" : "Country"}</Label>
                   {/* Free text like religion: the country list is a shortcut, not a constraint. */}
                   <Input id="originCountry" list="country-suggestions" placeholder="e.g. Italy, Hong Kong" {...register("originCountry")} />
                   <datalist id="country-suggestions">
@@ -291,9 +294,8 @@ export function ContactFormDialog({
                     ))}
                   </datalist>
                 </div>
-              </div>
-            </Section>
-          )}
+            </div>
+          </Section>
 
           <Section
             title="Other names"

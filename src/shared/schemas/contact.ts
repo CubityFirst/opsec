@@ -51,7 +51,7 @@ const contactFields = {
     .max(OBSERVANCE_LABELS.length - 1)
     .nullish()
     .transform((v) => v ?? null),
-  /** Where they are from, free text ({@link COUNTRY_SUGGESTIONS} only fills the picker); people only. */
+  /** Where they are from, free text ({@link COUNTRY_SUGGESTIONS} only fills the picker); people, pets and organisations alike. */
   originCountry: optionalText(100),
   /** Pets only: species or breed, free text. */
   animalType: optionalText(100),

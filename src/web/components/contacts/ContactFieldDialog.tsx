@@ -84,7 +84,9 @@ export function ContactFieldDialog({
       : group === "religion"
         ? "Religion"
         : group === "originCountry"
-          ? "Country of origin"
+          ? contact.kind === "person"
+            ? "Country of origin"
+            : "Country"
           : "How we met";
 
   const onSubmit = async (e: React.FormEvent) => {
@@ -160,7 +162,7 @@ export function ContactFieldDialog({
 
           {group === "originCountry" && (
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="field-origin">Country of origin</Label>
+              <Label htmlFor="field-origin">{title}</Label>
               <Input
                 id="field-origin"
                 autoFocus

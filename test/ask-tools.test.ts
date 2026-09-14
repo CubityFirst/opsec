@@ -163,8 +163,9 @@ describe("ask tools", () => {
     });
     const orgFaith = await run("propose_contact_update", { contactId: org.id, religion: "Quaker" });
     expect(orgFaith.summary).toMatch(/Only people/);
+    // A country suits any kind, unlike the religion above.
     const orgFrom = await run("propose_contact_update", { contactId: org.id, originCountry: "France" });
-    expect(orgFrom.summary).toMatch(/Only people/);
+    expect(orgFrom.ok, orgFrom.summary).toBe(true);
   });
 
   it("propose_contact_update can switch keep-in-touch nudges off and shows it as a change", async () => {

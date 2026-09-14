@@ -42,7 +42,7 @@ export const contacts = sqliteTable(
     religion: text("religion"),
     /** How much of it they practise, 0 (not practising) to 4 (devout); null when it was never recorded, which is not the same as 0. */
     religionObservance: integer("religion_observance"),
-    /** Where they are from, in the user's words: usually a country, but any place ("Hong Kong", "Kurdistan"); free text, people only in the UI. */
+    /** Where they are from, in the user's words: usually a country, but any place ("Hong Kong", "Kurdistan"). Free text, and every kind has one — a French company and a dog from Romania both count. */
     originCountry: text("origin_country"),
     /** Pets only: species or breed in the owner's words, e.g. "Dog", "Cockapoo", "Tortoise". */
     animalType: text("animal_type"),

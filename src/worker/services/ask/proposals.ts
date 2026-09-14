@@ -133,7 +133,7 @@ const contactFieldsForUpdate = {
   pronouns: text(40),
   religion: text(60).describe("People only: faith or belief in the user's own words, free text"),
   religionObservance: z.number().int().min(0).max(4).nullable().optional().describe("People only: How observant they are, 0 = not practising, 1 = cultural/in name only, 2 = occasionally practising, 3 = practising, 4 = devout; null clears it"),
-  originCountry: text(100).describe("People only: where they are from, free text — a country name, or any other place the user names"),
+  originCountry: text(100).describe("Where they are from, free text — a country name, or any other place the user names; any kind of contact can have one"),
   animalType: text(100).describe("Pets only: species or breed"),
   otherNames: z.array(otherNameSchema).max(20).optional().describe("Replaces the whole list"),
   birthday: birthdaySchema.nullable().optional(),
@@ -164,7 +164,7 @@ const proposeContactUpdate = def({
       const raw = i[f as keyof typeof i] as string | null | undefined;
       const next = f === "firstName" ? (raw as string | undefined) : norm(raw);
       if (next === undefined) continue;
-      if ((f === "pronouns" || f === "jobTitle" || f === "religion" || f === "originCountry") && !isPerson) throw new AskToolError(`Only people have a ${CONTACT_FIELD_LABELS[f].toLowerCase()}`);
+      if ((f === "pronouns" || f === "jobTitle" || f === "religion") && !isPerson) throw new AskToolError(`Only people have a ${CONTACT_FIELD_LABELS[f].toLowerCase()}`);
       if (f === "animalType" && d.kind !== "pet") throw new AskToolError("Only pets have an animal type");
       if (next === (d[f] ?? null)) continue;
       body[f] = next;
@@ -246,7 +246,7 @@ const proposeContactCreate = def({
     pronouns: text(40),
     religion: text(60).describe("People only: faith or belief in the user's own words, free text"),
     religionObservance: z.number().int().min(0).max(4).nullable().optional().describe("People only: How observant they are, 0 = not practising, 1 = cultural/in name only, 2 = occasionally practising, 3 = practising, 4 = devout; null clears it"),
-    originCountry: text(100).describe("People only: where they are from, free text — a country name, or any other place the user names"),
+    originCountry: text(100).describe("Where they are from, free text — a country name, or any other place the user names; any kind of contact can have one"),
     animalType: text(100).describe("Pets only: species or breed, e.g. Dog, Cockapoo"),
     birthday: birthdaySchema.nullable().optional(),
     jobTitle: text(200),
@@ -267,7 +267,7 @@ const proposeContactCreate = def({
     if (!parsed.success) throw new AskToolError(parsed.error.issues.map((x) => `${x.path.join(".")}: ${x.message}`).join("; "));
     const body = parsed.data;
     body.tagNames = await resolveTagNames(ctx.db, body.tagNames, createNewTags);
-    if (i.kind !== "person" && (body.jobTitle || body.employerContactId || body.pronouns || body.religion || body.religionObservance != null || body.originCountry))
+    if (i.kind !== "person" && (body.jobTitle || body.employerContactId || body.pronouns || body.religion || body.religionObservance != null))
       throw new AskToolError("Only people have pronouns, a religion, a country of origin, a job title or an employer");
     if (i.kind !== "pet" && body.animalType) throw new AskToolError("Only pets have an animal type");
     const lookups = [body.employerContactId, body.metViaContactId].filter((x): x is string => !!x);

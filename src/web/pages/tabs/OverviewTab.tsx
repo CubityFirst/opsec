@@ -391,23 +391,23 @@ export function OverviewTab() {
                       </button>
                     )}
                   </dd>
-                  <dt className="flex items-center gap-1 text-muted-foreground">
-                    <GlobeIcon className="size-3.5" /> From
-                  </dt>
-                  <dd>
-                    {contact.originCountry ? (
-                      <button type="button" onClick={() => setFieldEdit("originCountry")} className="flex items-center gap-1.5 text-left hover:underline" title="Edit country of origin">
-                        <CountryFlag country={contact.originCountry} />
-                        {contact.originCountry}
-                      </button>
-                    ) : (
-                      <button type="button" onClick={() => setFieldEdit("originCountry")} className="text-muted-foreground hover:text-foreground hover:underline">
-                        Add country of origin…
-                      </button>
-                    )}
-                  </dd>
                 </>
               )}
+              <dt className="flex items-center gap-1 text-muted-foreground">
+                <GlobeIcon className="size-3.5" /> From
+              </dt>
+              <dd>
+                {contact.originCountry ? (
+                  <button type="button" onClick={() => setFieldEdit("originCountry")} className="flex items-center gap-1.5 text-left hover:underline" title="Edit country">
+                    <CountryFlag country={contact.originCountry} />
+                    {contact.originCountry}
+                  </button>
+                ) : (
+                  <button type="button" onClick={() => setFieldEdit("originCountry")} className="text-muted-foreground hover:text-foreground hover:underline">
+                    Add country…
+                  </button>
+                )}
+              </dd>
               <dt className="flex items-center gap-1 text-muted-foreground">
                 <HandshakeIcon className="size-3.5" /> Met
               </dt>

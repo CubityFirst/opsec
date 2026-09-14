@@ -264,14 +264,21 @@ describe("bulk actions", () => {
     const org = await createContact({ kind: "organization", firstName: "Mass Ltd" });
     const ids = [a.id, b.id, pet.id, org.id];
 
-    // B already has the country and the pet and the org cannot have one: only A changes.
+    // Every kind can have a country, so only B — which already has it — is left alone.
     const country = await json<{ updated: number; skipped: number }>("/api/contacts/bulk", {
       method: "POST",
       body: { ids, action: "setFields", fields: { originCountry: "United Kingdom" } },
     });
-    expect(country.body).toEqual({ updated: 1, skipped: 3 });
+    expect(country.body).toEqual({ updated: 3, skipped: 1 });
     expect((await json<ContactDetail>(`/api/contacts/${a.id}`)).body.originCountry).toBe("United Kingdom");
-    expect((await json<ContactDetail>(`/api/contacts/${pet.id}`)).body.originCountry).toBeNull();
+    expect((await json<ContactDetail>(`/api/contacts/${pet.id}`)).body.originCountry).toBe("United Kingdom");
+    expect((await json<ContactDetail>(`/api/contacts/${org.id}`)).body.originCountry).toBe("United Kingdom");
+    // Religion is still people-only, so the pet and the organisation skip it.
+    const faith = await json<{ updated: number; skipped: number }>("/api/contacts/bulk", {
+      method: "POST",
+      body: { ids, action: "setFields", fields: { religion: "Quaker" } },
+    });
+    expect(faith.body).toEqual({ updated: 2, skipped: 2 });
 
     // Employing both people keeps the employer relationship in step for each of them.
     const employ = await json<{ updated: number }>("/api/contacts/bulk", {
@@ -379,6 +386,11 @@ describe("list and search", () => {
 
   it("stores a religion, how much it is practised and a country of origin as typed, and clears them with null", async () => {
     const a = await createContact({ firstName: "Faith", religion: "Reform Jewish", religionObservance: 3, originCountry: "Hong Kong" });
+    // A country is not a people-only field: a French company and a dog from Romania both have one.
+    const firm = await createContact({ kind: "organization", firstName: "Origin SARL", originCountry: "France" });
+    expect(firm.originCountry).toBe("France");
+    const dog = await createContact({ kind: "pet", firstName: "Origin Rex", originCountry: "Romania" });
+    expect(dog.originCountry).toBe("Romania");
     expect(a.religion).toBe("Reform Jewish");
     expect(a.religionObservance).toBe(3);
     expect(a.originCountry).toBe("Hong Kong");

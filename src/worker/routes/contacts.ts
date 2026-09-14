@@ -362,13 +362,13 @@ app.post("/contacts/bulk", zValidator("json", contactBulkSchema, validationHook)
     let updated = 0;
     for (const row of targets) {
       const isPerson = row.kind === "person";
-      // Everything but keepInTouch belongs to people; other kinds keep what they have.
+      // The country and the nudges apply to every kind; the rest belong to people.
       const patch: Partial<typeof contacts.$inferInsert> = {};
       if (fields.keepInTouch !== undefined) patch.keepInTouch = fields.keepInTouch;
+      if (fields.originCountry !== undefined) patch.originCountry = fields.originCountry;
       if (isPerson) {
         if (fields.religion !== undefined) patch.religion = fields.religion;
         if (fields.religionObservance !== undefined) patch.religionObservance = fields.religionObservance;
-        if (fields.originCountry !== undefined) patch.originCountry = fields.originCountry;
         if (fields.jobTitle !== undefined) patch.jobTitle = fields.jobTitle;
         if (fields.employerContactId !== undefined && fields.employerContactId !== row.id) patch.employerContactId = fields.employerContactId;
       }
