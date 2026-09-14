@@ -9,6 +9,7 @@ import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/s
 import { initials } from "@/lib/format";
 import { useAccessIdentity } from "@/lib/queries/access";
 import { useAuthUser, useLogout } from "@/lib/queries/auth";
+import { useBranding } from "@/lib/queries/branding";
 import { useMediaQuery } from "@/lib/useMediaQuery";
 import { useSwipeDrawer } from "@/lib/useSwipeDrawer";
 import { cn } from "@/lib/utils";
@@ -98,9 +99,10 @@ function UserMenu() {
 }
 
 function Brand() {
+  const branding = useBranding();
   return (
     <NavLink to="/" className="flex items-center px-3 font-mono text-2xl font-bold tracking-tight">
-      opsec▮
+      {branding.name}
     </NavLink>
   );
 }

@@ -2,6 +2,7 @@ import { ChevronDownIcon, LogOutIcon, ShieldAlertIcon, ShieldCheckIcon, UserRoun
 import { useState } from "react";
 import { AiProviderCard } from "@/components/settings/AiProviderCard";
 import { ApiTokensCard } from "@/components/settings/ApiTokensCard";
+import { BrandingCard } from "@/components/settings/BrandingCard";
 import { CalendarFeedsCard } from "@/components/settings/CalendarFeedsCard";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -132,6 +133,8 @@ export function AccountPage() {
       <ApiTokensCard />
 
       {user.isAdmin && <AiProviderCard />}
+
+      {user.isAdmin && <BrandingCard />}
 
       {!open && (
       <div>

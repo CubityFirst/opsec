@@ -3,6 +3,7 @@ import { useEffect } from "react";
 import { isRouteErrorResponse, Link, useRouteError } from "react-router";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { useBranding } from "@/lib/queries/branding";
 
 /** True for the "error loading dynamically imported module" family of failures. */
 export function isChunkLoadError(err: unknown): boolean {
@@ -19,6 +20,7 @@ const RELOAD_KEY = "opsec:chunk-reload";
  */
 export function RouteErrorPage() {
   const error = useRouteError();
+  const branding = useBranding();
   const stale = isChunkLoadError(error);
 
   useEffect(() => {
@@ -34,7 +36,7 @@ export function RouteErrorPage() {
   }, [stale]);
 
   const status = isRouteErrorResponse(error) ? error.status : null;
-  const title = stale ? "A new version of opsec▮ is available" : status === 404 ? "Page not found" : "Something went wrong";
+  const title = stale ? `A new version of ${branding.name} is available` : status === 404 ? "Page not found" : "Something went wrong";
   const description = stale
     ? "The page you had open belongs to an older build. Reloading picks up the latest one."
     : status === 404

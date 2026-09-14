@@ -2,9 +2,11 @@ import { LogInIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { signInUrl, useAuthInfo } from "@/lib/queries/auth";
+import { useBranding } from "@/lib/queries/branding";
 
 export function SignInPage({ error, onRetry }: { error?: string; onRetry?: () => void }) {
   const info = useAuthInfo();
+  const branding = useBranding();
   const params = new URLSearchParams(window.location.search);
   const authError = error ?? params.get("auth_error");
   // Land back where the user was, minus any stale error parameter.
@@ -16,8 +18,8 @@ export function SignInPage({ error, onRetry }: { error?: string; onRetry?: () =>
     <div className="flex min-h-svh items-center justify-center bg-background p-4">
       <Card className="w-full max-w-sm">
         <CardHeader className="items-center text-center">
-          <CardTitle className="font-mono text-xl">opsec▮</CardTitle>
-          <CardDescription>Sign in to see your people.</CardDescription>
+          <CardTitle className="font-mono text-xl">{branding.name}</CardTitle>
+          {branding.tagline && <CardDescription>{branding.tagline}</CardDescription>}
         </CardHeader>
         <CardContent className="flex flex-col gap-3">
           {authError && (

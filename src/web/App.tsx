@@ -3,6 +3,7 @@ import { ThemeProvider } from "next-themes";
 import { useState } from "react";
 import { RouterProvider } from "react-router";
 import { AuthGate } from "@/components/layout/AuthGate";
+import { DocumentTitle } from "@/components/layout/DocumentTitle";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { router } from "./router";
@@ -21,6 +22,7 @@ export default function App() {
     <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
       <QueryClientProvider client={queryClient}>
         <TooltipProvider>
+          <DocumentTitle />
           <AuthGate>
             <RouterProvider router={router} />
           </AuthGate>

@@ -1,8 +1,10 @@
 import { Hono, type Context } from "hono";
+import { brandShortName } from "@shared/schemas/branding";
 import { getDb } from "./db";
 import type { AppEnv } from "./env";
 import { ApiError, errorHandler } from "./lib/errors";
 import { isLocalDev, rejectCrossSite, requireAuth, sessionMiddleware } from "./middleware/auth";
+import { resolveBranding } from "./services/branding";
 import activity from "./routes/activity";
 import aiSettings from "./routes/ai-settings";
 import mcp from "./routes/mcp";
@@ -11,6 +13,7 @@ import { registerApp } from "./app-ref";
 import ask from "./routes/ask";
 import auth from "./routes/auth";
 import bets from "./routes/bets";
+import branding from "./routes/branding";
 import calendar from "./routes/calendar";
 import calendarFeeds from "./routes/calendar-feeds";
 import reminders from "./routes/reminders";
@@ -141,6 +144,7 @@ app.route("/api", search);
 app.route("/api", dev);
 app.route("/api", ask);
 app.route("/api", aiSettings);
+app.route("/api", branding);
 app.route("/api", tokens);
 app.route("/api", calendarFeeds);
 // MCP lives outside /api: it authenticates with API tokens only (see routes/mcp.ts).
@@ -148,10 +152,35 @@ app.route("/", mcp);
 // So does the iCalendar feed: its secret key is the credential (see routes/calendar.ts).
 app.route("/", calendar);
 
+/**
+ * The installed app wears the instance's own name: the static manifest is the
+ * template and the saved branding overrides the two name fields. Anything that
+ * goes wrong (no ASSETS binding, unreadable JSON, D1 down) falls through to the
+ * file as written.
+ */
+app.get("/manifest.webmanifest", async (c) => {
+  if (!c.env.ASSETS) return c.notFound();
+  const res = await c.env.ASSETS.fetch(new Request(new URL("/manifest.webmanifest", c.req.url), { headers: c.req.raw.headers }));
+  const headers = securityHeaders(c);
+  if (!res.ok) return withSecurityHeaders(res, headers);
+  try {
+    const manifest = (await res.clone().json()) as Record<string, unknown>;
+    const { branding } = await resolveBranding(getDb(c.env.DB));
+    const body = JSON.stringify({ ...manifest, name: branding.name, short_name: brandShortName(branding) });
+    return new Response(body, { headers: { ...headers, "content-type": "application/manifest+json", "cache-control": "no-cache" } });
+  } catch {
+    return withSecurityHeaders(res, headers);
+  }
+});
+
 // Static assets normally never reach the Worker (see `assets` in wrangler.jsonc);
-// this is a belt-and-braces fallback for environments without the binding.
+// this is a belt-and-braces fallback for environments without the binding. An
+// unknown /api route is a JSON 404, never the SPA shell the assets binding would
+// hand back under single-page-application not-found handling.
 app.get("*", async (c) => {
-  if (c.env.ASSETS) return withSecurityHeaders(await c.env.ASSETS.fetch(c.req.raw), securityHeaders(c));
+  if (c.env.ASSETS && !new URL(c.req.url).pathname.startsWith("/api/")) {
+    return withSecurityHeaders(await c.env.ASSETS.fetch(c.req.raw), securityHeaders(c));
+  }
   return c.notFound();
 });
 

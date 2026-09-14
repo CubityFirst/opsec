@@ -36,6 +36,7 @@ It runs as a single Cloudflare Worker at [opsec.cubityfir.st](https://opsec.cubi
 - **A list you can shape.** The contacts table's columns are yours to choose — tags, phone and email, last spoke, country, birthday, job, added — with a revert to the default. The choice is saved on your account, so it follows you to the next browser.
 - **Names as people use them.** Nickname, pronouns and any number of other names (a Chinese name, a maiden name), all searchable. People can carry a religion — with a slider for how much of it they practise, from not practising to devout, left blank when you have never asked. Anyone can carry a country of origin, written the way you would put it yourself: a French company and a dog from Romania count as much as a person, and the contacts list shows it as a flag (the pickers suggest the common answers and every country, but keep whatever you type — “Raised Catholic”, “Kurdistan”). Pets carry an animal type (species or breed).
 - **Ask.** A chat over your own data: "When did I last talk to Alice about Lisbon?", "Who introduced me to Rex's vet?", or paste a screenshot and say "log this". The model investigates with read-only tools and can propose any change, from logging an interaction to creating an organisation and setting someone's job there in one go. Nothing is written until you press Apply. It speaks the OpenAI chat-completions format, so the provider is configuration: Cloudflare AI Gateway, OpenAI, Anthropic, OpenRouter or a llama.cpp box at home, switchable from the Account page.
+- **Your name on it.** Nothing in the app is hard-coded to “opsec▮”: an admin renames the instance from **Account → Branding** — the sidebar wordmark, the sign-in card and its tagline, the browser tab title and the name it installs under on a home screen — and everyone sees it at once.
 - **Installable.** A web app manifest, icons and a small service worker make it installable from the browser: it opens in its own window without browser chrome, keeps the app shell offline so a dropped connection shows the app rather than a dinosaur, and never caches your data — every request for contacts, files or Ask goes to the network.
 - **Yours.** Sign-in through Annex (OpenID Connect with PKCE), access limited to an allow-list, secrets encrypted at rest, a per-user daily spend guard on the model, and no analytics or third-party scripts.
 
@@ -169,6 +170,7 @@ errors return `{ error: { code, message, issues? } }`.
 - `GET /search?q=`, `GET/POST /tags`, `PATCH/DELETE /tags/:id`
 - `GET/POST /calendar-feeds`, `PATCH/DELETE /calendar-feeds/:id`, `POST /calendar-feeds/:id/rotate` (new secret URL); the feed itself is `GET /calendar/<key>.ics` outside `/api` (see Calendar feeds)
 - `GET /auth/login`, `GET /auth/callback`, `GET /auth/me`, `POST /auth/logout`
+- `GET /branding` (public: the sign-in page needs the name), `PUT /branding`, `DELETE /branding` (admin only; DELETE restores the defaults)
 - `POST /dev/seed` (only when `ENVIRONMENT=development`)
 
 ## Ask
@@ -258,6 +260,17 @@ claude mcp add opsec --transport http https://<your host>/mcp --header "Authoriz
 Timed events are always written in UTC (`…Z`); your calendar app converts them to its own zone. All-day events are dates without a zone. Every event has a stable `UID`, so a refresh updates events in place.
 
 Each feed lives at `/calendar/<key>.ics`, where the key is a random 256-bit secret and the only credential: calendar clients send no cookies or headers. Treat the URL like a password; **New URL** replaces the key so the old link stops working, and deleting the feed does the same. Feeds are per user and, in `oidc` mode, stop working if the owner's account is no longer allowed in. They cannot be managed with an API token. The **Subscribe** button opens the `webcal://` form of the URL for Apple Calendar and Outlook; for Google Calendar paste the `https://` URL under *Other calendars → From URL* (Google refreshes subscribed calendars only every several hours).
+
+## Branding
+
+**Account → Branding** (admin only) decides what the instance calls itself. Four fields, all optional except the first:
+
+- **Name** — the wordmark in the sidebar, on the sign-in card, in the "Added to …" line of a contact's history and anywhere else the app names itself. Defaults to `opsec▮`.
+- **Browser tab title** — the `<title>`; blank uses the name.
+- **Short name** — what sits under the icon on a home screen; blank uses the name.
+- **Sign-in tagline** — the line under the name on the sign-in page; blank hides it.
+
+The settings live in one `app_settings` row, so they are per instance rather than per user, and `GET /api/branding` is public because the sign-in page is rendered before there is a session. The Worker serves `/manifest.webmanifest` by taking the file in `public/` and overriding `name` and `short_name`, so an installed PWA picks the new name up on its next refresh. Icons, colours and the `<title>` in `index.html` (the one shown before the app boots) are still files in `public/` and the repo — change those to go further.
 
 ## Security notes
 

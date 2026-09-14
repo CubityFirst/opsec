@@ -3,6 +3,7 @@ import { Link } from "react-router";
 import { BET_OUTCOME_LABELS, type BetOutcome } from "@shared/schemas/bet";
 import { GIFT_STATUS_LABELS, type GiftStatus } from "@shared/schemas/gift";
 import type { ActivityEventOut } from "@shared/types";
+import { BrandName } from "@/components/BrandName";
 import { formatDateTime, formatRelative } from "@/lib/format";
 
 type Payload = Record<string, unknown>;
@@ -26,7 +27,7 @@ export function describeEvent(e: ActivityEventOut): { icon: LucideIcon; text: Re
 
   switch (e.eventType) {
     case "contact.created":
-      return { icon: SparklesIcon, text: <>Added to opsec▮</> };
+      return { icon: SparklesIcon, text: <>Added to <BrandName /></> };
     case "contact.updated":
       return { icon: PencilIcon, text: <>Updated {changeSummary(p.changes) || "details"}</> };
     case "contact.archived":

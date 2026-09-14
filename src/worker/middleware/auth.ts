@@ -41,18 +41,20 @@ export function isLocalDev(url: URL, env: Pick<AppVars, "ENVIRONMENT">): boolean
 }
 
 /** Paths under /api that work without a session. */
-function isPublic(url: URL, env: Pick<AppVars, "ENVIRONMENT">): boolean {
+function isPublic(url: URL, method: string, env: Pick<AppVars, "ENVIRONMENT">): boolean {
   const path = url.pathname;
   if (path === "/api/health") return true;
   if (path.startsWith("/api/auth/")) return true;
+  // The sign-in page wears the instance's name before anyone is signed in.
+  if (path === "/api/branding" && (method === "GET" || method === "HEAD")) return true;
   // Local seeding runs from a script with no browser session.
   if (path.startsWith("/api/dev/") && isLocalDev(url, env)) return true;
   return false;
 }
 
 export const requireAuth: MiddlewareHandler<AppEnv> = async (c, next) => {
-  if (!isPublic(new URL(c.req.url), c.env) && !c.get("user")) throw ApiError.unauthorized();
   const method = c.req.method;
+  if (!isPublic(new URL(c.req.url), method, c.env) && !c.get("user")) throw ApiError.unauthorized();
   if (c.get("tokenScope") === "read" && method !== "GET" && method !== "HEAD" && method !== "OPTIONS") {
     throw ApiError.forbidden("This API token is read-only");
   }

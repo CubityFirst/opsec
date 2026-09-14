@@ -1,9 +1,11 @@
 import { cloudflareTest, readD1Migrations } from "@cloudflare/vitest-pool-workers";
+import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { defineConfig } from "vitest/config";
 
 export default defineConfig(async () => {
   const migrations = await readD1Migrations(fileURLToPath(new URL("./drizzle", import.meta.url)));
+  const manifest = await readFile(fileURLToPath(new URL("./public/manifest.webmanifest", import.meta.url)), "utf8");
   return {
     resolve: {
       alias: {
@@ -33,8 +35,16 @@ export default defineConfig(async () => {
             ASK_FAKE_UPSTREAM: "1",
             GEOCODE_FAKE_UPSTREAM: "1",
           },
-          // The real Annex Worker is not available in tests; nothing here performs a login.
-          serviceBindings: { ANNEX: async () => new Response("annex unavailable in tests", { status: 503 }) },
+          serviceBindings: {
+            // The real Annex Worker is not available in tests; nothing here performs a login.
+            ANNEX: async () => new Response("annex unavailable in tests", { status: 503 }),
+            // There is no built client in tests: serve the one asset the Worker reads
+            // (the PWA manifest it rebrands) and 404 the rest, as the catch-all would.
+            ASSETS: async (req: Request) =>
+              new URL(req.url).pathname === "/manifest.webmanifest"
+                ? new Response(manifest, { headers: { "content-type": "application/manifest+json" } })
+                : new Response("not found", { status: 404 }),
+          },
         },
       }),
     ],
