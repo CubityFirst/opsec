@@ -1,6 +1,6 @@
 import { MentionText } from "@/components/MentionText";
 import { plainMentions } from "@shared/mentions";
-import { ArchiveIcon, CheckIcon, ChevronLeftIcon, ChevronRightIcon, PlusIcon, SearchIcon } from "lucide-react";
+import { ArchiveIcon, CheckIcon, ChevronLeftIcon, ChevronRightIcon, Columns3Icon, PlusIcon, RotateCcwIcon, SearchIcon } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { Link, useLocation, useNavigate, useSearchParams } from "react-router";
 import type { ContactKind } from "@shared/schemas/common";
@@ -8,6 +8,7 @@ import type { ContactSort } from "@shared/schemas/contact";
 import type { ContactSummary } from "@shared/types";
 import { BulkActionBar } from "@/components/contacts/BulkActionBar";
 import { ContactAvatar } from "@/components/contacts/ContactAvatar";
+import { CONTACT_COLUMNS, CONTACT_COLUMN_LABELS, DEFAULT_CONTACT_COLUMNS, orderedColumns, type ContactColumn } from "@shared/contact-columns";
 import { countryFlag } from "@shared/countries";
 import { CountryFlag } from "@/components/contacts/CountryFlag";
 import { ContactFormDialog } from "@/components/contacts/ContactFormDialog";
@@ -17,11 +18,21 @@ import { TagChip } from "@/components/contacts/TagChip";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
+import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { errorMessage } from "@/lib/api";
-import { KIND_LABELS, formatRelative } from "@/lib/format";
+import { KIND_LABELS, formatBirthday, formatDate, formatRelative } from "@/lib/format";
+import { useAuthUser, useUpdatePreferences } from "@/lib/queries/auth";
 import { useContacts } from "@/lib/queries/contacts";
 import { useTags } from "@/lib/queries/tags";
 import { useDebounce } from "@/lib/useDebounce";
@@ -68,6 +79,10 @@ export function ContactsPage() {
   // Selection for bulk actions. Click (or Ctrl+click) an avatar to toggle a
   // contact; Shift+click selects the range from the last toggled row.
   const [selected, setSelected] = useState<Set<string>>(() => new Set());
+  // The table's columns live on the user, so the choice follows them between browsers and sessions.
+  const preferences = useAuthUser()?.preferences;
+  const updatePreferences = useUpdatePreferences();
+  const columns = orderedColumns(preferences?.contactColumns ?? DEFAULT_CONTACT_COLUMNS);
   const [anchor, setAnchor] = useState<string | null>(null);
   const pageIds = (query.data?.items ?? []).map((c) => c.id);
 
@@ -171,6 +186,7 @@ export function ContactsPage() {
             <SelectItem value="deceased">† Deceased</SelectItem>
           </SelectContent>
         </Select>
+        <ColumnsMenu columns={columns} onChange={(next) => updatePreferences.mutate({ contactColumns: orderedColumns(next) })} />
       </div>
 
       {selected.size > 0 && (
@@ -194,14 +210,16 @@ export function ContactsPage() {
             <TableHeader>
               <TableRow>
                 <TableHead className="w-[40%]">Name</TableHead>
-                <TableHead className="hidden md:table-cell">Tags</TableHead>
-                <TableHead className="hidden lg:table-cell">Contact</TableHead>
-                <TableHead>Last spoke</TableHead>
+                {columns.map((c) => (
+                  <TableHead key={c} className={COLUMN_CLASS[c]}>
+                    {CONTACT_COLUMN_LABELS[c]}
+                  </TableHead>
+                ))}
               </TableRow>
             </TableHeader>
             <TableBody>
               {query.data.items.map((c) => (
-                <ContactRow key={c.id} contact={c} selected={selected.has(c.id)} onToggle={(e) => toggleSelect(c.id, e)} />
+                <ContactRow key={c.id} contact={c} columns={columns} selected={selected.has(c.id)} onToggle={(e) => toggleSelect(c.id, e)} />
               ))}
             </TableBody>
           </Table>
@@ -233,9 +251,65 @@ export function ContactsPage() {
   );
 }
 
-function ContactRow({ contact, selected, onToggle }: { contact: ContactSummary; selected: boolean; onToggle: (e: React.MouseEvent) => void }) {
-  // A country we cannot flag still shows, as text on the second line.
-  const unflagged = contact.originCountry && !countryFlag(contact.originCountry) ? contact.originCountry : null;
+/** Breakpoints below which a column is not worth the width, whatever the preference says. */
+const COLUMN_CLASS: Record<ContactColumn, string> = {
+  tags: "hidden md:table-cell",
+  contact: "hidden lg:table-cell",
+  lastSpoke: "",
+  country: "hidden sm:table-cell",
+  birthday: "hidden md:table-cell",
+  job: "hidden lg:table-cell",
+  added: "hidden lg:table-cell",
+};
+
+/** Picks the optional columns of the table; the choice is saved on the user, not in this browser. */
+function ColumnsMenu({ columns, onChange }: { columns: ContactColumn[]; onChange: (columns: ContactColumn[]) => void }) {
+  const visible = new Set(columns);
+  const isDefault = orderedColumns(DEFAULT_CONTACT_COLUMNS).join() === columns.join();
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="outline">
+          <Columns3Icon /> Columns
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-52">
+        <DropdownMenuLabel>Show in the table</DropdownMenuLabel>
+        {CONTACT_COLUMNS.map((c) => (
+          <DropdownMenuCheckboxItem
+            key={c}
+            checked={visible.has(c)}
+            // Radix closes on select by default; keep the menu up for several changes.
+            onSelect={(e) => e.preventDefault()}
+            onCheckedChange={(on) => onChange(on ? [...columns, c] : columns.filter((x) => x !== c))}
+          >
+            {CONTACT_COLUMN_LABELS[c]}
+          </DropdownMenuCheckboxItem>
+        ))}
+        <DropdownMenuSeparator />
+        <DropdownMenuItem disabled={isDefault} onSelect={() => onChange([...DEFAULT_CONTACT_COLUMNS])}>
+          <RotateCcwIcon /> Revert to default
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
+function ContactRow({
+  contact,
+  columns,
+  selected,
+  onToggle,
+}: {
+  contact: ContactSummary;
+  columns: ContactColumn[];
+  selected: boolean;
+  onToggle: (e: React.MouseEvent) => void;
+}) {
+  const shows = (c: ContactColumn) => columns.includes(c);
+  // The country has a column of its own, so the flag by the name is only for when it has not.
+  const unflagged = !shows("country") && contact.originCountry && !countryFlag(contact.originCountry) ? contact.originCountry : null;
+  const job = [contact.jobTitle, contact.employer?.displayName].filter(Boolean).join(" at ");
   const last = contact.lastInteraction;
   return (
     <TableRow className={cn(selected && "bg-primary/5 hover:bg-primary/10")} data-state={selected ? "selected" : undefined}>
@@ -266,7 +340,7 @@ function ContactRow({ contact, selected, onToggle }: { contact: ContactSummary; 
           <Link to={`/contacts/${contact.id}`} className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
               <span className="truncate font-medium">{contact.displayName}</span>
-              <CountryFlag country={contact.originCountry} className="shrink-0 text-base" />
+              {!shows("country") && <CountryFlag country={contact.originCountry} className="shrink-0 text-base" />}
               <KindBadge kind={contact.kind} />
               {contact.deceasedAt && <DeceasedBadge on={contact.deceasedOn} />}
               {contact.archivedAt && (
@@ -275,48 +349,58 @@ function ContactRow({ contact, selected, onToggle }: { contact: ContactSummary; 
                 </span>
               )}
             </div>
-            {(contact.nickname || contact.animalType || contact.otherNames.length > 0 || contact.jobTitle || contact.employer || unflagged) && (
-              <div className="truncate text-xs text-muted-foreground">
-                {[
-                  contact.nickname && `“${contact.nickname}”`,
-                  contact.animalType,
-                  ...contact.otherNames.map((n) => n.value),
-                  [contact.jobTitle, contact.employer?.displayName].filter(Boolean).join(" at "),
-                  // Somewhere with no flag of its own ("Kurdistan") still deserves to show.
-                  unflagged,
-                ]
-                  .filter(Boolean)
-                  .join(" · ")}
-              </div>
-            )}
+            {(() => {
+              const meta = [
+                contact.nickname && `“${contact.nickname}”`,
+                contact.animalType,
+                ...contact.otherNames.map((n) => n.value),
+                shows("job") ? null : job,
+                // Somewhere with no flag of its own ("Kurdistan") still deserves to show.
+                unflagged,
+              ].filter(Boolean);
+              return meta.length > 0 ? <div className="truncate text-xs text-muted-foreground">{meta.join(" · ")}</div> : null;
+            })()}
           </Link>
         </div>
       </TableCell>
-      <TableCell className="hidden md:table-cell">
-        <div className="flex flex-wrap gap-1">
-          {contact.tags.map((t) => (
-            <TagChip key={t.id} tag={t} />
-          ))}
-        </div>
-      </TableCell>
-      <TableCell className="hidden text-sm text-muted-foreground lg:table-cell">
-        <div className="flex flex-col">
-          {contact.primaryPhone && <span>{contact.primaryPhone}</span>}
-          {contact.primaryEmail && <span className="truncate">{contact.primaryEmail}</span>}
-        </div>
-      </TableCell>
-      <TableCell className="text-sm">
-        {last ? (
-          <div className="flex flex-col">
-            <span>{formatRelative(last.occurredAt)}</span>
-            <span className="truncate text-xs text-muted-foreground" title={plainMentions(last.summary)}>
-              <MentionText text={last.summary} chipClassName="font-medium text-foreground/80" />
-            </span>
-          </div>
-        ) : (
-          <span className="text-muted-foreground">No data</span>
-        )}
-      </TableCell>
+      {columns.map((c) => (
+        <TableCell key={c} className={cn(COLUMN_CLASS[c], c !== "lastSpoke" && "text-sm text-muted-foreground")}>
+          {c === "tags" && (
+            <div className="flex flex-wrap gap-1">
+              {contact.tags.map((t) => (
+                <TagChip key={t.id} tag={t} />
+              ))}
+            </div>
+          )}
+          {c === "contact" && (
+            <div className="flex flex-col">
+              {contact.primaryPhone && <span>{contact.primaryPhone}</span>}
+              {contact.primaryEmail && <span className="truncate">{contact.primaryEmail}</span>}
+            </div>
+          )}
+          {c === "lastSpoke" &&
+            (last ? (
+              <div className="flex flex-col text-sm">
+                <span>{formatRelative(last.occurredAt)}</span>
+                <span className="truncate text-xs text-muted-foreground" title={plainMentions(last.summary)}>
+                  <MentionText text={last.summary} chipClassName="font-medium text-foreground/80" />
+                </span>
+              </div>
+            ) : (
+              <span className="text-sm text-muted-foreground">No data</span>
+            ))}
+          {c === "country" &&
+            (contact.originCountry ? (
+              <span className="flex items-center gap-1.5">
+                <CountryFlag country={contact.originCountry} />
+                <span className="truncate">{contact.originCountry}</span>
+              </span>
+            ) : null)}
+          {c === "birthday" && (contact.birthday ? formatBirthday(contact.birthday) : null)}
+          {c === "job" && <span className="truncate">{job}</span>}
+          {c === "added" && formatDate(contact.createdAt)}
+        </TableCell>
+      ))}
     </TableRow>
   );
 }

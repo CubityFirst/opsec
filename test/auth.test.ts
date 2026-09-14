@@ -1,5 +1,6 @@
 import { env } from "cloudflare:test";
 import { describe, expect, it } from "vitest";
+import { DEFAULT_CONTACT_COLUMNS } from "@shared/contact-columns";
 import type { ApiErrorBody, AuthUser } from "@shared/types";
 import { signSession } from "../src/worker/lib/session";
 import { api, apiAs, createContact, json } from "./helpers";
@@ -66,16 +67,21 @@ describe("auth", () => {
   });
 
   it("returns per-user preferences with the identity and accepts a preferences patch", async () => {
-    // No preferences are defined right now; the plumbing stays for the next one.
     const before = await json<AuthUser>("/api/auth/me");
-    expect(before.body.preferences).toEqual({});
-    const upd = await json<AuthUser>("/api/auth/preferences", { method: "PATCH", body: { unknownKey: true } });
+    expect(before.body.preferences.contactColumns).toEqual(DEFAULT_CONTACT_COLUMNS);
+    const upd = await json<AuthUser>("/api/auth/preferences", { method: "PATCH", body: { contactColumns: ["country", "lastSpoke"], unknownKey: true } });
     expect(upd.status).toBe(200);
-    expect(upd.body.preferences).toEqual({});
+    expect(upd.body.preferences).toEqual({ contactColumns: ["country", "lastSpoke"] });
+    // The choice belongs to the user, not the session or the browser.
     const after = await json<AuthUser>("/api/auth/me");
-    expect(after.body.preferences).toEqual({});
+    expect(after.body.preferences.contactColumns).toEqual(["country", "lastSpoke"]);
     const other = await apiAs({ sub: "someone-else", roles: ["admin"] }, "/api/auth/me");
-    expect(((await other.json()) as AuthUser).preferences).toEqual({});
+    expect(((await other.json()) as AuthUser).preferences.contactColumns).toEqual(DEFAULT_CONTACT_COLUMNS);
+    // Reverting to the default is just another patch.
+    const reset = await json<AuthUser>("/api/auth/preferences", { method: "PATCH", body: { contactColumns: DEFAULT_CONTACT_COLUMNS } });
+    expect(reset.body.preferences.contactColumns).toEqual(DEFAULT_CONTACT_COLUMNS);
+    const unknownColumn = await json<ApiErrorBody>("/api/auth/preferences", { method: "PATCH", body: { contactColumns: ["nope"] } });
+    expect(unknownColumn.status).toBe(400);
     const bad = await json<ApiErrorBody>("/api/auth/preferences", { method: "PATCH", body: "nope" });
     expect(bad.status).toBe(400);
   });

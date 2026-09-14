@@ -36,10 +36,20 @@ export function signInUrl(next = window.location.pathname + window.location.sear
   return `/api/auth/login?next=${encodeURIComponent(next)}`;
 }
 
+/** Preferences are UI state, so the cache moves first and rolls back if the PATCH fails. */
 export function useUpdatePreferences() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (patch: UserPreferencesUpdate) => api.patch<AuthUser>("/api/auth/preferences", patch),
+    onMutate: async (patch) => {
+      await qc.cancelQueries({ queryKey: authKeys.me });
+      const previous = qc.getQueryData<AuthUser | null>(authKeys.me);
+      if (previous) qc.setQueryData<AuthUser>(authKeys.me, { ...previous, preferences: { ...previous.preferences, ...patch } });
+      return { previous };
+    },
+    onError: (_e, _patch, context) => {
+      if (context?.previous !== undefined) qc.setQueryData(authKeys.me, context.previous);
+    },
     onSuccess: (user) => qc.setQueryData(authKeys.me, user),
   });
 }

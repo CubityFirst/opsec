@@ -1,12 +1,18 @@
 import { z } from "zod";
+import { CONTACT_COLUMNS, DEFAULT_CONTACT_COLUMNS } from "../contact-columns";
 
 /**
- * Per-user UI preferences. Every field must have a default so a missing row
- * reads as the defaults. Currently empty: the schema, the `users.preferences`
- * column and `PATCH /api/auth/preferences` stay so a future preference is one
- * field here plus a control on the Account page.
+ * Per-user UI preferences, stored in `users.preferences` and updated with
+ * `PATCH /api/auth/preferences`. Every field must have a default so a missing row
+ * reads as the defaults.
  */
-export const userPreferencesSchema = z.object({});
+export const userPreferencesSchema = z.object({
+  /** Optional columns of the contacts table; the name column is always shown. */
+  contactColumns: z
+    .array(z.enum(CONTACT_COLUMNS))
+    .max(CONTACT_COLUMNS.length)
+    .default(() => [...DEFAULT_CONTACT_COLUMNS]),
+});
 export type UserPreferences = z.infer<typeof userPreferencesSchema>;
 
 export const userPreferencesUpdateSchema = userPreferencesSchema.partial();
