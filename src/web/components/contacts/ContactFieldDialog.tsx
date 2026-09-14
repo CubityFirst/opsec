@@ -15,6 +15,7 @@ import { errorMessage } from "@/lib/api";
 import { useUpdateContact } from "@/lib/queries/contacts";
 import { BirthdayInput } from "./BirthdayInput";
 import { ContactPicker } from "./ContactPicker";
+import { ObservanceSlider } from "./ObservanceSlider";
 
 /** The groups of the About card that can be edited on their own. */
 export type ContactFieldGroup = "birthday" | "religion" | "originCountry" | "met";
@@ -22,6 +23,7 @@ export type ContactFieldGroup = "birthday" | "religion" | "originCountry" | "met
 type Draft = {
   birthday: string;
   religion: string;
+  religionObservance: number | null;
   originCountry: string;
   metOn: string;
   metWhere: string;
@@ -33,6 +35,7 @@ function draftOf(c: ContactDetail): Draft {
   return {
     birthday: c.birthday ?? "",
     religion: c.religion ?? "",
+    religionObservance: c.religionObservance,
     originCountry: c.originCountry ?? "",
     metOn: c.metOn ?? "",
     metWhere: c.metWhere ?? "",
@@ -92,7 +95,8 @@ export function ContactFieldDialog({
         : group === "birthday"
           ? { birthday: orNull(draft.birthday) }
           : group === "religion"
-            ? { religion: orNull(draft.religion) }
+            ? // Observance hangs off the religion: clearing one clears the other.
+              { religion: orNull(draft.religion), religionObservance: orNull(draft.religion) === null ? null : draft.religionObservance }
             : { originCountry: orNull(draft.originCountry) };
     const parsed = contactUpdateSchema.safeParse(raw);
     if (!parsed.success) {
@@ -144,6 +148,13 @@ export function ContactFieldDialog({
                   <option key={r} value={r} />
                 ))}
               </datalist>
+              <div className="pt-2">
+                <ObservanceSlider
+                  value={draft.religionObservance}
+                  onChange={(val) => set("religionObservance", val)}
+                  disabled={draft.religion.trim() === ""}
+                />
+              </div>
             </div>
           )}
 

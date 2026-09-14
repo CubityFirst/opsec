@@ -336,18 +336,24 @@ describe("list and search", () => {
     expect(patched.body.pronouns).toBeNull();
   });
 
-  it("stores a religion and a country of origin as typed and clears them with null", async () => {
-    const a = await createContact({ firstName: "Faith", religion: "Reform Jewish", originCountry: "Hong Kong" });
+  it("stores a religion, how much it is practised and a country of origin as typed, and clears them with null", async () => {
+    const a = await createContact({ firstName: "Faith", religion: "Reform Jewish", religionObservance: 3, originCountry: "Hong Kong" });
     expect(a.religion).toBe("Reform Jewish");
+    expect(a.religionObservance).toBe(3);
     expect(a.originCountry).toBe("Hong Kong");
+    // 0 is "not practising", which is a recorded answer and must survive as 0, not null.
+    const zero = await json<{ religionObservance: number | null }>(`/api/contacts/${a.id}`, { method: "PATCH", body: { religionObservance: 0 } });
+    expect(zero.body.religionObservance).toBe(0);
+    expect((await json(`/api/contacts/${a.id}`, { method: "PATCH", body: { religionObservance: 9 } })).status).toBe(400);
     const detail = await json<{ religion: string | null; originCountry: string | null }>(`/api/contacts/${a.id}`);
     expect(detail.body).toMatchObject({ religion: "Reform Jewish", originCountry: "Hong Kong" });
-    const patched = await json<{ religion: string | null; originCountry: string | null }>(`/api/contacts/${a.id}`, {
+    const patched = await json<{ religion: string | null; religionObservance: number | null; originCountry: string | null }>(`/api/contacts/${a.id}`, {
       method: "PATCH",
-      body: { religion: null, originCountry: null },
+      body: { religion: null, religionObservance: null, originCountry: null },
     });
     expect(patched.status).toBe(200);
     expect(patched.body.religion).toBeNull();
+    expect(patched.body.religionObservance).toBeNull();
     expect(patched.body.originCountry).toBeNull();
   });
 

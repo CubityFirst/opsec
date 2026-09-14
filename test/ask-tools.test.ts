@@ -149,14 +149,15 @@ describe("ask tools", () => {
     expect(badDate.ok).toBe(false);
     const orgTitle = await run("propose_contact_update", { contactId: org.id, jobTitle: "x" });
     expect(orgTitle.summary).toMatch(/Only people/);
-    const faith = await run("propose_contact_update", { contactId: p.id, religion: "Quaker", originCountry: "Kurdistan" });
+    const faith = await run("propose_contact_update", { contactId: p.id, religion: "Quaker", religionObservance: 3, originCountry: "Kurdistan" });
     expect(faith.ok, faith.summary).toBe(true);
     expect(faith.events.find((e) => e.type === "proposal")).toMatchObject({
       proposal: {
-        request: { body: { religion: "Quaker", originCountry: "Kurdistan" } },
+        request: { body: { religion: "Quaker", religionObservance: 3, originCountry: "Kurdistan" } },
         changes: [
           { label: "Religion", from: null, to: "Quaker" },
           { label: "Country of origin", from: null, to: "Kurdistan" },
+          { label: "Observance", from: null, to: "Practising" },
         ],
       },
     });

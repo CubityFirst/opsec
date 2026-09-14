@@ -1,3 +1,4 @@
+import { observanceLabel } from "@shared/religion";
 import { describeRepeat } from "@shared/schemas/reminder";
 import type { BetOut, ContactRef, ContactSummary, FeedItem, GiftOut, InteractionOut, LifeEventOut, ReminderOut } from "@shared/types";
 
@@ -20,6 +21,7 @@ export function compactContact(c: ContactSummary) {
     nickname: c.nickname,
     pronouns: c.pronouns ?? undefined,
     religion: c.religion ?? undefined,
+    religionObservance: observanceLabel(c.religionObservance) ?? undefined,
     originCountry: c.originCountry ?? undefined,
     animalType: c.animalType ?? undefined,
     otherNames: c.otherNames.length ? c.otherNames : undefined,

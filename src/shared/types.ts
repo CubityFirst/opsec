@@ -90,6 +90,8 @@ export interface ContactSummary extends ContactRef {
   pronouns: string | null;
   /** People only: faith or belief in the user's own words; free text. */
   religion: string | null;
+  /** How observant they are, 0 (not practising) to 4 (devout); null when never recorded. */
+  religionObservance: number | null;
   /** People only: where they are from, in the user's words — a country, or any other place. */
   originCountry: string | null;
   /** Pets only: species or breed, e.g. "Dog", "Cockapoo". */

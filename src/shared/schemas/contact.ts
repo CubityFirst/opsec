@@ -9,6 +9,7 @@ import {
   optionalText,
   paginationSchema,
 } from "./common";
+import { OBSERVANCE_LABELS } from "../religion";
 import { coordinatesField } from "./geo";
 
 export const customFieldsSchema = z
@@ -42,6 +43,14 @@ const contactFields = {
   pronouns: optionalText(40),
   /** Faith or belief, free text ({@link RELIGION_SUGGESTIONS} only fills the picker); people only. */
   religion: optionalText(60),
+  /** How observant they are: index into {@link OBSERVANCE_LABELS}; null = never recorded, 0 = not practising. */
+  religionObservance: z
+    .number()
+    .int()
+    .min(0)
+    .max(OBSERVANCE_LABELS.length - 1)
+    .nullish()
+    .transform((v) => v ?? null),
   /** Where they are from, free text ({@link COUNTRY_SUGGESTIONS} only fills the picker); people only. */
   originCountry: optionalText(100),
   /** Pets only: species or breed, free text. */

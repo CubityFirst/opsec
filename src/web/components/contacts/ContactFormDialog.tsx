@@ -19,10 +19,12 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { errorMessage } from "@/lib/api";
+import { observanceLabel } from "@shared/religion";
 import { KIND_LABELS, capitalize, formatBirthday } from "@/lib/format";
 import { useCreateContact, useUpdateContact } from "@/lib/queries/contacts";
 import { BirthdayInput } from "./BirthdayInput";
 import { ContactPicker } from "./ContactPicker";
+import { ObservanceSlider } from "./ObservanceSlider";
 import { TagNamesInput } from "./TagNamesInput";
 
 /** Empty strings from inputs become null/undefined so the shared schema accepts them. */
@@ -32,6 +34,8 @@ function normalise(v: unknown) {
   for (const k of ["lastName", "nickname", "pronouns", "religion", "originCountry", "animalType", "notes", "birthday", "metOn", "metWhere", "metHow", "jobTitle"]) {
     if (o[k] === "") o[k] = null;
   }
+  // Observance hangs off the religion, so clearing one clears the other.
+  if (!o.religion) o.religionObservance = null;
   // The form holds the picked contact; the API wants its id.
   const via = o.metVia as { id?: string } | null | undefined;
   o.metViaContactId = via?.id ?? null;
@@ -55,6 +59,7 @@ type FormValues = {
   nickname: string;
   pronouns: string;
   religion: string;
+  religionObservance: number | null;
   originCountry: string;
   animalType: string;
   birthday: string;
@@ -78,6 +83,7 @@ function defaults(contact?: ContactDetail): FormValues {
     nickname: contact?.nickname ?? "",
     pronouns: contact?.pronouns ?? "",
     religion: contact?.religion ?? "",
+    religionObservance: contact?.religionObservance ?? null,
     originCountry: contact?.originCountry ?? "",
     animalType: contact?.animalType ?? "",
     otherNames: contact?.otherNames ?? [],
@@ -157,6 +163,8 @@ export function ContactFormDialog({
   const isPerson = kind === "person";
   const errors = formState.errors;
   const join = (...parts: (string | false | null | undefined)[]) => parts.filter(Boolean).join(" · ");
+  /** Religion and how much of it they practise read as one thing: "Muslim, practising". */
+  const join2 = (a?: string | null, b?: string | null) => (a && b ? `${a}, ${b.toLowerCase()}` : (a ?? b ?? ""));
   // Sections open themselves when the contact already has something in them.
   const hasAbout = !!(contact?.pronouns || contact?.religion || contact?.originCountry);
   const hasWork = !!(contact?.jobTitle || contact?.employer);
@@ -250,7 +258,7 @@ export function ContactFormDialog({
           </div>
 
           {isPerson && (
-            <Section title="About" summary={join(v.pronouns, v.religion, v.originCountry)} defaultOpen={hasAbout}>
+            <Section title="About" summary={join(v.pronouns, join2(v.religion, observanceLabel(v.religionObservance)), v.originCountry)} defaultOpen={hasAbout}>
               <div className="grid gap-3 sm:grid-cols-2">
                 <div className="flex flex-col gap-1.5">
                   <Label htmlFor="pronouns">Pronouns</Label>
@@ -265,6 +273,13 @@ export function ContactFormDialog({
                       <option key={r} value={r} />
                     ))}
                   </datalist>
+                </div>
+                <div className="sm:col-span-2">
+                  <Controller
+                    control={control}
+                    name="religionObservance"
+                    render={({ field }) => <ObservanceSlider value={field.value} onChange={field.onChange} disabled={!v.religion} />}
+                  />
                 </div>
                 <div className="flex flex-col gap-1.5 sm:col-span-2">
                   <Label htmlFor="originCountry">Country of origin</Label>

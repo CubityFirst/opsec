@@ -6,6 +6,7 @@
  */
 import { eq } from "drizzle-orm";
 import { z } from "zod";
+import { observanceLabel } from "@shared/religion";
 import { pendingIdFor, type AskProposal } from "@shared/schemas/ask";
 import { CONTACT_KINDS, INTERACTION_TYPES, birthdaySchema, contactMethodTypeSchema, idSchema, isoDateSchema, isoDateTimeSchema, nonBlank } from "@shared/schemas/common";
 import { contactCreateSchema, contactMethodInputSchema, customFieldsSchema, otherNameSchema } from "@shared/schemas/contact";
@@ -112,6 +113,7 @@ const CONTACT_FIELD_LABELS = {
   nickname: "Nickname",
   pronouns: "Pronouns",
   religion: "Religion",
+  religionObservance: "Observance",
   originCountry: "Country of origin",
   animalType: "Animal type",
   otherNames: "Other names",
@@ -130,6 +132,7 @@ const contactFieldsForUpdate = {
   nickname: text(200),
   pronouns: text(40),
   religion: text(60).describe("People only: faith or belief in the user's own words, free text"),
+  religionObservance: z.number().int().min(0).max(4).nullable().optional().describe("People only: How observant they are, 0 = not practising, 1 = cultural/in name only, 2 = occasionally practising, 3 = practising, 4 = devout; null clears it"),
   originCountry: text(100).describe("People only: where they are from, free text — a country name, or any other place the user names"),
   animalType: text(100).describe("Pets only: species or breed"),
   otherNames: z.array(otherNameSchema).max(20).optional().describe("Replaces the whole list"),
@@ -147,7 +150,7 @@ const contactFieldsForUpdate = {
 const proposeContactUpdate = def({
   name: "propose_contact_update",
   description:
-    "Draft changes to a contact's names, pronouns, religion, country of origin, other names, birthday, how-we-met details, job title, employer, custom fields or keep-in-touch setting. Shown to the user as a before/after with an Apply button; nothing is saved by you. Pass only the fields that change; pass null (or \"\") to clear one. Dates use the partial format (YYYY-MM-DD, YYYY-MM, YYYY, --MM-DD, --MM). employerContactId must be an existing organisation: search_contacts with kind=organization first and, if it is not in the CRM, propose_contact_create it or say so. To change notes use propose_contact_note; for tags use propose_tags; for phones/emails use propose_contact_method.",
+    "Draft changes to a contact's names, pronouns, religion and how much they practise it, country of origin, other names, birthday, how-we-met details, job title, employer, custom fields or keep-in-touch setting. Shown to the user as a before/after with an Apply button; nothing is saved by you. Pass only the fields that change; pass null (or \"\") to clear one. Dates use the partial format (YYYY-MM-DD, YYYY-MM, YYYY, --MM-DD, --MM). employerContactId must be an existing organisation: search_contacts with kind=organization first and, if it is not in the CRM, propose_contact_create it or say so. To change notes use propose_contact_note; for tags use propose_tags; for phones/emails use propose_contact_method.",
   schema: z.object({ contactId: idSchema, ...contactFieldsForUpdate }),
   label: () => "Drafting a contact update for you to review",
   run: async (i, ctx) => {
@@ -210,6 +213,11 @@ const proposeContactUpdate = def({
       }
       if (JSON.stringify(merged) !== JSON.stringify(d.customFields)) body.customFields = merged;
     }
+    if (i.religionObservance !== undefined && (i.religionObservance ?? null) !== d.religionObservance) {
+      if (!isPerson) throw new AskToolError("Only people have a religion");
+      body.religionObservance = i.religionObservance ?? null;
+      changes.push({ label: CONTACT_FIELD_LABELS.religionObservance, from: observanceLabel(d.religionObservance), to: observanceLabel(i.religionObservance) });
+    }
     if (i.keepInTouch !== undefined && i.keepInTouch !== d.keepInTouch) {
       body.keepInTouch = i.keepInTouch;
       const yn = (v: boolean) => (v ? "Yes" : "No");
@@ -237,6 +245,7 @@ const proposeContactCreate = def({
     nickname: text(200),
     pronouns: text(40),
     religion: text(60).describe("People only: faith or belief in the user's own words, free text"),
+    religionObservance: z.number().int().min(0).max(4).nullable().optional().describe("People only: How observant they are, 0 = not practising, 1 = cultural/in name only, 2 = occasionally practising, 3 = practising, 4 = devout; null clears it"),
     originCountry: text(100).describe("People only: where they are from, free text — a country name, or any other place the user names"),
     animalType: text(100).describe("Pets only: species or breed, e.g. Dog, Cockapoo"),
     birthday: birthdaySchema.nullable().optional(),
@@ -258,7 +267,7 @@ const proposeContactCreate = def({
     if (!parsed.success) throw new AskToolError(parsed.error.issues.map((x) => `${x.path.join(".")}: ${x.message}`).join("; "));
     const body = parsed.data;
     body.tagNames = await resolveTagNames(ctx.db, body.tagNames, createNewTags);
-    if (i.kind !== "person" && (body.jobTitle || body.employerContactId || body.pronouns || body.religion || body.originCountry))
+    if (i.kind !== "person" && (body.jobTitle || body.employerContactId || body.pronouns || body.religion || body.religionObservance != null || body.originCountry))
       throw new AskToolError("Only people have pronouns, a religion, a country of origin, a job title or an employer");
     if (i.kind !== "pet" && body.animalType) throw new AskToolError("Only pets have an animal type");
     const lookups = [body.employerContactId, body.metViaContactId].filter((x): x is string => !!x);
@@ -272,6 +281,7 @@ const proposeContactCreate = def({
       ["Nickname", body.nickname],
       ["Pronouns", body.pronouns],
       ["Religion", body.religion],
+      ["Observance", observanceLabel(body.religionObservance)],
       ["Country of origin", body.originCountry],
       ["Animal type", body.animalType],
       ["Birthday", body.birthday],
