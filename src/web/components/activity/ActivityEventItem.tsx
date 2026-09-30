@@ -4,6 +4,7 @@ import { BET_OUTCOME_LABELS, type BetOutcome } from "@shared/schemas/bet";
 import { GIFT_STATUS_LABELS, type GiftStatus } from "@shared/schemas/gift";
 import type { ActivityEventOut } from "@shared/types";
 import { BrandName } from "@/components/BrandName";
+import { MentionText } from "@/components/MentionText";
 import { formatDateTime, formatRelative } from "@/lib/format";
 
 type Payload = Record<string, unknown>;
@@ -102,30 +103,32 @@ export function describeEvent(e: ActivityEventOut): { icon: LucideIcon; text: Re
         icon: AtSignIcon,
         text: (
           <>
-            Mentioned in {str(p, "type")}:{" "}
+            Mentioned in{" "}
             <Link to={`/interactions/${e.entityId}`} className="font-medium hover:underline">
-              {str(p, "summary")}
+              {str(p, "type")}
             </Link>
+            : <MentionText text={str(p, "summary")} />
           </>
         ),
       };
     case "interaction.created":
-      return { icon: PlusIcon, text: <>Logged {str(p, "type")}: {str(p, "summary")}</> };
+      return { icon: PlusIcon, text: <>Logged {str(p, "type")}: <MentionText text={str(p, "summary")} /></> };
     case "interaction.updated":
       return {
         icon: PencilIcon,
         text: (
           <>
-            Edited interaction{" "}
+            Edited{" "}
             <Link to={`/interactions/${e.entityId}`} className="font-medium hover:underline">
-              “{str(p, "summary")}”
+              interaction
             </Link>{" "}
+            “<MentionText text={str(p, "summary")} />”{" "}
             ({changeSummary(p.changes)})
           </>
         ),
       };
     case "interaction.deleted":
-      return { icon: Trash2Icon, text: <>Deleted {str(p, "type")}: {str(p, "summary")}</> };
+      return { icon: Trash2Icon, text: <>Deleted {str(p, "type")}: <MentionText text={str(p, "summary")} /></> };
     case "file.uploaded":
       return { icon: FileIcon, text: <>{str(p, "kind") === "avatar" ? "New photo" : `Attached ${str(p, "filename")}`}</> };
     case "file.deleted":
