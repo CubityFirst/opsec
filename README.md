@@ -15,314 +15,68 @@ One Cloudflare Worker, one SQLite database, no third party holding your contacts
 
 ---
 
-## What it is
+opsec▮ keeps everyone you know in one graph. A contact can be a person, a pet or an organisation, and any contact can be related to any other: Rex is Alice's dog, Acme Ltd is Sam's employer, Jo is a member of the Hill family. Around each contact sits everything you would otherwise keep in your head — how you met, phone numbers and addresses, tags, notes, photos, life events, and a feed of every interaction — so "when did we last speak, and about what" is always one click away.
 
-opsec▮ keeps everyone you know in one graph. A contact can be a person, a pet or an organisation, and any contact can be related to any other: Rex is Alice's dog, Acme Ltd is Sam's employer, Jo is a member of the Hill family. Around each contact sits everything you would otherwise keep in your head: how you met and who introduced you, phone numbers, emails, addresses and social profiles, tags, notes, custom fields, photos, life events, and a chronological feed of every interaction with attachments. "When did we last speak, and about what" is always one click away.
-
-It runs as a single Cloudflare Worker at [opsec.cubityfir.st](https://opsec.cubityfir.st) with D1 for data and R2 for files, signs you in through your own OpenID Connect provider, and costs pennies a month.
+It runs as a single Cloudflare Worker with D1 for data and R2 for files, and costs pennies a month.
 
 ## Highlights
 
-- **One graph, three kinds.** People, pets and organisations share the same contact model. Relationships are typed and directional ("X is the *parent* of Y") with the other side derived automatically, grouped into family, social, group, work, pet and care.
-- **Interactions with context.** Calls, texts, meals, meetings, gifts and notes, each with participants, a markdown body, a location and file attachments. `@mentions` link to contacts and `#tags` link to lists, in summaries as well as bodies. Clicking a mention opens a mini profile card.
-- **Life and work.** First-class job title and employer that keep the employer relationship in step; life events in five categories; a "how we met" record with a date, place and the person who introduced you; partial dates everywhere (a birthday without a year, a month without a day).
-- **Deceased.** Mark a person or pet as deceased, with an optional date of death. They leave the default list like an archived contact, but every relationship, interaction and bet stays, and they carry a marker wherever they are referenced.
-- **Gifts.** Keep gift ideas for someone, and record what you have given them and what they have given you, with the occasion, the date, a price and a link. Gifts live on the contact's page; upcoming birthdays on the dashboard say how many ideas are waiting.
-- **Bets.** Write down a prediction you have staked something on with someone ("it won't rain on the wedding day", "Jo gets more than 10,000 votes"), the wager, and a review date. Bets live on the contact's page; the dashboard nudges you when a review point arrives, settling records who was right and how it fell, and each contact shows your won / lost record with them.
-- **Reminders.** Things to do, one-off or recurring (every N days, weeks, months or years, optionally until a date), about a contact ("call Mum", "Rex's vaccination") or nobody in particular ("renew passport"). They live on a Reminders page grouped by urgency, on the contact's Overview tab, and the dashboard shows what is overdue or due this week. Ticking a recurring reminder moves it to its next occurrence; a month-end reminder stays on the last day of every month.
-- **Timeline.** One month at a time across everyone: interactions, life events, gifts given or received, and bets made or settled, grouped by day, with each kind switchable on or off. Life events dated only to a month or a year sit under "sometime".
-- **Map.** Contacts as avatar pins at their addresses and interactions where they happened, on a Map page and in the Locations card on each contact's Overview tab. A place is set by searching for it, by using the device's current location, or by pinning a spot on a small map; people at the same address share one marker. Tiles come from OpenStreetMap, address search runs through the Worker, and nothing is looked up unless you ask.
-- **Change forty people at once.** Select contacts in the list and set the same field on all of them — everyone from the UK, everyone at the same employer, everyone's religion, or who the keep-in-touch nudges leave alone. Tick only the fields you mean; pets and organisations in the selection are skipped rather than mangled, and each contact records the change in its own history.
-- **A list you can shape.** The contacts table's columns are yours to choose — tags, phone and email, last spoke, country, birthday, job, added — with a revert to the default. The choice is saved on your account, so it follows you to the next browser.
-- **Names as people use them.** Nickname, pronouns and any number of other names (a Chinese name, a maiden name), all searchable. People can carry a religion — with a slider for how much of it they practise, from not practising to devout, left blank when you have never asked. Anyone can carry a country of origin, written the way you would put it yourself: a French company and a dog from Romania count as much as a person, and the contacts list shows it as a flag (the pickers suggest the common answers and every country, but keep whatever you type — “Raised Catholic”, “Kurdistan”). Pets carry an animal type (species or breed).
-- **Ask.** A chat over your own data: "When did I last talk to Alice about Lisbon?", "Who introduced me to Rex's vet?", or paste a screenshot and say "log this". The model investigates with read-only tools and can propose any change, from logging an interaction to creating an organisation and setting someone's job there in one go. Nothing is written until you press Apply. It speaks the OpenAI chat-completions format, so the provider is configuration: Cloudflare AI Gateway, OpenAI, Anthropic, OpenRouter or a llama.cpp box at home, switchable from the Account page.
-- **Your name on it.** Nothing in the app is hard-coded to “opsec▮”: an admin renames the instance from **Account → Branding** — the sidebar wordmark, the sign-in card and its tagline, the browser tab title and the name it installs under on a home screen — and everyone sees it at once.
-- **Installable.** A web app manifest, icons and a small service worker make it installable from the browser: it opens in its own window without browser chrome, keeps the app shell offline so a dropped connection shows the app rather than a dinosaur, and never caches your data — every request for contacts, files or Ask goes to the network.
-- **Yours.** Sign-in through Annex (OpenID Connect with PKCE), access limited to an allow-list, secrets encrypted at rest, a per-user daily spend guard on the model, and no analytics or third-party scripts.
-
-## Stack
-
-- **Runtime**: one Cloudflare Worker (Hono JSON API) serving a React SPA as static assets
-- **Data**: D1 (SQLite) via Drizzle ORM, migrations applied with Wrangler
-- **Files**: R2 for avatars and interaction attachments, streamed through the Worker
-- **UI**: React 19, Vite, Tailwind v4, shadcn/ui, TanStack Query, react-router
-- **Auth**: "Sign in with Annex" (OpenID Connect, Authorization Code + PKCE) via openid-client; sessions are signed cookies keyed on the `sub` claim; admin features are gated on the `roles` claim
-- **Ask**: the `openai` SDK against any OpenAI-compatible endpoint, streamed to the browser over server-sent events
-- **PWA**: `public/manifest.webmanifest`, icons generated by `npm run icons`, and a hand-written service worker (`public/sw.js`) registered only in production builds
+- **One graph, three kinds.** Typed, directional relationships ("X is the *parent* of Y") with the other side derived automatically.
+- **Interactions with context.** Calls, meals, meetings and notes with participants, markdown, a location and attachments; `@mentions` and `#tags` link everywhere.
+- **The details that matter.** Job and employer, how you met, life events, partial dates (a birthday without a year), other names, pronouns, religion, country of origin, and a deceased state that keeps history intact.
+- **Reminders, gifts and bets.** Recurring to-dos, gift ideas and what was given, and predictions you have staked something on — all surfaced on the dashboard when they come due.
+- **Timeline and map.** Everything across everyone one month at a time, and contacts and interactions pinned where they happened (OpenStreetMap).
+- **Ask.** A chat over your own data that investigates with read-only tools and proposes changes you apply with a button. Any OpenAI-compatible provider.
+- **MCP and calendar feeds.** Use the CRM from Claude, ChatGPT and other MCP clients, and subscribe to birthdays and reminders in any calendar app.
+- **Installable and yours.** A PWA that never caches your data, OpenID Connect sign-in with an allow-list, encrypted secrets, your own branding, no analytics.
 
 ## Deploy your own
 
-The **Deploy to Cloudflare** button above forks this repository into your GitHub account and creates the Worker, a D1 database and an R2 bucket from `wrangler.jsonc`, then builds and deploys it. The deploy step runs the D1 migrations first (`npm run deploy`), so the instance is ready at its `workers.dev` URL when the build finishes. The button only asks about the handful of vars the template sets (`AUTH_MODE` and the provider label); everything else is optional and can be added later in the dashboard or with Wrangler.
+The **Deploy to Cloudflare** button above forks this repository and creates the Worker, a D1 database and an R2 bucket, runs the migrations and deploys it to a `workers.dev` URL. From your own machine instead: clone, `npm install`, `npx wrangler login`, `npm run deploy`.
 
-> **A fresh install has no authentication.** `AUTH_MODE` defaults to `open`: there is no sign-in and every visitor is treated as the owner with admin rights. That is deliberate, because everyone's identity provider is different, but it means an open instance on a public URL is an open address book. Before you put anything real in it, do one of the following.
+> **A fresh install has no authentication.** `AUTH_MODE` defaults to `open`: every visitor is treated as the owner with admin rights, so an open instance on a public URL is an open address book. Before you put anything real in it, do one of:
+>
+> 1. **Put a gate in front**, e.g. [Cloudflare Access](https://developers.cloudflare.com/cloudflare-one/policies/access/) on the Worker's hostname. No code changes; the app notices Access and says so on the Account page.
+> 2. **Turn on OpenID Connect sign-in**: vars `AUTH_MODE=oidc`, `OIDC_ISSUER`, `OIDC_CLIENT_ID`, `AUTH_PROVIDER_LABEL`, `ACCESS_ALLOWED_EMAILS`; secrets `OIDC_CLIENT_SECRET`, `SESSION_SECRET`; redirect URI `https://<your host>/api/auth/callback`. See [docs/deploying.md](docs/deploying.md#authentication).
 
-1. **Put your own gate in front.** The simplest is [Cloudflare Access](https://developers.cloudflare.com/cloudflare-one/policies/access/) on the Worker's hostname: one policy, any login method, no code changes. Anything that blocks unauthenticated requests before they reach the Worker works. The app notices Access in particular: it probes `/cdn-cgi/access/get-identity`, which Cloudflare only serves on hostnames covered by an Access application, and when that answers, the Account page drops the open-access warning and names the identity that let you in instead. Access visitors still share the single owner account, so the policy is what decides who gets in.
-2. **Turn on the built-in OpenID Connect sign-in.** Set the vars `AUTH_MODE=oidc`, `OIDC_ISSUER` (the provider's issuer URL, discovery is used), `OIDC_CLIENT_ID`, `AUTH_PROVIDER_LABEL` (the name on the sign-in button) and `ACCESS_ALLOWED_EMAILS`, then the secrets `OIDC_CLIENT_SECRET` and `SESSION_SECRET`. Register `https://<your host>/api/auth/callback` as the redirect URI. Any provider that supports Authorization Code + PKCE and a `roles` claim (for admin gating) works; see [Authentication](#authentication).
+Then open **Account → Ask provider** to point Ask at a model (none is configured by default). Storing an API key there needs the `SESSION_SECRET` secret (`npx wrangler secret put SESSION_SECRET`); key-less providers do not. See [docs/ask.md](docs/ask.md).
 
-After deploying:
-
-- Open **Account → Ask provider** to point Ask at a model provider (the deployment ships with none). Storing an API key there needs the `SESSION_SECRET` secret; a key-less provider such as an AI Gateway with BYOK or a local llama.cpp does not.
-- Optional secrets, set with `npx wrangler secret put <NAME>`: `SESSION_SECRET` (sessions and encryption of stored provider keys), `AI_API_KEY`, `AI_EXTRA_HEADERS`.
-
-To deploy from your own machine instead of the button: clone, `npm install`, `npx wrangler login`, then `npm run deploy`. Wrangler provisions the D1 database and R2 bucket named in `wrangler.jsonc` on the first deploy.
-
-## Getting started
+## Development
 
 ```bash
 npm install
 cp .dev.vars.example .dev.vars   # then fill in OIDC_CLIENT_SECRET and a random SESSION_SECRET
 npm run db:migrate:local         # apply migrations to the local D1
-npm run dev                      # Vite + Worker (local D1/R2 under .wrangler/state)
-npm run seed                     # optional sample data (dev only)
+npm run dev                      # Vite + Worker at http://localhost:5173 (local D1/R2 under .wrangler/state)
+npm run seed                     # optional sample data
 ```
 
-Open http://localhost:5173 and sign in with Annex. For local sign-in the redirect URI
-`http://localhost:5173/api/auth/callback` must be registered with the Annex client.
-
-## Authentication
-
-Two modes, chosen by the `AUTH_MODE` var:
-
-- **`open`** (default): no sign-in. Every request runs as a single implicit owner (`sub` = `local`, admin). Use it behind your own gate, or for local development.
-- **`oidc`**: "Sign in with <provider>" using OpenID Connect (Authorization Code + PKCE, `state` and `nonce`, discovery from `OIDC_ISSUER`) via openid-client. Sessions are HS256-signed cookies keyed on the `sub` claim, never on email. Access is limited to accounts with the `admin` role plus verified emails listed in `ACCESS_ALLOWED_EMAILS`; the policy is checked at sign-in and on every request, so revoking someone locks existing cookies out immediately. Destructive routes additionally require the `admin` role. Scopes: `openid profile email roles`.
-
-Config for `oidc` mode: vars `OIDC_ISSUER`, `OIDC_CLIENT_ID`, `AUTH_PROVIDER_LABEL`, `ACCESS_ALLOWED_EMAILS`; secrets `OIDC_CLIENT_SECRET`, `SESSION_SECRET`. Redirect URI: `https://<host>/api/auth/callback`.
-
-The author's instance (`env.prod` in `wrangler.jsonc`) signs in through Annex, a private provider on the same Cloudflare zone. Because a Worker's fetch to a same-zone hostname skips that hostname's Worker, its token, JWKS and userinfo calls go through a service binding; that binding is optional and only used when present.
-
-## Scripts
+For local OIDC sign-in, register `http://localhost:5173/api/auth/callback` with your provider.
 
 | Script | What it does |
 |---|---|
-| `npm run dev` | Vite dev server with the Worker running in workerd |
-| `npm run build` | Typecheck (`tsc -b`) and build client + Worker into `dist/` |
-| `npm run deploy` | Build, then `npx wrangler deploy` |
-| `npm run db:generate` | Generate a SQL migration from `src/worker/db/schema.ts` |
-| `npm run db:migrate:local` / `db:migrate:remote` | Apply migrations to local / production D1 |
-| `npm run seed` | POST `/api/dev/seed` against the local dev server |
 | `npm test` | API tests in workerd against an isolated D1 + R2 |
 | `npm run typecheck` | Typecheck all projects |
+| `npm run build` | Typecheck and build client + Worker into `dist/` |
+| `npm run db:generate` | Generate a SQL migration from `src/worker/db/schema.ts` |
+| `npm run db:migrate:local` / `db:migrate:remote` | Apply migrations to local / production D1 |
 | `npm run types` | Regenerate `worker-configuration.d.ts` after editing `wrangler.jsonc` |
 
-Wrangler is always invoked as `npx wrangler`.
-
-## Project layout
+Stack: Hono on Workers, D1 via Drizzle, R2, React 19 + Vite + Tailwind v4 + shadcn/ui + TanStack Query.
 
 ```
 src/shared/     zod input schemas + response types shared by API and UI
 src/worker/     Hono app: db/ (Drizzle schema), routes/, services/, lib/
 src/web/        React SPA (shadcn components in components/ui)
-drizzle/        SQL migrations (drizzle-kit output; wrangler migrations_dir)
+drizzle/        SQL migrations
 test/           vitest + @cloudflare/vitest-pool-workers API tests
 ```
 
-## Data model
+## Documentation
 
-Text ULID primary keys, ISO-8601 UTC timestamps.
+- [Deploying and authentication](docs/deploying.md) — auth modes, production deploys, Workers Builds, schema changes
+- [Ask and MCP](docs/ask.md) — provider configuration, AI Gateway setup, limits, MCP server and API tokens
+- [Reference](docs/reference.md) — data model, API routes, calendar feeds, map, branding
+- [Security and privacy](docs/security.md) — sessions, headers, files, and what talks to the outside world
 
-| Table | Purpose |
-|---|---|
-| `contacts` | kind = person / pet / organization, names (plus `other_names` JSON: Chinese name, English name, maiden name…), how we met (`met_on` partial date, `met_where`, `met_how`, `met_via_contact_id`), work (`job_title`, `employer_contact_id` → an organisation; setting it maintains the employer ↔ employee relationship), birthday / founded (`YYYY-MM-DD`, `YYYY-MM`, `YYYY`, `--MM-DD` or `--MM`, whichever parts are known), notes, custom_fields JSON, archived_at, `deceased_at` + `deceased_on` (people and pets; an archive-like state that keeps relationships) |
-| `contact_methods` | phone / email / address / social / url / other, with label and is_primary. For `social`, the label is a platform key and the value the canonical profile URL (see `src/shared/social.ts`; icons from simple-icons). An `address` may carry `lat` / `lng` and an optional `radius_m` (exposed as `coordinates`, with `radius` in metres for "somewhere around here") and is then a pin on the map |
-| `tags`, `contact_tags` | case-insensitive tags |
-| `relationship_types` | seeded lookup with `inverse_key` (parent ↔ child, owner ↔ pet, …) and `from_kinds` / `to_kinds` saying which contact kinds each end may be (an organisation can be an employer or a supplier, not a parent) |
-| `relationships` | one directed row per link: "from is the `type` of to" |
-| `interactions`, `interaction_contacts` | call / text / meal / … with one or more participants, a free-text `location` and optional `lat` / `lng` / `radius_m` (exposed as `coordinates`) for the map |
-| `life_events` | milestones per contact in five categories (work & education, family & relationships, home & living, health & wellness, travel & experiences) with a partial date; shown in the feed at that date |
-| `reminders` | a to-do with a `title`, `notes`, the next `due_on` day and, if recurring, `repeat_every` × `repeat_unit` (day / week / month / year) with an optional `repeat_until`, anchored on `start_on` so month and year rules do not drift; optional `contact_id`; `completed_at` once nothing is left, plus `last_completed_on` and `completed_count` |
-| `gifts` | a gift with one contact: `name`, `status` (`idea` / `given` / `received`), optional `occasion`, `given_on` day (null for an idea), `price`, `url`, `notes` |
-| `bets` | a wager with one contact: the user's `prediction` (the contact takes the other side), optional `wager`, `made_on` and `review_on` days, `details`; open until `outcome` (`me` / `them` / `void`) is set with `settled_at` and a `settled_note` on how it fell |
-| `calendar_feeds` | iCalendar subscription feeds per user: `name`, `sources` JSON (which record types it carries), the secret `key` in the URL, `last_fetched_at` |
-| `files` | R2 object metadata: `avatar` (cropped 512×512 WebP), `avatar_original` (the untouched upload, viewable full-size), `attachment` |
-| `activity` | append-only event log per contact with versioned JSON payloads |
-
-Interaction details and notes are markdown. `[@Name](/contacts/<id>)` mentions a contact
-(the editor inserts these when you type `@`), and `#tag` links to the contacts list filtered
-by that tag. Mentioning a contact who is not a participant adds an `interaction.mentioned`
-entry to their activity feed.
-
-The activity log is written in the same D1 batch as the change it describes, so it
-never drifts from the data. Payload shapes are the zod union in
-`src/shared/schemas/activity.ts`; `GET /api/activity?since=<ulid>` streams the log
-for programmatic consumers.
-
-Relationship rows are stored once. Reading a contact's relationships returns each
-link from that contact's perspective: `typeLabel` is the *other* contact's role
-(on Alice's page Rex reads "Pet"; on Rex's page Alice reads "Owner").
-
-## API
-
-All routes are under `/api`, JSON in and out. Lists return `{ items, total }`;
-errors return `{ error: { code, message, issues? } }`.
-
-- `GET/POST /contacts` (`?archived=true`, `?deceased=true`; the default list is living, unarchived contacts), `GET/PATCH/DELETE /contacts/:id`, `POST /contacts/:id/archive|unarchive`, `POST /contacts/:id/deceased` (`{ on?: partial date }`) / `DELETE /contacts/:id/deceased`, `PUT /contacts/:id/tags`, `POST /contacts/bulk` (`{ ids, action: addTags|removeTags|archive|unarchive|delete, tagNames? }`)
-- `GET/POST /contacts/:id/methods`, `PATCH/DELETE /contacts/:id/methods/:methodId`
-- `GET /contacts/:id/relationships`, `POST /relationships`, `GET/PATCH/DELETE /relationships/:id`, `GET /relationship-types`
-- `GET /contacts/:id/interactions`, `GET/POST /interactions`, `GET/PATCH/DELETE /interactions/:id`
-- `GET/POST /contacts/:id/life-events`, `GET/PATCH/DELETE /life-events/:id`
-- `GET /gifts` (`?status=idea|given|received`; ideas first, then by date; the response also carries `counts` of idea / given / received), `GET/POST /contacts/:id/gifts`, `GET/PATCH/DELETE /gifts/:id`, `POST /gifts/:id/give` (`{ on?, occasion?, price? }`, idea → given), `POST /gifts/:id/revert` (back to an idea)
-- `GET /bets` (`?status=open|settled`, `?dueBy=YYYY-MM-DD` for open bets whose review date has arrived; open first, then settled; the response also carries a `record` of open / won / lost / void), `GET/POST /contacts/:id/bets`, `GET/PATCH/DELETE /bets/:id`, `POST /bets/:id/settle` (`{ outcome: me|them|void, note? }`), `POST /bets/:id/reopen`
-- `GET /reminders` (`?status=open|done`, `?dueBy=YYYY-MM-DD` for open reminders due by that day, `?contactId=`; open first by due day, then done; the response also carries open / done `counts`), `POST /reminders` (`{ contactId?, title, notes?, dueOn, repeat?: { every, unit, until? } }`), `GET /contacts/:id/reminders`, `GET/PATCH/DELETE /reminders/:id`, `POST /reminders/:id/complete` (a one-off is done; a recurring one moves to the first occurrence after today or its due day), `POST /reminders/:id/skip` (recurring only, no completion recorded), `POST /reminders/:id/reopen`
-- `GET /map/pins` (`?contactId=` for one contact's addresses and the interactions they took part in, `?archived=true` to add archived contacts; the response carries `counts` of contact and interaction pins), `GET /geocode?q=` (address search, at most five results), `GET /geocode/reverse?lat=&lng=` (the place at a position, or `null`)
-- `GET /timeline?from=YYYY-MM-DD&to=YYYY-MM-DD` (`&kinds=interaction,lifeEvent,gift,bet` to narrow; at most 400 days; items newest first plus per-kind `counts` for the whole range)
-- `GET /contacts/:id/activity` (merged feed), `GET /activity` (raw log)
-- `POST/DELETE /contacts/:id/avatar` (multipart `file` = cropped avatar, optional `original` = full photo), `POST /interactions/:id/files`, `GET /contacts/:id/files`, `GET /files/:id`, `DELETE /files/:id`
-- `GET /search?q=`, `GET/POST /tags`, `PATCH/DELETE /tags/:id`
-- `GET/POST /calendar-feeds`, `PATCH/DELETE /calendar-feeds/:id`, `POST /calendar-feeds/:id/rotate` (new secret URL); the feed itself is `GET /calendar/<key>.ics` outside `/api` (see Calendar feeds)
-- `GET /auth/login`, `GET /auth/callback`, `GET /auth/me`, `POST /auth/logout`
-- `GET /branding` (public: the sign-in page needs the name), `PUT /branding`, `DELETE /branding` (admin only; DELETE restores the defaults)
-- `POST /dev/seed` (only when `ENVIRONMENT=development`)
-
-## Ask
-
-The **Ask** tab is a chat over your CRM data ("When did I last speak to Alice, and what about?"). The model investigates with read-only tools (`search_contacts`, `get_contact`, `list_interactions`, `get_interaction`, `get_activity`, `list_life_events`, `list_bets`, `list_gifts`, `list_reminders`) and can *propose* any change (new interactions and contacts; edits to names, pronouns, birthday, how-we-met, job and employer, custom fields, tags, contact methods, relationships, life events, bets, gifts, reminders and existing interactions; settling bets; giving gift ideas; completing, skipping and reopening reminders; marking someone as deceased; archiving and deletions) that you apply with a button; it never writes on its own. When it needs a decision first ("Nobody called Sam Lee exists. Shall I create them?") it can offer a few one-tap replies under the question; tapping one sends it as your next message. Conversations live in the browser only. You can paste or attach a screenshot and ask the model to describe or log it.
-
-The backend speaks the **OpenAI Chat Completions** wire format, so any compatible server works: Cloudflare AI Gateway, Anthropic's compatibility layer, llama.cpp, OpenRouter… Provider choice is pure configuration.
-
-| Setting | Where | Meaning |
-|---|---|---|
-| `AI_BASE_URL` | var | OpenAI-compatible base URL (requests go to `{base}/chat/completions`) |
-| `AI_MODEL` | var | Model name as the provider expects it |
-| `AI_LABEL` | var | Shown in the Ask header |
-| `AI_EXTRA_BODY` | var, optional JSON object | Merged into every request, e.g. `{"thinking":{"type":"adaptive"}}` |
-| `AI_API_KEY` | secret | Provider key. `none` (or empty) sends **no** `Authorization` header, which is what BYOK gateways need to substitute their stored key and what llama.cpp expects |
-| `AI_EXTRA_HEADERS` | secret, optional JSON object | Extra headers, e.g. `{"cf-aig-authorization":"Bearer <token>"}` |
-| `TIMEZONE` | var, optional | IANA zone you live in (`Europe/London`), so "9am" in a question means 9am there. The Ask tab sends the browser's zone with every question and only falls back to this; MCP clients have nothing else, so set it if you use them. Unset = UTC |
-
-Set vars in `wrangler.jsonc`, secrets with `npx wrangler secret put <NAME>`; locally put all of them in `.dev.vars`. These are the deployment defaults.
-
-**Changing the provider on the fly:** admins get an **Ask provider** card on the Account page. Pick a preset (Cloudflare AI Gateway, OpenAI, Anthropic, OpenRouter, llama.cpp, custom), fill in the base URL, model, key and any extra headers or request fields, press **Test** to run a one-token completion against the unsaved values, then **Save**. Saved settings take effect on the next question without a redeploy and override the vars above; **Use deployment settings** removes them again. They live in the `app_settings` table; the API key and extra headers are encrypted with AES-GCM under a key derived from `SESSION_SECRET` and are never returned to the browser (the UI only shows whether they are set). Rotating `SESSION_SECRET` therefore also invalidates the stored secrets; re-enter them.
-
-Presets:
-
-1. **Cloudflare AI Gateway compat + BYOK (default in `wrangler.jsonc`)** — base `https://gateway.ai.cloudflare.com/v1/<account>/opsec/compat`, model `{provider}/{model}` such as `openai/gpt-5.6-luna` (current default) or `anthropic/claude-sonnet-5`, key `none`, headers `{"cf-aig-authorization":"Bearer <AI Gateway Run token>"}`. Setup steps below. Note for `gpt-5.6-luna`: OpenAI rejects function tools on `/chat/completions` unless `reasoning_effort` is `none` (the alternative is the Responses API, which Ask does not speak), so the default sets `AI_EXTRA_BODY={"reasoning_effort":"none"}`; drop that field when using another model.
-2. **AI Gateway → Anthropic compat** — base `https://gateway.ai.cloudflare.com/v1/<account>/opsec/anthropic/v1`, model `claude-sonnet-5`, same headers. Use this if the compat endpoint does not pass tool calls or images through.
-3. **Anthropic direct** — base `https://api.anthropic.com/v1`, model `claude-sonnet-5`, key = your Anthropic API key.
-4. **llama.cpp** — base `http://host:8080/v1`, key `none`, `AI_EXTRA_BODY={"parallel_tool_calls":true}` if the model supports it. Start `llama-server --jinja` with a tool-capable chat template (and `--mmproj` for images). A deployed Worker needs a tunnel (e.g. `cloudflared`) to reach a LAN box; `npm run dev` can use `localhost` directly.
-5. **OpenRouter / other gateways** — their base URL, key and model naming.
-
-### Setting up the default preset (AI Gateway + BYOK)
-
-Wrangler has no AI Gateway commands, so the gateway side is done in the Cloudflare dashboard.
-
-1. **Create the gateway.** Dashboard → AI → AI Gateway → *Create Gateway*, name `opsec`. The `AI_BASE_URL` in `wrangler.jsonc` already points at `…/<account>/opsec/compat`; if you pick another name, change that var.
-2. **Make it authenticated.** Open the gateway → *Settings* → *Authentication*: create a token of type **AI Gateway Run**, copy it into your secret manager, and turn **Authenticated Gateway** on. BYOK requires an authenticated gateway.
-3. **Store the provider key in the gateway.** Gateway → *Provider Keys* → add the provider named in `AI_MODEL` (**OpenAI** for the default, or Anthropic), alias `default`, paste its API key. The Worker never sees this key.
-4. **Give the Worker the gateway token.** From the repo, paste the value at the prompt (never into a chat, shell history or commit):
-
-   ```sh
-   npx wrangler secret put AI_EXTRA_HEADERS   # {"cf-aig-authorization":"Bearer <AI Gateway Run token>"}
-   npx wrangler secret put AI_API_KEY         # none
-   ```
-
-   Secrets apply immediately; no redeploy is needed. For local dev put the same two lines in `.dev.vars` (see `.dev.vars.example`).
-5. **Check it.** A credential-free `POST …/opsec/compat/chat/completions` returns 401 `Unauthorized` from AI Gateway once the gateway exists and is authenticated. Then open `/ask` and ask "Who is Rex?" (after `POST /api/dev/seed` locally): the trail should show a `search_contacts` call followed by an answer. Error codes in the UI: `provider_auth` → the gateway token; `upstream 4xx` → the provider key or model name; no tool call ever appearing → the compat endpoint is not passing tools through, switch to preset 2.
-6. **Optional privacy.** AI Gateway logs prompts and responses by default. Add `"cf-aig-collect-log-payload":"false"` to `AI_EXTRA_HEADERS` to keep payloads out of the gateway logs.
-
-The request sets `max_completion_tokens` (OpenAI rejects the older `max_tokens` on current models); a server that only understands `max_tokens` can be given it through the extra request fields.
-
-**Spend control.** Per-request caps below bound a single question; only the last 20 turns (6,000 characters each) are sent to the model. Overall spend is best managed where the bill is: a budget on the provider account, and rate limiting on the AI Gateway when you route through one.
-
-Limits per question: 12 model iterations, 6 tool calls per iteration, 12 KB per tool result, 120 KB of tool results in total, 40 turns of history, one image up to 1568 px on the long edge. Worker logs record only counts and timings, never questions, tool payloads or images.
-
-## Map
-
-The **Map** page (and the Locations card on a contact's Overview tab, which also lists the contact's addresses with add, edit, remove and "Show on map") shows contacts at their addresses and interactions where they happened. Coordinates are optional on any address contact method and on any interaction; set them from the address or interaction dialog by searching for a place, pressing *use my location*, or clicking a spot on the small map. A pin can be approximate: choose a precision (about 1 km, 10 km, …) and it is drawn as a circle, and picking a town or region from the search sets one automatically from the size of the place. Right-click (or long-press) either map to log an interaction or add an address at that spot, and open a pin to unpin it or delete the interaction. Contact and interaction layers can be toggled, pins at the same spot are grouped, and "Show on map" links from an address or an interaction focus their pin.
-
-Two outside services are involved, and both are OpenStreetMap:
-
-- **Tiles** load in the browser straight from `tile.openstreetmap.org` (already permitted by the CSP's `img-src https:`), so the tile server sees the viewer's IP address and the area being looked at. This is the one thing in the app that talks to a third party from the browser. Attribution is shown on the map as OSM's [tile usage policy](https://operations.osmfoundation.org/policies/tiles/) requires.
-- **Address lookup** goes through the Worker to [Nominatim](https://nominatim.org) (`GET /api/geocode`, `GET /api/geocode/reverse`) with an identifying `User-Agent`, only when you press *Find* or *use my location*, and responses are cached for seven days. That keeps a personal instance well inside Nominatim's usage policy (one request per second, no bulk lookups). The Ask model has no geocoding tool on purpose.
-
-*Use my location* needs a secure context (HTTPS, or `localhost` in development); the `Permissions-Policy` header allows `geolocation` for the app's own origin only.
-
-## MCP server and API tokens
-
-The Worker is also a [Model Context Protocol](https://modelcontextprotocol.io) server at `/mcp` (stateless Streamable HTTP), so Claude Code, Claude Desktop, ChatGPT and other MCP clients can use your CRM directly. Create a token under **Account → API tokens**, choosing *read only* or *read and write*, then:
-
-```sh
-claude mcp add opsec --transport http https://<your host>/mcp --header "Authorization: Bearer <token>"
-```
-
-- **Read tools** are the Ask read tools: `search_contacts`, `get_contact`, `list_interactions`, `get_interaction`, `get_activity`, `list_life_events`, `list_bets`, `list_gifts`, `list_reminders`.
-- **Write tools** (write-scoped tokens only) are the Ask proposal tools applied immediately through the app's own API, so validation and the activity log are identical to the UI: `create_contact`, `update_contact`, `set_tags`, `contact_method`, `relationship`, `life_event`, `bet` (add / update / settle / reopen / remove), `gift` (add / update / give / revert / remove), `reminder` (add / update / complete / skip / reopen / remove), `create_interaction`, `update_interaction`, `delete_interaction`, `append_contact_note`, `archive_contact`, `mark_deceased`. Removals, deletions and archiving must be called again with `confirm: true`.
-- The same token works for the JSON API (`Authorization: Bearer …`); read-only tokens are refused for anything but GET. Tokens act as the user who created them, are stored hashed, can be revoked at any time, and cannot mint or revoke other tokens.
-
-## Calendar feeds
-
-**Account → Calendar feeds** publishes your data as iCalendar (`.ics`) subscriptions for Google Calendar, Apple Calendar, Outlook or anything else that reads the format. Create as many feeds as you like, each with its own name and its own choice of sources, so one calendar can carry only birthdays and reminders while another shows the full interaction history:
-
-- **Interactions**: every logged interaction, past and planned (an interaction dated in the future is simply a plan), as a one-hour event at `occurredAt`, with the participants in the title, the body and location, and a link back to the interaction page.
-- **Reminders**: open reminders as all-day events on their next due day; a recurring reminder becomes an `RRULE` (month and year rules keep the app's "31st, or the last day of a shorter month" semantics via `BYMONTHDAY=31,-1;BYSETPOS=1`). Completed reminders are not included.
-- **Birthdays**: a yearly all-day event for every living, unarchived person or pet whose birthday has a known month and day (29 February falls on the 28th in common years).
-- **Life events** with a full date, **bets** that are still open (on their review day) and **gifts** that were given or received (on that day), all as all-day events.
-
-Timed events are always written in UTC (`…Z`); your calendar app converts them to its own zone. All-day events are dates without a zone. Every event has a stable `UID`, so a refresh updates events in place.
-
-Each feed lives at `/calendar/<key>.ics`, where the key is a random 256-bit secret and the only credential: calendar clients send no cookies or headers. Treat the URL like a password; **New URL** replaces the key so the old link stops working, and deleting the feed does the same. Feeds are per user and, in `oidc` mode, stop working if the owner's account is no longer allowed in. They cannot be managed with an API token. The **Subscribe** button opens the `webcal://` form of the URL for Apple Calendar and Outlook; for Google Calendar paste the `https://` URL under *Other calendars → From URL* (Google refreshes subscribed calendars only every several hours).
-
-## Branding
-
-**Account → Branding** (admin only) decides what the instance calls itself. Four fields, all optional except the first:
-
-- **Name** — the wordmark in the sidebar, on the sign-in card, in the "Added to …" line of a contact's history and anywhere else the app names itself. Defaults to `opsec▮`.
-- **Browser tab title** — the `<title>`; blank uses the name.
-- **Short name** — what sits under the icon on a home screen; blank uses the name.
-- **Sign-in tagline** — the line under the name on the sign-in page; blank hides it.
-
-The settings live in one `app_settings` row, so they are per instance rather than per user, and `GET /api/branding` is public because the sign-in page is rendered before there is a session. The Worker serves `/manifest.webmanifest` by taking the file in `public/` and overriding `name` and `short_name`, so an installed PWA picks the new name up on its next refresh. Icons, colours and the `<title>` in `index.html` (the one shown before the app boots) are still files in `public/` and the repo — change those to go further.
-
-## Security notes
-
-- **Sessions**: HS256-signed `HttpOnly; Secure; SameSite=Lax` cookies (oidc mode); the access policy is re-checked on every request. `SESSION_SECRET` must be at least 32 characters.
-- **CSRF**: state-changing `/api/*` requests are refused when the browser reports a cross-site or cross-origin fetch (`Sec-Fetch-Site` / `Origin`), on top of SameSite cookies.
-- **Headers**: HSTS, a CSP that allows only same-origin scripts and connections (images may also come from any HTTPS host, which is what map tiles use), `X-Frame-Options: DENY`, `nosniff`, referrer and permissions policies (geolocation allowed for the app's own origin only, for the map), on every response including static assets.
-- **Files**: the stored content type of an upload comes from its bytes for the formats shown inline (PNG, JPEG, GIF, WebP, PDF); anything else downloads as an attachment with a generic type, and every file response carries a sandboxing CSP. Avatars must be raster images (never SVG). Uploads require `Content-Length` and JSON bodies are capped.
-- **Ask**: tools are read-only; the model can only propose changes that you apply. Markdown from notes or the model never renders remote images. Stored provider secrets are bound to the base URL's origin: changing the host clears them so the Worker cannot be used to read a key back. Provider error bodies are not echoed to the browser.
-- **Calendar feeds**: `/calendar/<key>.ics` is public by design; the 256-bit key in the path is the credential, unknown keys are a plain 404, and the response is `private, no-cache`. Keys are stored as-is so the URL can be shown again; rotate a leaked one from the Account page.
-- **Dev routes** (`/api/dev/*`) only exist on `localhost` with `ENVIRONMENT=development`.
-- **Admin role** gates cascade deletes of contacts and tags and the provider settings. Everyone allowed in can otherwise edit and delete records; run one instance per person, or put a stricter gate in front.
-
-## Deploying
-
-One-time: the D1 database `nexus-db` and R2 bucket `nexus-files` already exist and are
-referenced in `wrangler.jsonc` (Cloudflare cannot rename them; they keep the project's old
-name). The Worker is `opsec`. The custom domains `opsec.cubityfir.st`, `opsec.nexus`, and the legacy
-`nexus.cubityfir.st` (which redirects) are created from the `routes` entries on first deploy
-(the zone must be on the same Cloudflare account).
-
-```bash
-npm run deploy:prod        # build with CLOUDFLARE_ENV=prod, apply migrations, deploy
-curl https://opsec.cubityfir.st/api/auth/login -o /dev/null -w "%{redirect_url}\n"   # must point at the identity provider
-```
-
-`npm run deploy` (no `:prod`) deploys the **top-level template**: open access, a fresh `opsec-db`, no
-Annex binding. Because the template and `env.prod` share the Worker name `opsec`, running it against
-this account silently switches production to open access and an empty database (sign-in then fails
-with "Internal error"). Only use it on a self-hosted account.
-
-### Workers Builds (GitHub → Cloudflare)
-
-The same trap applies to the dashboard's automatic builds, whose defaults are `npm run build` and
-`npx wrangler deploy`. In **Workers & Pages → opsec → Settings → Builds**, set:
-
-| Setting | Value |
-|---|---|
-| Build command | `npm run ci:build` (runs `build:prod`) |
-| Deploy command | `npm run ci:deploy` (applies D1 migrations with `--env prod`, then `npx wrangler deploy`) |
-
-The build emits `dist/opsec/wrangler.json` already flattened to `env.prod`, and `npx wrangler deploy`
-picks it up through `.wrangler/deploy/config.json`. Secrets (`SESSION_SECRET`, `OIDC_CLIENT_SECRET`,
-`AI_API_KEY`) live on the Worker and survive deploys.
-
-## Contributing
-
-Bug reports and pull requests are welcome. `CONTRIBUTING.md` has the checks to run and the commit
-convention (Conventional Commits).
-
-## Schema changes
-
-1. Edit `src/worker/db/schema.ts`
-2. `npm run db:generate` and review the SQL in `drizzle/`
-3. `npm run db:migrate:local`, run tests, commit the migration
-4. `npm run db:migrate:remote` before deploying
+Bug reports and pull requests are welcome; [CONTRIBUTING.md](CONTRIBUTING.md) has the checks to run and the commit convention.

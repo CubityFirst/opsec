@@ -36,7 +36,7 @@
   //   oidc mode            OIDC_ISSUER, OIDC_CLIENT_ID, ACCESS_ALLOWED_EMAILS (comma-separated verified
   //                        emails; accounts with the `admin` role are always allowed)
   //   Ask                  AI_BASE_URL, AI_MODEL, AI_LABEL, AI_EXTRA_BODY — or configure Ask from the
-  //                        Account page after deploying (README → Ask). Put spend limits on the
+  //                        Account page after deploying (docs/ask.md). Put spend limits on the
   //                        provider / AI Gateway.
   //   TIMEZONE             IANA zone you live in (e.g. "Europe/London"); Ask uses the browser's zone
   //                        first, MCP clients only have this one. Unset = UTC.

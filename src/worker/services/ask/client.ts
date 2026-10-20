@@ -33,7 +33,7 @@ export function hasProviderKey(p: Pick<AiProvider, "apiKey">): boolean {
 /**
  * Any OpenAI-compatible chat-completions server: Cloudflare AI Gateway,
  * Anthropic's compatibility layer, llama.cpp, OpenRouter… Selected purely by
- * configuration (README → Ask): the app's saved settings, else the deployment vars.
+ * configuration (docs/ask.md): the app's saved settings, else the deployment vars.
  */
 export function createAskClient(p: AiProvider, fetchImpl?: typeof fetch): OpenAI {
   if (!p.baseUrl) throw new Error("Ask is not configured: no base URL");

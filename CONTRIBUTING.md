@@ -14,7 +14,7 @@ npm run build        # must pass before anything ships
 ```
 
 Storage is shared within a test file, so never assume an empty database. Schema changes follow
-README → Schema changes: edit `src/worker/db/schema.ts`, `npm run db:generate`, read the SQL,
+docs/deploying.md → Schema changes: edit `src/worker/db/schema.ts`, `npm run db:generate`, read the SQL,
 `npm run db:migrate:local`, and commit the migration with the code that needs it.
 
 ## Commit messages
