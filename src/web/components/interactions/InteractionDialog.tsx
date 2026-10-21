@@ -48,6 +48,7 @@ export function InteractionDialog({
   initialParticipants,
   interaction,
   initialValues,
+  initialFiles,
   onSaved,
 }: {
   open: boolean;
@@ -58,6 +59,8 @@ export function InteractionDialog({
   interaction?: InteractionOut;
   /** Prefilled fields when creating (e.g. from an Ask proposal). */
   initialValues?: Partial<Pick<InteractionCreateInput, "type" | "occurredAt" | "summary" | "body" | "location" | "coordinates">>;
+  /** Attachments preselected when creating (e.g. the image an Ask proposal attaches); the user can still remove them. */
+  initialFiles?: File[];
   /** Called after a successful create or update. */
   onSaved?: () => void;
 }) {
@@ -80,7 +83,7 @@ export function InteractionDialog({
     if (!open) return;
     const p = interaction ? interaction.participants : initialParticipants;
     setParticipants(p);
-    setFiles([]);
+    setFiles(interaction ? [] : (initialFiles ?? []));
     reset({
       type: interaction?.type ?? initialValues?.type ?? "call",
       occurredAt: toDateTimeLocal(interaction?.occurredAt ?? initialValues?.occurredAt ?? null),

@@ -34,10 +34,10 @@ export interface RunAskResult {
 }
 
 function buildMessages(user: SessionUser, input: AskRequest, now: Date, timeZone?: string): Msg[] {
-  const history: Msg[] = input.messages.slice(-MAX_HISTORY_TURNS_SENT).map((t) => ({
-    role: t.role,
-    content: t.text.length > MAX_HISTORY_CHARS_PER_TURN ? `${t.text.slice(0, MAX_HISTORY_CHARS_PER_TURN)}\n…[earlier turn trimmed]` : t.text,
-  }));
+  const history: Msg[] = input.messages.slice(-MAX_HISTORY_TURNS_SENT).map((t) => {
+    const text = t.text.length > MAX_HISTORY_CHARS_PER_TURN ? `${t.text.slice(0, MAX_HISTORY_CHARS_PER_TURN)}\n…[earlier turn trimmed]` : t.text;
+    return { role: t.role, content: t.role === "user" && t.image ? `[attached an image, no longer shown]\n${text}` : text };
+  });
   const question: Msg = input.image
     ? {
         role: "user",
@@ -63,6 +63,7 @@ export async function runAsk(args: RunAskArgs): Promise<RunAskResult> {
   const tools = toolDefinitions();
   const budget = new ByteBudget();
   const pending: ToolCtx["pending"] = new Map();
+  const image = !!input.image || input.messages.some((m) => m.role === "user" && m.image);
   const usage = { input: 0, output: 0, cached: 0 };
   const toolsUsed: string[] = [];
   let iterations = 0;
@@ -150,7 +151,7 @@ export async function runAsk(args: RunAskArgs): Promise<RunAskResult> {
           return { id: c.id, ok: false, content: JSON.stringify({ error: "Too many tool calls in one turn; retry this one next turn" }), summary: "skipped", bytes: 0 };
         }
         toolsUsed.push(c.name);
-        const outcome = await executeTool(c, { db, emit: (e) => void emit(e), budget, pending });
+        const outcome = await executeTool(c, { db, emit: (e) => void emit(e), budget, pending, image });
         await emit({ type: "tool_result", id: c.id, ok: outcome.ok, summary: outcome.summary, bytes: outcome.bytes });
         return outcome;
       }),

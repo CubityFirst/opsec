@@ -21,6 +21,8 @@ export type AskImage = z.infer<typeof askImageSchema>;
 export const askTurnSchema = z.object({
   role: z.enum(["user", "assistant"]),
   text: z.string().max(20_000),
+  /** A user turn that carried an image. Only the latest question resends the image itself; this keeps the model aware it existed. */
+  image: z.boolean().optional(),
 });
 export type AskTurn = z.infer<typeof askTurnSchema>;
 
@@ -48,7 +50,15 @@ export type AskRequest = z.infer<typeof askRequestSchema>;
 
 /** An action the assistant suggests; nothing is written until the user applies it. */
 export type AskProposal =
-  | { kind: "interaction"; id: string; input: InteractionCreateInput; participants: ContactRef[]; dependsOn?: string[] }
+  | {
+      kind: "interaction";
+      id: string;
+      input: InteractionCreateInput;
+      participants: ContactRef[];
+      dependsOn?: string[];
+      /** Attach the most recent image the user sent in the conversation (the SPA holds it; the server never stores Ask images). */
+      attachImage?: boolean;
+    }
   | { kind: "contact_note"; id: string; contact: ContactRef; appendText: string }
   | {
       /** Any other change: the card shows before/after rows and Apply sends `request` as-is. */

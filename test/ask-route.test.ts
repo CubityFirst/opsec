@@ -128,6 +128,17 @@ describe("POST /api/ask", () => {
     ]);
   });
 
+  it("marks earlier turns that carried an image so attachImage still works on a follow-up", async () => {
+    const p = await createContact({ firstName: "Follow", lastName: "Up" });
+    const seen = installUpstream([
+      () => mixedTurn("", [{ id: "call_i", name: "propose_interaction", args: JSON.stringify({ contactIds: [p.id], type: "text", summary: "Texted about Friday", attachImage: true }) }]),
+      () => textTurn("Drafted."),
+    ]);
+    const r = await ask({ messages: [{ role: "user", text: "Who is this?", image: true }, { role: "assistant", text: "Follow Up." }], question: "Log it" });
+    expect((seen[0]!.body.messages as { content: unknown }[])[1]!.content).toBe("[attached an image, no longer shown]\nWho is this?");
+    expect(r.events.find((e) => e.type === "proposal")).toMatchObject({ proposal: { kind: "interaction", attachImage: true } });
+  });
+
   it("turns a final suggest_replies call into quick replies and ends the turn without another provider call", async () => {
     const seen = installUpstream([
       () => mixedTurn("Nobody called Sam Lee exists yet. Shall I create them?", [{ id: "call_s", name: "suggest_replies", args: JSON.stringify({ replies: ["Yes, create Sam Lee", " yes, create sam lee ", "", "No, I meant someone else", "Skip it", "One too many"] }) }]),

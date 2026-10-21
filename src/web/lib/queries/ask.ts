@@ -26,8 +26,14 @@ export interface TrailItem {
   summary?: string;
 }
 
+/** An image the user sent: shown in their bubble, and kept so an interaction proposal can attach it. */
+export interface AskTurnImage {
+  previewUrl: string;
+  file: File;
+}
+
 export type AskTurn =
-  | { role: "user"; text: string; imagePreviewUrl?: string }
+  | { role: "user"; text: string; image?: AskTurnImage }
   | {
       role: "assistant";
       text: string;
@@ -45,7 +51,7 @@ interface State {
 }
 
 type Action =
-  | { type: "start"; question: string; imagePreviewUrl?: string }
+  | { type: "start"; question: string; image?: AskTurnImage }
   | { type: "event"; event: AskEvent }
   | { type: "fail"; message: string }
   | { type: "finish" }
@@ -64,7 +70,7 @@ function reduce(state: State, action: Action): State {
     case "start":
       return {
         status: "streaming",
-        turns: [...state.turns, { role: "user", text: action.question, imagePreviewUrl: action.imagePreviewUrl }, { role: "assistant", text: "", trail: [], proposals: [] }],
+        turns: [...state.turns, { role: "user", text: action.question, image: action.image }, { role: "assistant", text: "", trail: [], proposals: [] }],
       };
     case "event": {
       const e = action.event;
@@ -110,14 +116,14 @@ export function useAsk() {
   const abortRef = useRef<AbortController | null>(null);
 
   const send = useCallback(
-    async (question: string, image?: AskImage & { previewUrl?: string }) => {
+    async (question: string, image?: AskImage & AskTurnImage) => {
       if (state.status === "streaming") return;
       const history = state.turns
         .filter((t) => t.role === "user" || t.role === "assistant")
-        .map((t) => ({ role: t.role, text: t.text }))
+        .map((t) => ({ role: t.role, text: t.text, image: t.role === "user" && t.image ? true : undefined }))
         .filter((t) => t.text.trim().length > 0)
         .slice(-ASK_MAX_HISTORY_TURNS);
-      dispatch({ type: "start", question, imagePreviewUrl: image?.previewUrl });
+      dispatch({ type: "start", question, image: image && { previewUrl: image.previewUrl, file: image.file } });
       const ctrl = new AbortController();
       abortRef.current = ctrl;
       try {

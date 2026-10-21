@@ -16,6 +16,8 @@ export interface ToolCtx {
   budget: ByteBudget;
   /** Placeholder id → pending contact, so later proposals in the same reply can chain on a create. */
   pending: Map<string, PendingContact>;
+  /** The user sent an image somewhere in this conversation, so a proposal may ask to attach it. Never set for MCP. */
+  image?: boolean;
 }
 
 /** A tool-level failure reported back to the model (never thrown out of executeTool). */

@@ -2,6 +2,8 @@ import { ASK_IMAGE_MAX_BYTES, ASK_IMAGE_MAX_EDGE, type AskImage } from "@shared/
 
 export interface PreparedImage extends AskImage {
   previewUrl: string;
+  /** The re-encoded image itself, named after the original, so an interaction can keep it as an attachment. */
+  file: File;
   width: number;
   height: number;
 }
@@ -28,7 +30,9 @@ export async function prepareImage(file: Blob): Promise<PreparedImage> {
   if (blob.size > ASK_IMAGE_MAX_BYTES) throw new Error("Image is too large after resizing (5 MB max)");
 
   const data = await toBase64(blob);
-  return { mediaType: blob.type as AskImage["mediaType"], data, previewUrl: URL.createObjectURL(blob), width, height };
+  const stem = (file instanceof File ? file.name.replace(/\.[^.]*$/, "") : "") || "image";
+  const named = new File([blob], `${stem}.${blob.type === "image/webp" ? "webp" : "png"}`, { type: blob.type });
+  return { mediaType: blob.type as AskImage["mediaType"], data, previewUrl: URL.createObjectURL(blob), file: named, width, height };
 }
 
 function toBlob(canvas: HTMLCanvasElement, type: string, quality?: number): Promise<Blob | null> {

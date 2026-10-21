@@ -109,6 +109,34 @@ describe("ask tools", () => {
     expect(proposals[0]).toMatchObject({ proposal: { kind: "interaction", input: { summary: "Caught up", contactIds: [a.id] }, participants: [{ id: a.id }] } });
   });
 
+  it("propose_interaction attaches the conversation's image only when there is one", async () => {
+    const a = await createContact({ firstName: "Snap" });
+    const args = { contactIds: [a.id], type: "text", summary: "Texted about Friday", attachImage: true };
+    const none = await run("propose_interaction", args);
+    expect(none.ok).toBe(false);
+    expect(none.summary).toMatch(/no image/);
+    const withImage = await run("propose_interaction", args, { ...ctx(), image: true });
+    expect(withImage.ok, withImage.summary).toBe(true);
+    expect(withImage.events.find((e) => e.type === "proposal")).toMatchObject({ proposal: { kind: "interaction", attachImage: true } });
+    const left = await run("propose_interaction", { ...args, attachImage: undefined }, { ...ctx(), image: true });
+    const p = left.events.find((e) => e.type === "proposal");
+    expect(p && p.type === "proposal" && p.proposal.kind === "interaction" && p.proposal.attachImage).toBeFalsy();
+  });
+
+  it("propose_interaction drops a body that only repeats the summary", async () => {
+    const a = await createContact({ firstName: "Echo" });
+    const bodyOf = async (summary: string, body: string) => {
+      const r = await run("propose_interaction", { contactIds: [a.id], type: "meal", summary, body });
+      expect(r.ok, r.summary).toBe(true);
+      const e = r.events.find((x) => x.type === "proposal");
+      return e && e.type === "proposal" && e.proposal.kind === "interaction" ? e.proposal.input.body : "missing";
+    };
+    expect(await bodyOf("Lunch with Echo", "Lunch with Echo.")).toBeNull();
+    expect(await bodyOf("Lunch with Echo", "Lunch with Echo\n\nShe is moving to Leeds in March.")).toBe("She is moving to Leeds in March.");
+    expect(await bodyOf("Lunch with Echo", "Lunch with Echo. She is moving to Leeds in March.")).toBe("She is moving to Leeds in March.");
+    expect(await bodyOf("Lunch with Echo", "Lunch with Echo at Dishoom. She is moving to Leeds.")).toBe("Lunch with Echo at Dishoom. She is moving to Leeds.");
+  });
+
   it("propose_contact_update diffs birthday, job title and employer against the current values", async () => {
     const org = await createContact({ kind: "organization", firstName: "Acme Ltd" });
     const other = await createContact({ firstName: "Not An Org" });

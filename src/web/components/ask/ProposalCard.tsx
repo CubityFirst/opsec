@@ -1,5 +1,5 @@
 import { MentionText } from "@/components/MentionText";
-import { ArrowRightIcon, CheckIcon, ClockIcon, FilePenLineIcon, MessageSquarePlusIcon, WandSparklesIcon, XIcon } from "lucide-react";
+import { ArrowRightIcon, CheckIcon, ClockIcon, FilePenLineIcon, MessageSquarePlusIcon, PaperclipIcon, WandSparklesIcon, XIcon } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -14,6 +14,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { api, errorMessage } from "@/lib/api";
 import { INTERACTION_LABELS, formatDateTime } from "@/lib/format";
 import { applyRequest, blockedBy, resolveParticipants, substitutePending, type ProposalResults } from "@/lib/proposals";
+import type { AskTurnImage } from "@/lib/queries/ask";
 import { useUpdateContact } from "@/lib/queries/contacts";
 
 export type ProposalPatch = { applied?: boolean; dismissed?: boolean; result?: unknown };
@@ -26,12 +27,24 @@ export interface ProposalContext {
 }
 
 /** A drafted action from the assistant. Nothing is written until Apply. */
-export function ProposalCard({ proposal, context, onChange }: { proposal: Proposal; context: ProposalContext; onChange: (patch: ProposalPatch) => void }) {
+export function ProposalCard({
+  proposal,
+  context,
+  image,
+  onChange,
+}: {
+  proposal: Proposal;
+  context: ProposalContext;
+  /** The latest image the user sent; an interaction proposal with attachImage files it as an attachment. */
+  image?: AskTurnImage;
+  onChange: (patch: ProposalPatch) => void;
+}) {
   const [dialogOpen, setDialogOpen] = useState(false);
   if (proposal.dismissed) return null;
   const waiting = proposal.applied ? [] : blockedBy(proposal, context.results);
   const blocked = waiting.length > 0;
   const participants = proposal.kind === "interaction" ? resolveParticipants(proposal.participants, context.results) : [];
+  const attachment = proposal.kind === "interaction" && proposal.attachImage ? image : undefined;
 
   return (
     <Card className="border-primary/40 bg-primary/5">
@@ -74,6 +87,13 @@ export function ProposalCard({ proposal, context, onChange }: { proposal: Propos
               <MentionText text={proposal.input.summary} />
             </p>
             {proposal.input.body && <MarkdownBody className="text-sm text-muted-foreground">{proposal.input.body}</MarkdownBody>}
+            {attachment && (
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <PaperclipIcon className="size-3.5" />
+                <img src={attachment.previewUrl} alt="" className="size-8 rounded object-cover" />
+                Attaches your image
+              </div>
+            )}
           </>
         ) : proposal.kind === "action" ? (
           <>
@@ -135,6 +155,7 @@ export function ProposalCard({ proposal, context, onChange }: { proposal: Propos
             location: proposal.input.location ?? null,
             coordinates: proposal.input.coordinates ?? null,
           }}
+          initialFiles={attachment ? [attachment.file] : undefined}
           onSaved={() => onChange({ applied: true })}
         />
       )}

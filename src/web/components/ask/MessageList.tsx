@@ -3,7 +3,7 @@ import { ContactPeek } from "@/components/contacts/ContactPeek";
 import { SparklesIcon } from "lucide-react";
 import { MarkdownBody } from "@/components/MarkdownBody";
 import { Button } from "@/components/ui/button";
-import type { AskTurn } from "@/lib/queries/ask";
+import type { AskTurn, AskTurnImage } from "@/lib/queries/ask";
 import { ProposalCard, type ProposalPatch } from "./ProposalCard";
 import { ApplyAllButton, proposalContext } from "./ProposalQueue";
 import { ToolTrail } from "./ToolTrail";
@@ -20,15 +20,18 @@ export function MessageList({
   /** A quick reply was tapped: send it as the next user message. */
   onReply: (text: string) => void;
 }) {
+  /** The most recent image sent up to the turn being rendered: what an interaction proposal's attachImage means. */
+  let latestImage: AskTurnImage | undefined;
   return (
     <div className="flex flex-col gap-4">
       {turns.map((t, idx) => {
         const isLast = idx === turns.length - 1;
+        if (t.role === "user" && t.image) latestImage = t.image;
         if (t.role === "user") {
           return (
             <div key={idx} className="flex justify-end">
               <div className="max-w-[85%] rounded-2xl rounded-br-sm bg-primary px-4 py-2 text-primary-foreground">
-                {t.imagePreviewUrl && <img src={t.imagePreviewUrl} alt="attached" className="mb-2 max-h-48 rounded-md" />}
+                {t.image && <img src={t.image.previewUrl} alt="attached" className="mb-2 max-h-48 rounded-md" />}
                 <p className="whitespace-pre-wrap text-sm">
                   <UserText text={t.text} />
                 </p>
@@ -50,7 +53,7 @@ export function MessageList({
                 <p className="text-sm text-muted-foreground">Thinking…</p>
               ) : null}
               {t.proposals.length > 0 && (
-                <ProposalList proposals={t.proposals} onChange={(id, patch) => onProposalChange(id, patch)} />
+                <ProposalList proposals={t.proposals} image={latestImage} onChange={(id, patch) => onProposalChange(id, patch)} />
               )}
               {t.error && <p className="text-sm text-destructive">{t.error}</p>}
               {isLast && !live && t.suggestions && t.suggestions.length > 0 && <QuickReplies replies={t.suggestions} onPick={onReply} />}
@@ -105,14 +108,22 @@ function UserText({ text }: { text: string }) {
   return <>{parts}</>;
 }
 
-function ProposalList({ proposals, onChange }: { proposals: Extract<AskTurn, { role: "assistant" }>["proposals"]; onChange: (id: string, patch: ProposalPatch) => void }) {
+function ProposalList({
+  proposals,
+  image,
+  onChange,
+}: {
+  proposals: Extract<AskTurn, { role: "assistant" }>["proposals"];
+  image?: AskTurnImage;
+  onChange: (id: string, patch: ProposalPatch) => void;
+}) {
   const context = proposalContext(proposals);
   const open = proposals.filter((p) => !p.applied && !p.dismissed);
   return (
     <>
       {open.length > 1 && <ApplyAllButton proposals={proposals} context={context} onChange={onChange} />}
       {proposals.map((p) => (
-        <ProposalCard key={p.id} proposal={p} context={context} onChange={(patch) => onChange(p.id, patch)} />
+        <ProposalCard key={p.id} proposal={p} context={context} image={image} onChange={(patch) => onChange(p.id, patch)} />
       ))}
     </>
   );

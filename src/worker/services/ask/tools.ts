@@ -214,10 +214,29 @@ const listTagsTool = def({
   },
 });
 
+/** Letters and digits only, so "Lunch with Sam." and "lunch with sam" compare equal. */
+const comparable = (s: string) => s.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, " ").trim();
+
+/**
+ * Models like to open the body with the summary again. Drop that opening (the first
+ * paragraph, line or sentence when it says nothing the summary does not) and the whole body
+ * when that is all it was.
+ */
+export function withoutRepeatedSummary(summary: string, body: string | null | undefined): string | null | undefined {
+  if (!body?.trim()) return body;
+  const key = comparable(summary);
+  if (comparable(body) === key) return null;
+  for (const split of [/\n\s*\n/, /\n/, /(?<=[.!?])\s+/]) {
+    const m = split.exec(body.trim());
+    if (m && comparable(body.trim().slice(0, m.index)) === key) return body.trim().slice(m.index + m[0].length).trim() || null;
+  }
+  return body;
+}
+
 const proposeInteraction = def({
   name: "propose_interaction",
   description:
-    "Draft an interaction to log (a call, text, meeting, meal, note…) when the user asks to record something or a screenshot shows an exchange worth logging. The draft is shown to the user with an Apply button; nothing is saved by you. Write the summary as one line and the body in the user's voice, mentioning people as [@Name](/contacts/<id>).",
+    "Draft an interaction to log (a call, text, meeting, meal, note…) when the user asks to record something or a screenshot shows an exchange worth logging. The draft is shown to the user with an Apply button; nothing is saved by you. Write the summary as a one-line headline of what happened and the body in the user's voice with the details the headline leaves out (never a repeat of the summary; omit it when there is nothing more to say), mentioning people as [@Name](/contacts/<id>).",
   schema: z.object({
     contactIds: z.array(idSchema).min(1).max(20),
     type: z.enum(INTERACTION_TYPES),
@@ -226,13 +245,21 @@ const proposeInteraction = def({
     body: optionalText(20_000),
     location: optionalText(500),
     coordinates: coordinatesSchema.nullish().describe("Where it happened (WGS-84 lat/lng), only when the user gave it or it is already known; never guessed"),
+    attachImage: z
+      .boolean()
+      .optional()
+      .describe("true to attach the image the user sent (the most recent one in the conversation) to the interaction, when it belongs with it: a screenshot of the exchange, a photo from the meeting. Leave it out for images that only identified someone or answered a question."),
   }),
   label: () => "Drafting an interaction for you to review",
-  run: async (i, ctx) => {
+  run: async ({ attachImage, ...i }, ctx) => {
+    if (attachImage && !ctx.image) throw new AskToolError("There is no image in this conversation to attach");
     const ids = [...new Set(i.contactIds)];
     const { refs, dependsOn } = await resolveRefs(ctx, ids);
-    const input = interactionCreateSchema.parse({ ...i, occurredAt: i.occurredAt ?? new Date().toISOString(), contactIds: ids });
-    ctx.emit({ type: "proposal", proposal: { kind: "interaction", id: newId(), input, participants: ids.map((x) => refs.get(x)!), dependsOn: dependsOn.length ? dependsOn : undefined } });
+    const input = interactionCreateSchema.parse({ ...i, body: withoutRepeatedSummary(i.summary, i.body), occurredAt: i.occurredAt ?? new Date().toISOString(), contactIds: ids });
+    ctx.emit({
+      type: "proposal",
+      proposal: { kind: "interaction", id: newId(), input, participants: ids.map((x) => refs.get(x)!), dependsOn: dependsOn.length ? dependsOn : undefined, attachImage: attachImage || undefined },
+    });
     return "The draft is now shown to the user with an Apply button. Continue with any further proposals the request needs, then summarise in one sentence; do not repeat its full text and do not say it was saved.";
   },
 });
