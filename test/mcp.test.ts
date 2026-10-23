@@ -61,7 +61,7 @@ describe("MCP server", () => {
     const names2 = (list2.body!.result!.tools as { name: string; inputSchema: { properties: Record<string, unknown> } }[]);
     expect(names2.map((t) => t.name)).toEqual(expect.arrayContaining(["create_contact", "update_contact", "delete_interaction", "create_interaction"]));
     expect(names2.find((t) => t.name === "delete_interaction")!.inputSchema.properties).toHaveProperty("confirm");
-    expect(names2.find((t) => t.name === "create_interaction")!.inputSchema.properties).not.toHaveProperty("attachImage");
+    expect(names2.find((t) => t.name === "create_interaction")!.inputSchema.properties).not.toHaveProperty("attachImages");
 
     const unknown = await rpc(read, "nope/method");
     expect(unknown.body!.error!.code).toBe(-32601);

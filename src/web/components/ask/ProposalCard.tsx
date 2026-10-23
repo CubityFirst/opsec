@@ -30,13 +30,13 @@ export interface ProposalContext {
 export function ProposalCard({
   proposal,
   context,
-  image,
+  images,
   onChange,
 }: {
   proposal: Proposal;
   context: ProposalContext;
-  /** The latest image the user sent; an interaction proposal with attachImage files it as an attachment. */
-  image?: AskTurnImage;
+  /** The latest question's images; an interaction proposal files those its attachImages names (1-based) as attachments. */
+  images: AskTurnImage[];
   onChange: (patch: ProposalPatch) => void;
 }) {
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -44,7 +44,7 @@ export function ProposalCard({
   const waiting = proposal.applied ? [] : blockedBy(proposal, context.results);
   const blocked = waiting.length > 0;
   const participants = proposal.kind === "interaction" ? resolveParticipants(proposal.participants, context.results) : [];
-  const attachment = proposal.kind === "interaction" && proposal.attachImage ? image : undefined;
+  const attachments = proposal.kind === "interaction" ? (proposal.attachImages ?? []).flatMap((n) => images[n - 1] ?? []) : [];
 
   return (
     <Card className="border-primary/40 bg-primary/5">
@@ -87,11 +87,13 @@ export function ProposalCard({
               <MentionText text={proposal.input.summary} />
             </p>
             {proposal.input.body && <MarkdownBody className="text-sm text-muted-foreground">{proposal.input.body}</MarkdownBody>}
-            {attachment && (
-              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            {attachments.length > 0 && (
+              <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                 <PaperclipIcon className="size-3.5" />
-                <img src={attachment.previewUrl} alt="" className="size-8 rounded object-cover" />
-                Attaches your image
+                {attachments.map((a) => (
+                  <img key={a.previewUrl} src={a.previewUrl} alt="" className="size-8 rounded object-cover" />
+                ))}
+                {attachments.length === 1 ? "Attaches your image" : `Attaches ${attachments.length} of your images`}
               </div>
             )}
           </>
@@ -155,7 +157,7 @@ export function ProposalCard({
             location: proposal.input.location ?? null,
             coordinates: proposal.input.coordinates ?? null,
           }}
-          initialFiles={attachment ? [attachment.file] : undefined}
+          initialFiles={attachments.length ? attachments.map((a) => a.file) : undefined}
           onSaved={() => onChange({ applied: true })}
         />
       )}

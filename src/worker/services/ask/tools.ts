@@ -4,6 +4,7 @@ import { BET_STATUSES } from "@shared/schemas/bet";
 import { GIFT_STATUSES } from "@shared/schemas/gift";
 import { REMINDER_STATUSES } from "@shared/schemas/reminder";
 import { CONTACT_KINDS, INTERACTION_TYPES, idSchema, isoDateSchema, isoDateTimeSchema, nonBlank, optionalText } from "@shared/schemas/common";
+import { ASK_MAX_IMAGES } from "@shared/schemas/ask";
 import { coordinatesSchema } from "@shared/schemas/geo";
 import { interactionCreateSchema } from "@shared/schemas/interaction";
 
@@ -245,20 +246,23 @@ const proposeInteraction = def({
     body: optionalText(20_000),
     location: optionalText(500),
     coordinates: coordinatesSchema.nullish().describe("Where it happened (WGS-84 lat/lng), only when the user gave it or it is already known; never guessed"),
-    attachImage: z
-      .boolean()
+    attachImages: z
+      .array(z.number().int().min(1).max(ASK_MAX_IMAGES))
+      .max(ASK_MAX_IMAGES)
       .optional()
-      .describe("true to attach the image the user sent (the most recent one in the conversation) to the interaction, when it belongs with it: a screenshot of the exchange, a photo from the meeting. Leave it out for images that only identified someone or answered a question."),
+      .describe("Images from the user's most recent message that had any, to attach to the interaction by number (1 = the first; [1] when there was just one), for those that belong with it: screenshots of the exchange, photos from the meeting. Leave out images that only identified someone or answered a question."),
   }),
   label: () => "Drafting an interaction for you to review",
-  run: async ({ attachImage, ...i }, ctx) => {
-    if (attachImage && !ctx.image) throw new AskToolError("There is no image in this conversation to attach");
+  run: async ({ attachImages, ...i }, ctx) => {
+    const attach = [...new Set(attachImages ?? [])].sort((a, b) => a - b);
+    if (attach.length && !ctx.images) throw new AskToolError("There is no image in this conversation to attach");
+    if (attach.some((n) => n > ctx.images!)) throw new AskToolError(`The user's latest images are numbered 1 to ${ctx.images}`);
     const ids = [...new Set(i.contactIds)];
     const { refs, dependsOn } = await resolveRefs(ctx, ids);
     const input = interactionCreateSchema.parse({ ...i, body: withoutRepeatedSummary(i.summary, i.body), occurredAt: i.occurredAt ?? new Date().toISOString(), contactIds: ids });
     ctx.emit({
       type: "proposal",
-      proposal: { kind: "interaction", id: newId(), input, participants: ids.map((x) => refs.get(x)!), dependsOn: dependsOn.length ? dependsOn : undefined, attachImage: attachImage || undefined },
+      proposal: { kind: "interaction", id: newId(), input, participants: ids.map((x) => refs.get(x)!), dependsOn: dependsOn.length ? dependsOn : undefined, attachImages: attach.length ? attach : undefined },
     });
     return "The draft is now shown to the user with an Apply button. Continue with any further proposals the request needs, then summarise in one sentence; do not repeat its full text and do not say it was saved.";
   },

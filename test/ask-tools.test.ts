@@ -109,18 +109,29 @@ describe("ask tools", () => {
     expect(proposals[0]).toMatchObject({ proposal: { kind: "interaction", input: { summary: "Caught up", contactIds: [a.id] }, participants: [{ id: a.id }] } });
   });
 
-  it("propose_interaction attaches the conversation's image only when there is one", async () => {
+  it("propose_interaction attaches the conversation's images only when there are some", async () => {
     const a = await createContact({ firstName: "Snap" });
-    const args = { contactIds: [a.id], type: "text", summary: "Texted about Friday", attachImage: true };
+    const args = { contactIds: [a.id], type: "text", summary: "Texted about Friday", attachImages: [1] };
     const none = await run("propose_interaction", args);
     expect(none.ok).toBe(false);
     expect(none.summary).toMatch(/no image/);
-    const withImage = await run("propose_interaction", args, { ...ctx(), image: true });
+    const withImage = await run("propose_interaction", args, { ...ctx(), images: 1 });
     expect(withImage.ok, withImage.summary).toBe(true);
-    expect(withImage.events.find((e) => e.type === "proposal")).toMatchObject({ proposal: { kind: "interaction", attachImage: true } });
-    const left = await run("propose_interaction", { ...args, attachImage: undefined }, { ...ctx(), image: true });
+    expect(withImage.events.find((e) => e.type === "proposal")).toMatchObject({ proposal: { kind: "interaction", attachImages: [1] } });
+    const left = await run("propose_interaction", { ...args, attachImages: undefined }, { ...ctx(), images: 1 });
     const p = left.events.find((e) => e.type === "proposal");
-    expect(p && p.type === "proposal" && p.proposal.kind === "interaction" && p.proposal.attachImage).toBeFalsy();
+    expect(p && p.type === "proposal" && p.proposal.kind === "interaction" && p.proposal.attachImages).toBeFalsy();
+  });
+
+  it("propose_interaction picks some of several images by number", async () => {
+    const a = await createContact({ firstName: "Snaps" });
+    const args = { contactIds: [a.id], type: "text", summary: "Long chat about the move" };
+    const some = await run("propose_interaction", { ...args, attachImages: [3, 1, 3] }, { ...ctx(), images: 3 });
+    expect(some.ok, some.summary).toBe(true);
+    expect(some.events.find((e) => e.type === "proposal")).toMatchObject({ proposal: { kind: "interaction", attachImages: [1, 3] } });
+    const beyond = await run("propose_interaction", { ...args, attachImages: [4] }, { ...ctx(), images: 3 });
+    expect(beyond.ok).toBe(false);
+    expect(beyond.summary).toMatch(/numbered 1 to 3/);
   });
 
   it("propose_interaction drops a body that only repeats the summary", async () => {

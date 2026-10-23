@@ -2,8 +2,10 @@ import { ArrowDownIcon, HistoryIcon, ImagePlusIcon, RotateCcwIcon, SendIcon, Squ
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "react-router";
 import { mentionMarkdown } from "@shared/mentions";
+import { ASK_IMAGES_MAX_TOTAL_BYTES, ASK_MAX_IMAGES } from "@shared/schemas/ask";
 import { toast } from "sonner";
 import { ConversationList } from "@/components/ask/ConversationList";
+import { ImagePreviewDialog } from "@/components/ask/ImagePreviewDialog";
 import { MessageList } from "@/components/ask/MessageList";
 import { QuickReplies } from "@/components/ask/QuickReplies";
 import { MentionTextarea } from "@/components/MentionTextarea";
@@ -22,7 +24,9 @@ export function AskPage() {
   const [question, setQuestion] = useState("");
   /** Contacts picked with @ in this draft, by display name; expanded to id-carrying links on send. */
   const mentionsRef = useRef(new Map<string, string>());
-  const [image, setImage] = useState<PreparedImage | null>(null);
+  const [images, setImages] = useState<PreparedImage[]>([]);
+  /** The draft image shown large; null = none. */
+  const [previewing, setPreviewing] = useState<number | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -81,22 +85,43 @@ export function AskPage() {
     if (id === currentId) setParams({}, { replace: true });
   };
 
-  const attach = async (file: Blob | undefined) => {
-    if (!file) return;
-    try {
-      setImage(await prepareImage(file));
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Could not attach that image");
+  /** Adds to the images already on the draft, up to ASK_MAX_IMAGES and ASK_IMAGES_MAX_TOTAL_BYTES between them. */
+  const attach = async (files: Blob[]) => {
+    if (!files.length) return;
+    const room = ASK_MAX_IMAGES - images.length;
+    if (files.length > room) toast.error(`Up to ${ASK_MAX_IMAGES} images per question${room > 0 ? `; attached the first ${room}` : ""}`);
+    const prepared: PreparedImage[] = [];
+    for (const file of files.slice(0, Math.max(0, room))) {
+      try {
+        prepared.push(await prepareImage(file));
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : "Could not attach that image");
+      }
     }
+    if (!prepared.length) return;
+    setImages((current) => {
+      const next = [...current];
+      let bytes = current.reduce((n, i) => n + i.file.size, 0);
+      for (const img of prepared) {
+        if (next.length >= ASK_MAX_IMAGES) break;
+        if (bytes + img.file.size > ASK_IMAGES_MAX_TOTAL_BYTES) {
+          toast.error(`The images are too large together (${Math.round(ASK_IMAGES_MAX_TOTAL_BYTES / 1024 / 1024)} MB max)`);
+          break;
+        }
+        next.push(img);
+        bytes += img.file.size;
+      }
+      return next;
+    });
   };
 
   const submit = () => {
     const q = question.trim();
     if (!q || streaming || loading) return;
-    void ask.send(expandMentions(q, mentionsRef.current), image ?? undefined);
+    void ask.send(expandMentions(q, mentionsRef.current), images);
     setQuestion("");
     mentionsRef.current = new Map();
-    setImage(null);
+    setImages([]);
   };
 
   /** A tapped quick reply goes as-is; an unsent draft stays in the box for the next message. */
@@ -177,17 +202,36 @@ export function AskPage() {
           }}
         >
           {suggestions.length > 0 && <QuickReplies replies={suggestions} onPick={reply} />}
-          {image && (
-            <div className="flex items-center gap-2 px-1 text-xs text-muted-foreground">
-              <img src={image.previewUrl} alt="" className="h-12 rounded" />
-              <span>
-                {image.width}×{image.height}
-              </span>
-              <Button type="button" variant="ghost" size="icon-sm" aria-label="Remove image" onClick={() => setImage(null)}>
-                <XIcon />
-              </Button>
+          {images.length > 0 && (
+            <div className="flex flex-wrap items-center gap-2 px-1 text-xs text-muted-foreground">
+              {images.map((img, i) => (
+                <div key={img.previewUrl} className="relative">
+                  <button type="button" aria-label={images.length > 1 ? `Preview image ${i + 1}` : "Preview image"} className="block cursor-zoom-in rounded" onClick={() => setPreviewing(i)}>
+                    <img src={img.previewUrl} alt="" className="h-16 rounded" />
+                  </button>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="icon"
+                    aria-label={images.length > 1 ? `Remove image ${i + 1}` : "Remove image"}
+                    className="absolute top-1 right-1 size-7 rounded-full border shadow-sm"
+                    onClick={() => {
+                      setPreviewing(null);
+                      setImages((current) => current.filter((x) => x !== img));
+                    }}
+                  >
+                    <XIcon className="size-4" />
+                  </Button>
+                </div>
+              ))}
+              {images.length > 1 && (
+                <span>
+                  {images.length} of {ASK_MAX_IMAGES} images
+                </span>
+              )}
             </div>
           )}
+          <ImagePreviewDialog images={images} index={previewing} onIndexChange={setPreviewing} />
           <MentionTextarea
             value={question}
             rows={2}
@@ -195,7 +239,7 @@ export function AskPage() {
             placeholder={
               suggestions.length > 0
                 ? "Or type a different answer."
-                : "Ask a question… @ to mention a contact · Enter to send, Shift+Enter for a new line · paste an image to attach it"
+                : "Ask a question… @ to mention a contact · Enter to send, Shift+Enter for a new line · paste images to attach them"
             }
             onChange={setQuestion}
             mentionStyle="plain"
@@ -207,19 +251,30 @@ export function AskPage() {
               }
             }}
             onPaste={(e) => {
-              const item = [...e.clipboardData.items].find((i) => i.type.startsWith("image/"));
-              if (item) {
+              const files = [...e.clipboardData.files].filter((f) => f.type.startsWith("image/"));
+              if (files.length) {
                 e.preventDefault();
-                void attach(item.getAsFile() ?? undefined);
+                void attach(files);
               }
             }}
             className="resize-none border-0 shadow-none focus-visible:ring-0"
           />
           <div className="flex items-center gap-2">
-            <Button type="button" variant="ghost" size="sm" onClick={() => fileRef.current?.click()} disabled={streaming}>
-              <ImagePlusIcon /> Image
+            <Button type="button" variant="ghost" size="sm" onClick={() => fileRef.current?.click()} disabled={streaming || images.length >= ASK_MAX_IMAGES}>
+              <ImagePlusIcon /> Images
             </Button>
-            <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={(e) => void attach(e.target.files?.[0])} />
+            <input
+              ref={fileRef}
+              type="file"
+              accept="image/*"
+              multiple
+              className="hidden"
+              onChange={(e) => {
+                void attach([...(e.target.files ?? [])]);
+                // Choosing the same file again should still fire a change.
+                e.target.value = "";
+              }}
+            />
             <span className="flex-1" />
             {streaming ? (
               <Button type="button" variant="outline" size="sm" onClick={ask.stop}>

@@ -44,8 +44,8 @@ export interface AskTurnImage {
 }
 
 export type AskTurn =
-  /** `hadImage`: the question carried an image this tab no longer has (saved conversations never keep images). */
-  | { role: "user"; text: string; image?: AskTurnImage; hadImage?: boolean }
+  /** `hadImages`: how many images the question carried; `images` is missing when this tab no longer has them (saved conversations never keep images). */
+  | { role: "user"; text: string; images?: AskTurnImage[]; hadImages?: number }
   | {
       role: "assistant";
       text: string;
@@ -67,7 +67,7 @@ interface State {
 }
 
 type Action =
-  | { type: "start"; question: string; image?: AskTurnImage }
+  | { type: "start"; question: string; images?: AskTurnImage[] }
   | { type: "event"; event: AskEvent }
   | { type: "fail"; message: string }
   | { type: "finish" }
@@ -91,7 +91,7 @@ function reduce(state: State, action: Action): State {
         ...state,
         status: "streaming",
         rev: state.rev + 1,
-        turns: [...state.turns, { role: "user", text: action.question, image: action.image }, { role: "assistant", text: "", trail: [], proposals: [] }],
+        turns: [...state.turns, { role: "user", text: action.question, images: action.images, hadImages: action.images?.length || undefined }, { role: "assistant", text: "", trail: [], proposals: [] }],
       };
     case "event": {
       const e = action.event;
@@ -138,22 +138,23 @@ function reduce(state: State, action: Action): State {
   }
 }
 
-/** What the server keeps: an image becomes a flag, and an answer that never got going (page closed mid-question) is dropped. */
+/** What the server keeps: images become a count, and an answer that never got going (page closed mid-question) is dropped. */
 function toStored(turns: AskTurn[]): AskStoredTurn[] {
   const out: AskStoredTurn[] = [];
   for (const t of turns) {
-    if (t.role === "user") out.push({ role: "user", text: t.text, image: t.image || t.hadImage ? true : undefined });
+    if (t.role === "user") out.push({ role: "user", text: t.text, images: t.hadImages || undefined });
     else if (t.text || t.trail.length || t.proposals.length || t.error) out.push(t);
   }
   return out;
 }
 
-function fromStored(turns: AskStoredTurn[], images: Map<number, AskTurnImage>): AskTurn[] {
+function fromStored(turns: AskStoredTurn[], images: Map<number, AskTurnImage[]>): AskTurn[] {
   let question = 0;
   return turns.map((t): AskTurn => {
     if (t.role === "assistant") return { ...t, proposals: t.proposals as Extract<AskTurn, { role: "assistant" }>["proposals"] };
     const n = question++;
-    return { role: "user", text: t.text, image: t.image ? images.get(n) : undefined, hadImage: t.image };
+    const had = t.images ?? (t.image ? 1 : 0);
+    return { role: "user", text: t.text, images: had ? images.get(n) : undefined, hadImages: had || undefined };
   });
 }
 
@@ -165,7 +166,7 @@ function fromStored(turns: AskStoredTurn[], images: Map<number, AskTurnImage>): 
 interface Conversation {
   id: string | null;
   /** Images sent from this tab, by question number (0 = the first): never saved, but they survive switching away and back. */
-  images: Map<number, AskTurnImage>;
+  images: Map<number, AskTurnImage[]>;
   queue: Promise<void>;
 }
 
@@ -243,22 +244,22 @@ export function useAsk() {
   useEffect(() => leave, [leave]);
 
   const send = useCallback(
-    async (question: string, image?: AskImage & AskTurnImage) => {
+    async (question: string, images: (AskImage & AskTurnImage)[] = []) => {
       if (state.status !== "idle") return;
       const history = state.turns
-        .map((t) => ({ role: t.role, text: t.text, image: t.role === "user" && (t.image || t.hadImage) ? true : undefined }))
+        .map((t) => ({ role: t.role, text: t.text, images: t.role === "user" ? t.hadImages : undefined }))
         .filter((t) => t.text.trim().length > 0)
         .slice(-ASK_MAX_HISTORY_TURNS);
       const conv = convRef.current;
-      const turnImage = image && { previewUrl: image.previewUrl, file: image.file };
-      if (turnImage) conv.images.set(state.turns.filter((t) => t.role === "user").length, turnImage);
-      dispatch({ type: "start", question, image: turnImage });
+      const turnImages = images.map((i) => ({ previewUrl: i.previewUrl, file: i.file }));
+      if (turnImages.length) conv.images.set(state.turns.filter((t) => t.role === "user").length, turnImages);
+      dispatch({ type: "start", question, images: turnImages.length ? turnImages : undefined });
       const ctrl = new AbortController();
       abortRef.current = ctrl;
       // A stream the user has walked away from must not write into the conversation now on screen.
       const mine = () => convRef.current === conv;
       try {
-        const body = { messages: history, question, image: image ? { mediaType: image.mediaType, data: image.data } : undefined, timeZone: browserTimeZone() };
+        const body = { messages: history, question, images: images.length ? images.map((i) => ({ mediaType: i.mediaType, data: i.data })) : undefined, timeZone: browserTimeZone() };
         for await (const event of streamEvents<AskEvent>("/api/ask", body, ctrl.signal)) {
           if (mine()) dispatch({ type: "event", event });
         }

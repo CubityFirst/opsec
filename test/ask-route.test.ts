@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest";
-import type { AskEvent } from "@shared/schemas/ask";
+import { ASK_MAX_IMAGES, type AskEvent } from "@shared/schemas/ask";
 import { api, createContact } from "./helpers";
 
 type Chunk = Record<string, unknown>;
@@ -119,7 +119,7 @@ describe("POST /api/ask", () => {
 
   it("sends an attached image as an image_url part", async () => {
     const seen = installUpstream([() => textTurn("I can see a chat.")]);
-    const r = await ask({ question: "What is this?", image: { mediaType: "image/png", data: "iVBORw0KGgo=" } });
+    const r = await ask({ question: "What is this?", images: [{ mediaType: "image/png", data: "iVBORw0KGgo=" }] });
     expect(r.events.at(-1)).toMatchObject({ type: "done", stop: "end_turn" });
     const last = (seen[0]!.body.messages as { content: unknown }[]).at(-1)!;
     expect(last.content).toEqual([
@@ -128,15 +128,30 @@ describe("POST /api/ask", () => {
     ]);
   });
 
-  it("marks earlier turns that carried an image so attachImage still works on a follow-up", async () => {
+  it("numbers several images so the model can tell them apart", async () => {
+    const seen = installUpstream([() => textTurn("Two screenshots.")]);
+    const png = { mediaType: "image/png", data: "iVBORw0KGgo=" };
+    const jpeg = { mediaType: "image/jpeg", data: "/9j/4AAQ" };
+    const r = await ask({ question: "Log this chat", images: [png, jpeg] });
+    expect(r.events.at(-1)).toMatchObject({ type: "done", stop: "end_turn" });
+    expect((seen[0]!.body.messages as { content: unknown }[]).at(-1)!.content).toEqual([
+      { type: "text", text: "Image 1:" },
+      { type: "image_url", image_url: { url: "data:image/png;base64,iVBORw0KGgo=" } },
+      { type: "text", text: "Image 2:" },
+      { type: "image_url", image_url: { url: "data:image/jpeg;base64,/9j/4AAQ" } },
+      { type: "text", text: "Log this chat" },
+    ]);
+  });
+
+  it("marks earlier turns that carried images so attachImages still works on a follow-up", async () => {
     const p = await createContact({ firstName: "Follow", lastName: "Up" });
     const seen = installUpstream([
-      () => mixedTurn("", [{ id: "call_i", name: "propose_interaction", args: JSON.stringify({ contactIds: [p.id], type: "text", summary: "Texted about Friday", attachImage: true }) }]),
+      () => mixedTurn("", [{ id: "call_i", name: "propose_interaction", args: JSON.stringify({ contactIds: [p.id], type: "text", summary: "Texted about Friday", attachImages: [2] }) }]),
       () => textTurn("Drafted."),
     ]);
-    const r = await ask({ messages: [{ role: "user", text: "Who is this?", image: true }, { role: "assistant", text: "Follow Up." }], question: "Log it" });
-    expect((seen[0]!.body.messages as { content: unknown }[])[1]!.content).toBe("[attached an image, no longer shown]\nWho is this?");
-    expect(r.events.find((e) => e.type === "proposal")).toMatchObject({ proposal: { kind: "interaction", attachImage: true } });
+    const r = await ask({ messages: [{ role: "user", text: "Who is this?", images: 2 }, { role: "assistant", text: "Follow Up." }], question: "Log it" });
+    expect((seen[0]!.body.messages as { content: unknown }[])[1]!.content).toBe("[attached 2 images, no longer shown]\nWho is this?");
+    expect(r.events.find((e) => e.type === "proposal")).toMatchObject({ proposal: { kind: "interaction", attachImages: [2] } });
   });
 
   it("turns a final suggest_replies call into quick replies and ends the turn without another provider call", async () => {
@@ -199,7 +214,9 @@ describe("POST /api/ask", () => {
 
   it("validates input and requires a session", async () => {
     expect((await ask({ question: "" })).status).toBe(400);
-    expect((await ask({ question: "x", image: { mediaType: "image/bmp", data: "abc" } })).status).toBe(400);
+    expect((await ask({ question: "x", images: [{ mediaType: "image/bmp", data: "abc" }] })).status).toBe(400);
+    const png = { mediaType: "image/png", data: "iVBORw0KGgo=" };
+    expect((await ask({ question: "x", images: Array.from({ length: ASK_MAX_IMAGES + 1 }, () => png) })).status).toBe(400);
     const anon = await api("/api/ask", { anonymous: true, method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ question: "x" }) });
     expect(anon.status).toBe(401);
   });

@@ -6,6 +6,10 @@ import type { InteractionCreateInput } from "./interaction";
 export const ASK_IMAGE_MAX_BYTES = 5 * 1024 * 1024;
 /** Long edge the client downscales to before upload. */
 export const ASK_IMAGE_MAX_EDGE = 1568;
+/** Images one question may carry. */
+export const ASK_MAX_IMAGES = 6;
+/** All of one question's images together, so the request stays under the Worker's Ask body limit. */
+export const ASK_IMAGES_MAX_TOTAL_BYTES = 8 * 1024 * 1024;
 export const ASK_MAX_HISTORY_TURNS = 40;
 /** Quick replies the assistant may offer under a question (`suggest_replies`). */
 export const ASK_MAX_SUGGESTIONS = 4;
@@ -21,8 +25,8 @@ export type AskImage = z.infer<typeof askImageSchema>;
 export const askTurnSchema = z.object({
   role: z.enum(["user", "assistant"]),
   text: z.string().max(20_000),
-  /** A user turn that carried an image. Only the latest question resends the image itself; this keeps the model aware it existed. */
-  image: z.boolean().optional(),
+  /** How many images a user turn carried. Only the latest question resends the images themselves; this keeps the model aware they existed. */
+  images: z.number().int().min(1).max(ASK_MAX_IMAGES).optional(),
 });
 export type AskTurn = z.infer<typeof askTurnSchema>;
 
@@ -42,7 +46,11 @@ export const askRequestSchema = z.object({
   /** Prior turns, text only, oldest first. */
   messages: z.array(askTurnSchema).max(ASK_MAX_HISTORY_TURNS).default([]),
   question: nonBlank(4_000),
-  image: askImageSchema.optional(),
+  images: z
+    .array(askImageSchema)
+    .max(ASK_MAX_IMAGES)
+    .refine((list) => list.reduce((n, i) => n + i.data.length, 0) <= Math.ceil((ASK_IMAGES_MAX_TOTAL_BYTES * 4) / 3), "The images are too large together")
+    .optional(),
   /** Where the user is, so "9am" means 9am there. Falls back to the `TIMEZONE` var, then UTC. */
   timeZone: timeZoneSchema.optional(),
 });
@@ -56,8 +64,11 @@ export type AskProposal =
       input: InteractionCreateInput;
       participants: ContactRef[];
       dependsOn?: string[];
-      /** Attach the most recent image the user sent in the conversation (the SPA holds it; the server never stores Ask images). */
-      attachImage?: boolean;
+      /**
+       * Attach images from the user's most recent question that had any, by
+       * position (1 = the first). The SPA holds them; the server never stores Ask images.
+       */
+      attachImages?: number[];
     }
   | { kind: "contact_note"; id: string; contact: ContactRef; appendText: string }
   | {
@@ -106,7 +117,7 @@ export interface AskConfig {
 /**
  * Saved conversations (the Ask sidebar). The browser stores the transcript as
  * it renders it: tool trail, proposals with whether they were applied, quick
- * replies. Images are never stored; a user turn keeps only `image: true`.
+ * replies. Images are never stored; a user turn keeps only how many it had.
  */
 export const ASK_CONVERSATION_MAX_TURNS = 400;
 /** Serialised size of one transcript; D1 caps a value at 2 MB. */
@@ -125,7 +136,13 @@ const storedTrailItemSchema = z.object({
 });
 
 export const askStoredTurnSchema = z.discriminatedUnion("role", [
-  z.object({ role: z.literal("user"), text: z.string().max(20_000), image: z.boolean().optional() }),
+  z.object({
+    role: z.literal("user"),
+    text: z.string().max(20_000),
+    images: z.number().int().min(1).max(ASK_MAX_IMAGES).optional(),
+    /** Saves from before a question could carry several images: one image. */
+    image: z.boolean().optional(),
+  }),
   z.object({
     role: z.literal("assistant"),
     text: z.string().max(200_000),

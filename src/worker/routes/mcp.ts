@@ -77,8 +77,8 @@ function buildTools(): McpTool[] {
     if (t.name.startsWith("propose_")) {
       const name = WRITE_NAMES[t.name];
       if (!name) continue;
-      // attachImage refers to an image sent in the Ask UI; MCP has no way to send one.
-      const schema = ("attachImage" in t.schema.shape ? t.schema.omit({ attachImage: true } as never) : t.schema).extend({ confirm: z.boolean().optional().describe("Required (true) for removals, deletions and archiving") });
+      // attachImages refers to images sent in the Ask UI; MCP has no way to send one.
+      const schema = ("attachImages" in t.schema.shape ? t.schema.omit({ attachImages: true } as never) : t.schema).extend({ confirm: z.boolean().optional().describe("Required (true) for removals, deletions and archiving") });
       out.push({ name, description: writeDescription(t, name), inputSchema: jsonSchemaOf(schema), tool: t, write: true });
     } else {
       out.push({ name: t.name, description: t.description, inputSchema: jsonSchemaOf(t.schema), tool: t, write: false });

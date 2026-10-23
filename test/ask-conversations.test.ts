@@ -34,7 +34,7 @@ describe("Ask conversations", () => {
     const created = await create([{ role: "user", text: "Who is Rex?" }]);
     expect(created.title).toBe("Who is Rex?");
 
-    const turns: AskStoredTurn[] = [{ role: "user", text: "Who is Rex?", image: true }, answer("Rex is a dog."), { role: "user", text: "And his vet?" }];
+    const turns: AskStoredTurn[] = [{ role: "user", text: "Who is Rex?", images: 2 }, answer("Rex is a dog."), { role: "user", text: "And his vet?" }];
     const saved = await json<AskConversationSummary>(`/api/ask/conversations/${created.id}`, { method: "PUT", body: { turns } });
     expect(saved.status).toBe(200);
     expect(saved.body.updatedAt >= created.updatedAt).toBe(true);

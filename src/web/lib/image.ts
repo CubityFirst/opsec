@@ -4,8 +4,6 @@ export interface PreparedImage extends AskImage {
   previewUrl: string;
   /** The re-encoded image itself, named after the original, so an interaction can keep it as an attachment. */
   file: File;
-  width: number;
-  height: number;
 }
 
 /**
@@ -32,7 +30,7 @@ export async function prepareImage(file: Blob): Promise<PreparedImage> {
   const data = await toBase64(blob);
   const stem = (file instanceof File ? file.name.replace(/\.[^.]*$/, "") : "") || "image";
   const named = new File([blob], `${stem}.${blob.type === "image/webp" ? "webp" : "png"}`, { type: blob.type });
-  return { mediaType: blob.type as AskImage["mediaType"], data, previewUrl: URL.createObjectURL(blob), file: named, width, height };
+  return { mediaType: blob.type as AskImage["mediaType"], data, previewUrl: URL.createObjectURL(blob), file: named };
 }
 
 function toBlob(canvas: HTMLCanvasElement, type: string, quality?: number): Promise<Blob | null> {
