@@ -1,6 +1,6 @@
 import { MENTION_RE } from "@shared/mentions";
 import { ContactPeek } from "@/components/contacts/ContactPeek";
-import { SparklesIcon } from "lucide-react";
+import { ImageOffIcon, SparklesIcon } from "lucide-react";
 import { MarkdownBody } from "@/components/MarkdownBody";
 import type { AskTurn, AskTurnImage } from "@/lib/queries/ask";
 import { ProposalCard, type ProposalPatch } from "./ProposalCard";
@@ -27,7 +27,15 @@ export function MessageList({
           return (
             <div key={idx} className="flex justify-end">
               <div className="max-w-[85%] rounded-2xl rounded-br-sm bg-primary px-4 py-2 text-primary-foreground">
-                {t.image && <img src={t.image.previewUrl} alt="attached" className="mb-2 max-h-48 rounded-md" />}
+                {t.image ? (
+                  <img src={t.image.previewUrl} alt="attached" className="mb-2 max-h-48 rounded-md" />
+                ) : (
+                  t.hadImage && (
+                    <p className="mb-1 flex items-center gap-1.5 text-xs opacity-80">
+                      <ImageOffIcon className="size-3.5" /> Image not kept
+                    </p>
+                  )
+                )}
                 <p className="whitespace-pre-wrap text-sm">
                   <UserText text={t.text} />
                 </p>
@@ -70,7 +78,6 @@ export function MessageList({
     </div>
   );
 }
-
 
 /** The user's own text: mention links become chips, everything else is verbatim. */
 function UserText({ text }: { text: string }) {

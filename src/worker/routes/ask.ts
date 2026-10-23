@@ -1,11 +1,12 @@
 import { zValidator } from "@hono/zod-validator";
 import { Hono } from "hono";
 import { streamSSE } from "hono/streaming";
-import { askRequestSchema, type AskEvent } from "@shared/schemas/ask";
+import { askConversationSaveSchema, askRequestSchema, type AskEvent } from "@shared/schemas/ask";
 import type { AppEnv } from "../env";
 import { ApiError, validationHook } from "../lib/errors";
 import { resolveProvider } from "../services/ai-settings";
 import { askConfig, createAskClient } from "../services/ask/client";
+import { createConversation, deleteConversation, getConversation, listConversations, saveConversation } from "../services/ask/conversations";
 import { classifyAskError } from "../services/ask/errors";
 import { deploymentTimeZone } from "../services/ask/prompt";
 import { testFetch } from "../services/ask/provider";
@@ -18,6 +19,36 @@ app.get("/ask/config", async (c) => {
   return c.json(askConfig(provider));
 });
 
+function subOf(user: AppEnv["Variables"]["user"]): string {
+  if (!user) throw ApiError.unauthorized();
+  return user.sub;
+}
+
+/** Saved conversations for the sidebar; each user sees only their own. The browser writes the whole transcript after every turn. */
+app.get("/ask/conversations", async (c) => c.json({ items: await listConversations(c.get("db"), subOf(c.get("user"))) }));
+
+app.get("/ask/conversations/:id", async (c) => {
+  const out = await getConversation(c.get("db"), subOf(c.get("user")), c.req.param("id"));
+  if (!out) throw ApiError.notFound("Conversation");
+  return c.json(out);
+});
+
+app.post("/ask/conversations", zValidator("json", askConversationSaveSchema, validationHook), async (c) => {
+  const user = c.get("user");
+  if (!user) throw ApiError.unauthorized();
+  return c.json(await createConversation(c.get("db"), user, c.req.valid("json").turns), 201);
+});
+
+app.put("/ask/conversations/:id", zValidator("json", askConversationSaveSchema, validationHook), async (c) => {
+  const out = await saveConversation(c.get("db"), subOf(c.get("user")), c.req.param("id"), c.req.valid("json").turns);
+  if (!out) throw ApiError.notFound("Conversation");
+  return c.json(out);
+});
+
+app.delete("/ask/conversations/:id", async (c) => {
+  if (!(await deleteConversation(c.get("db"), subOf(c.get("user")), c.req.param("id")))) throw ApiError.notFound("Conversation");
+  return c.body(null, 204);
+});
 
 /**
  * Streams the answer as server-sent events. Validation and auth errors are

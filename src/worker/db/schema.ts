@@ -405,6 +405,23 @@ export const calendarFeeds = sqliteTable(
   (t) => [index("calendar_feeds_sub_idx").on(t.sub)],
 );
 
+/**
+ * Saved Ask conversations, one row per conversation per user. `turns` is the
+ * transcript as the browser renders it (see askStoredTurnSchema), written
+ * whole on every save; images are never kept.
+ */
+export const askConversations = sqliteTable(
+  "ask_conversations",
+  {
+    id: text("id").primaryKey(),
+    sub: text("sub").notNull(),
+    title: text("title").notNull(),
+    turns: text("turns", { mode: "json" }).$type<unknown[]>().notNull(),
+    ...timestamps,
+  },
+  (t) => [index("ask_conversations_sub_updated_idx").on(t.sub, t.updatedAt)],
+);
+
 /** Signed-in identities, keyed on the OIDC `sub` claim (never on email). */
 export const users = sqliteTable("users", {
   sub: text("sub").primaryKey(),
@@ -433,3 +450,4 @@ export type BetRow = typeof bets.$inferSelect;
 export type ReminderRow = typeof reminders.$inferSelect;
 export type GiftRow = typeof gifts.$inferSelect;
 export type CalendarFeedRow = typeof calendarFeeds.$inferSelect;
+export type AskConversationRow = typeof askConversations.$inferSelect;

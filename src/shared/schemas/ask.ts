@@ -102,3 +102,61 @@ export interface AskConfig {
   label: string;
   model: string;
 }
+
+/**
+ * Saved conversations (the Ask sidebar). The browser stores the transcript as
+ * it renders it: tool trail, proposals with whether they were applied, quick
+ * replies. Images are never stored; a user turn keeps only `image: true`.
+ */
+export const ASK_CONVERSATION_MAX_TURNS = 400;
+/** Serialised size of one transcript; D1 caps a value at 2 MB. */
+export const ASK_CONVERSATION_MAX_CHARS = 1_500_000;
+export const ASK_CONVERSATION_TITLE_CHARS = 80;
+/** How many of the most recently updated conversations the sidebar lists. */
+export const ASK_CONVERSATIONS_LISTED = 100;
+
+const storedTrailItemSchema = z.object({
+  id: z.string().max(200),
+  name: z.string().max(200),
+  label: z.string().max(2_000),
+  input: z.unknown(),
+  ok: z.boolean().optional(),
+  summary: z.string().max(2_000).optional(),
+});
+
+export const askStoredTurnSchema = z.discriminatedUnion("role", [
+  z.object({ role: z.literal("user"), text: z.string().max(20_000), image: z.boolean().optional() }),
+  z.object({
+    role: z.literal("assistant"),
+    text: z.string().max(200_000),
+    trail: z.array(storedTrailItemSchema).max(500),
+    /** AskProposal plus the applied / dismissed / result marks; only the envelope is checked, the rest is the browser's own record. */
+    proposals: z.array(z.looseObject({ id: z.string().max(200), kind: z.enum(["interaction", "contact_note", "action"]) })).max(200),
+    suggestions: z.array(z.string().max(ASK_SUGGESTION_MAX_CHARS)).max(ASK_MAX_SUGGESTIONS).optional(),
+    done: z.object({ stop: z.enum(["end_turn", "max_tokens", "max_iterations", "budget", "refusal", "aborted"]), iterations: z.number().int().nonnegative() }).optional(),
+    error: z.string().max(2_000).optional(),
+  }),
+]);
+export type AskStoredTurn = z.infer<typeof askStoredTurnSchema>;
+
+export const askConversationSaveSchema = z.object({
+  turns: z
+    .array(askStoredTurnSchema)
+    .min(1)
+    .max(ASK_CONVERSATION_MAX_TURNS)
+    .refine((t) => t.some((x) => x.role === "user" && x.text.trim()), "A conversation needs a question")
+    .refine((t) => JSON.stringify(t).length <= ASK_CONVERSATION_MAX_CHARS, "This conversation is too long to save; start a new one"),
+});
+export type AskConversationSaveInput = z.infer<typeof askConversationSaveSchema>;
+
+export interface AskConversationSummary {
+  id: string;
+  /** The first question, mentions as plain "@Name", cut to ASK_CONVERSATION_TITLE_CHARS. */
+  title: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AskConversationOut extends AskConversationSummary {
+  turns: AskStoredTurn[];
+}
