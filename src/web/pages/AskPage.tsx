@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { mentionMarkdown } from "@shared/mentions";
 import { toast } from "sonner";
 import { MessageList } from "@/components/ask/MessageList";
+import { QuickReplies } from "@/components/ask/QuickReplies";
 import { MentionTextarea } from "@/components/MentionTextarea";
 import { Button } from "@/components/ui/button";
 import { prepareImage, type PreparedImage } from "@/lib/image";
@@ -63,6 +64,9 @@ export function AskPage() {
     if (streaming) return;
     void ask.send(text);
   };
+  const lastTurn = ask.turns.at(-1);
+  /** The latest answer's quick replies; they sit in the composer until anything is sent. */
+  const suggestions = !streaming && lastTurn?.role === "assistant" ? (lastTurn.suggestions ?? []) : [];
 
   return (
     <div className="flex h-[calc(100svh-4rem)] flex-col gap-4 md:h-[calc(100svh-6rem)]">
@@ -89,7 +93,7 @@ export function AskPage() {
               <p>Paste a screenshot of a chat and ask “Log this.”</p>
             </div>
           ) : (
-            <MessageList turns={ask.turns} streaming={streaming} onProposalChange={ask.markProposal} onReply={reply} />
+            <MessageList turns={ask.turns} streaming={streaming} onProposalChange={ask.markProposal} />
           )}
           <div ref={bottomRef} />
         </div>
@@ -115,6 +119,7 @@ export function AskPage() {
           submit();
         }}
       >
+        {suggestions.length > 0 && <QuickReplies replies={suggestions} onPick={reply} />}
         {image && (
           <div className="flex items-center gap-2 px-1 text-xs text-muted-foreground">
             <img src={image.previewUrl} alt="" className="h-12 rounded" />
@@ -130,7 +135,11 @@ export function AskPage() {
           value={question}
           rows={2}
           placement="above"
-          placeholder="Ask a question… @ to mention a contact · Enter to send, Shift+Enter for a new line · paste an image to attach it"
+          placeholder={
+            suggestions.length > 0
+              ? "Or type a different answer."
+              : "Ask a question… @ to mention a contact · Enter to send, Shift+Enter for a new line · paste an image to attach it"
+          }
           onChange={setQuestion}
           mentionStyle="plain"
           onMention={(c) => mentionsRef.current.set(c.displayName, c.id)}
