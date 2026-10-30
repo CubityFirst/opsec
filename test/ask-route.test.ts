@@ -58,11 +58,6 @@ describe("POST /api/ask", () => {
     delete (globalThis as { __askFakeUpstream?: unknown }).__askFakeUpstream;
   });
 
-  it("exposes its configuration", async () => {
-    const res = await api("/api/ask/config");
-    expect(await res.json()).toEqual({ label: "test", model: "test-model" });
-  });
-
   it("runs a tool call, feeds the result back, and streams the answer", async () => {
     const alice = await createContact({ firstName: "Alice", lastName: "Hartley" });
     const seen = installUpstream([

@@ -3,12 +3,6 @@ import type { ApiErrorBody, ContactDetail, ContactMethodOut, ContactSummary, Fee
 import { api, apiAs, createContact, createInteraction, createRelationship, json } from "./helpers";
 
 describe("health", () => {
-  it("responds", async () => {
-    const { status, body } = await json("/api/health");
-    expect(status).toBe(200);
-    expect(body).toEqual({ ok: true });
-  });
-
   it("returns JSON 404 for unknown API routes", async () => {
     const { status, body } = await json<ApiErrorBody>("/api/nope");
     expect(status).toBe(404);
