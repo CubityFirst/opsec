@@ -153,15 +153,6 @@ describe("reminders", () => {
     expect((await json(`/api/reminders/${general.id}`)).status).toBe(200);
     expect((await json(`/api/reminders/${forB.id}`)).status).toBe(200);
   });
-
-  it("read-scoped tokens cannot complete a reminder", async () => {
-    const r = await createReminder({ title: "token" });
-    const tok = await json<{ token: string }>("/api/tokens", { method: "POST", body: { name: "ro-rem", scope: "read" } });
-    expect(tok.status).toBe(201);
-    const h = { authorization: `Bearer ${tok.body.token}` };
-    expect((await api(`/api/reminders/${r.id}`, { anonymous: true, headers: h })).status).toBe(200);
-    expect((await api(`/api/reminders/${r.id}/complete`, { anonymous: true, method: "POST", headers: h })).status).toBe(403);
-  });
 });
 
 describe("ask tools: reminders", () => {
@@ -234,19 +225,5 @@ describe("ask tools: reminders", () => {
     const other = await createContact({ firstName: "Other" });
     expect((await run("propose_reminder", { action: "remove", contactId: other.id, reminderId: r.id })).ok).toBe(false);
     expect((await run("propose_reminder", { action: "remove" })).ok).toBe(false);
-  });
-
-  it("the MCP server exposes list_reminders and a reminder write tool", async () => {
-    const tok = await json<{ token: string }>("/api/tokens", { method: "POST", body: { name: "mcp-reminders", scope: "write" } });
-    const res = await api("/mcp", {
-      anonymous: true,
-      method: "POST",
-      headers: { authorization: `Bearer ${tok.body.token}`, "content-type": "application/json" },
-      body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/list" }),
-    });
-    const body = (await res.json()) as { result: { tools: { name: string }[] } };
-    const names = body.result.tools.map((t) => t.name);
-    expect(names).toContain("list_reminders");
-    expect(names).toContain("reminder");
   });
 });

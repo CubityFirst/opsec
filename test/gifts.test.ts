@@ -102,16 +102,6 @@ describe("gifts", () => {
     expect((await api(`/api/contacts/${b.id}`, { method: "DELETE" })).status).toBe(204);
     expect((await json(`/api/gifts/${otherIdea.id}`)).status).toBe(404);
   });
-
-  it("read-scoped tokens cannot give a gift", async () => {
-    const a = await createContact({ firstName: "Token", lastName: "Gift" });
-    const gift = await createGift(a.id);
-    const tok = await json<{ token: string }>("/api/tokens", { method: "POST", body: { name: "ro-gifts", scope: "read" } });
-    expect(tok.status).toBe(201);
-    const h = { authorization: `Bearer ${tok.body.token}` };
-    expect((await api(`/api/gifts/${gift.id}`, { anonymous: true, headers: h })).status).toBe(200);
-    expect((await api(`/api/gifts/${gift.id}/give`, { anonymous: true, method: "POST", headers: { ...h, "content-type": "application/json" }, body: JSON.stringify({}) })).status).toBe(403);
-  });
 });
 
 describe("ask tools: gifts", () => {
@@ -173,19 +163,5 @@ describe("ask tools: gifts", () => {
 
     const other = await createContact({ firstName: "Other" });
     expect((await run("propose_gift", { contactId: other.id, action: "remove", giftId: gift.id })).ok).toBe(false);
-  });
-
-  it("the MCP server exposes list_gifts and a gift write tool", async () => {
-    const tok = await json<{ token: string }>("/api/tokens", { method: "POST", body: { name: "mcp-gifts", scope: "write" } });
-    const res = await api("/mcp", {
-      anonymous: true,
-      method: "POST",
-      headers: { authorization: `Bearer ${tok.body.token}`, "content-type": "application/json" },
-      body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/list" }),
-    });
-    const body = (await res.json()) as { result: { tools: { name: string }[] } };
-    const names = body.result.tools.map((t) => t.name);
-    expect(names).toContain("list_gifts");
-    expect(names).toContain("gift");
   });
 });

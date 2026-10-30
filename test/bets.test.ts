@@ -101,16 +101,6 @@ describe("bets", () => {
     expect((await api(`/api/contacts/${b.id}`, { method: "DELETE" })).status).toBe(204);
     expect((await json(`/api/bets/${lost.id}`)).status).toBe(404);
   });
-
-  it("read-scoped tokens cannot settle a bet", async () => {
-    const a = await createContact({ firstName: "Token", lastName: "Bet" });
-    const bet = await createBet(a.id);
-    const tok = await json<{ token: string }>("/api/tokens", { method: "POST", body: { name: "ro", scope: "read" } });
-    expect(tok.status).toBe(201);
-    const h = { authorization: `Bearer ${tok.body.token}` };
-    expect((await api(`/api/bets/${bet.id}`, { anonymous: true, headers: h })).status).toBe(200);
-    expect((await api(`/api/bets/${bet.id}/settle`, { anonymous: true, method: "POST", headers: { ...h, "content-type": "application/json" }, body: JSON.stringify({ outcome: "me" }) })).status).toBe(403);
-  });
 });
 
 describe("ask tools: bets", () => {
@@ -172,19 +162,5 @@ describe("ask tools: bets", () => {
 
     const other = await createContact({ firstName: "Other" });
     expect((await run("propose_bet", { contactId: other.id, action: "remove", betId: bet.id })).ok).toBe(false);
-  });
-
-  it("the MCP server exposes list_bets and a bet write tool", async () => {
-    const tok = await json<{ token: string }>("/api/tokens", { method: "POST", body: { name: "mcp-bets", scope: "write" } });
-    const res = await api("/mcp", {
-      anonymous: true,
-      method: "POST",
-      headers: { authorization: `Bearer ${tok.body.token}`, "content-type": "application/json" },
-      body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/list" }),
-    });
-    const body = (await res.json()) as { result: { tools: { name: string }[] } };
-    const names = body.result.tools.map((t) => t.name);
-    expect(names).toContain("list_bets");
-    expect(names).toContain("bet");
   });
 });

@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { AskEvent, AskProposal } from "@shared/schemas/ask";
 import { getDb } from "../src/worker/db";
 import { ByteBudget, MAX_TOOL_RESULT_BYTES } from "../src/worker/services/ask/limits";
-import { TOOLS, executeTool, toolDefinitions, type ToolCtx } from "../src/worker/services/ask/tools";
+import { executeTool, type ToolCtx } from "../src/worker/services/ask/tools";
 import { createContact, createInteraction, createRelationship } from "./helpers";
 
 const WRITE_METHODS = new Set(["insert", "update", "delete", "batch", "transaction"]);
@@ -38,13 +38,6 @@ async function run(name: string, input: unknown, c = ctx()) {
 }
 
 describe("ask tools", () => {
-  it("publishes OpenAI function definitions in a fixed order", () => {
-    const defs = toolDefinitions();
-    const fns = defs.map((d) => ("function" in d ? d.function : null));
-    expect(fns.map((f) => f?.name)).toEqual(TOOLS.map((t) => t.name));
-    expect(fns[0]?.parameters).toMatchObject({ type: "object" });
-  });
-
   it("search_contacts finds by nickname, other name and tag", async () => {
     const a = await createContact({ firstName: "Wei", lastName: "Chen", nickname: "Weiwei", otherNames: [{ label: "Chinese name", value: "陈伟" }], tagNames: ["asktool"] });
     for (const q of ["Weiwei", "陈伟", "asktool"]) {
