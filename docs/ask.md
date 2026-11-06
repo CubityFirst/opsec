@@ -16,7 +16,7 @@ The backend speaks the **OpenAI Chat Completions** wire format, so any compatibl
 | `AI_EXTRA_HEADERS` | secret, optional JSON object | Extra headers, e.g. `{"cf-aig-authorization":"Bearer <token>"}` |
 | `TIMEZONE` | var, optional | IANA zone you live in (`Europe/London`), so "9am" in a question means 9am there. The Ask tab sends the browser's zone with every question and only falls back to this; MCP clients have nothing else, so set it if you use them. Unset = UTC |
 
-Set vars in `wrangler.jsonc`, secrets with `npx wrangler secret put <NAME>`; locally put all of them in `.dev.vars`. These are the deployment defaults.
+Set vars in `cloudflare.config.ts` (and `wrangler.jsonc`, kept in step for the tests), secrets with `npx wrangler secret put <NAME>`; locally put all of them in `.dev.vars`. These are the deployment defaults.
 
 **Changing the provider on the fly:** admins get an **Ask provider** card on the Account page. Pick a preset (Cloudflare AI Gateway, OpenAI, Anthropic, OpenRouter, llama.cpp, custom), fill in the base URL, model, key and any extra headers or request fields, press **Test** to run a one-token completion against the unsaved values, then **Save**. Saved settings take effect on the next question without a redeploy and override the vars above; **Use deployment settings** removes them again. They live in the `app_settings` table; the API key and extra headers are encrypted with AES-GCM under a key derived from `SESSION_SECRET` and are never returned to the browser (the UI only shows whether they are set). Rotating `SESSION_SECRET` therefore also invalidates the stored secrets; re-enter them.
 
@@ -32,7 +32,7 @@ Presets:
 
 Wrangler has no AI Gateway commands, so the gateway side is done in the Cloudflare dashboard.
 
-1. **Create the gateway.** Dashboard → AI → AI Gateway → *Create Gateway*, name `opsec`. The `AI_BASE_URL` in `wrangler.jsonc` already points at `…/<account>/opsec/compat`; if you pick another name, change that var.
+1. **Create the gateway.** Dashboard → AI → AI Gateway → *Create Gateway*, name `opsec`. The `AI_BASE_URL` in `cloudflare.config.ts` (mode `prod`) already points at `…/<account>/opsec/compat`; if you pick another name, change that var.
 2. **Make it authenticated.** Open the gateway → *Settings* → *Authentication*: create a token of type **AI Gateway Run**, copy it into your secret manager, and turn **Authenticated Gateway** on. BYOK requires an authenticated gateway.
 3. **Store the provider key in the gateway.** Gateway → *Provider Keys* → add the provider named in `AI_MODEL` (**OpenAI** for the default, or Anthropic), alias `default`, paste its API key. The Worker never sees this key.
 4. **Give the Worker the gateway token.** From the repo, paste the value at the prompt (never into a chat, shell history or commit):

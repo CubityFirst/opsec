@@ -7,7 +7,7 @@ it is and how to deploy your own, and `CLAUDE.md` holds the conventions that are
 
 ```bash
 npm install
-npm run dev          # Vite + Worker in workerd, local D1/R2 under .wrangler/state
+npm run dev          # cf dev: Vite + Worker in workerd, local D1/R2 under .cloudflare/state
 npm run typecheck    # all three TS projects
 npm test             # API tests (vitest + @cloudflare/vitest-pool-workers)
 npm run build        # must pass before anything ships

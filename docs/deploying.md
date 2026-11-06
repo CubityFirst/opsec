@@ -13,23 +13,23 @@ Config for `oidc` mode: vars `OIDC_ISSUER`, `OIDC_CLIENT_ID`, `AUTH_PROVIDER_LAB
 
 In `open` mode behind [Cloudflare Access](https://developers.cloudflare.com/cloudflare-one/policies/access/), the app probes `/cdn-cgi/access/get-identity`, which Cloudflare only serves on hostnames covered by an Access application; when that answers, the Account page drops the open-access warning and names the identity that let you in instead. Access visitors still share the single owner account, so the policy is what decides who gets in.
 
-The author's instance (`env.prod` in `wrangler.jsonc`) signs in through Annex, a private provider on the same Cloudflare zone. Because a Worker's fetch to a same-zone hostname skips that hostname's Worker, its token, JWKS and userinfo calls go through a service binding; that binding is optional and only used when present.
+The author's instance (mode `prod` in `cloudflare.config.ts`) signs in through Annex, a private provider on the same Cloudflare zone. Because a Worker's fetch to a same-zone hostname skips that hostname's Worker, its token, JWKS and userinfo calls go through a service binding; that binding is optional and only used when present.
 
 ## The author's instance
 
 One-time: the D1 database `nexus-db` and R2 bucket `nexus-files` already exist and are
-referenced in `wrangler.jsonc` (Cloudflare cannot rename them; they keep the project's old
+referenced in `cloudflare.config.ts` (Cloudflare cannot rename them; they keep the project's old
 name). The Worker is `opsec`. The custom domains `opsec.cubityfir.st`, `opsec.nexus`, and the legacy
 `nexus.cubityfir.st` (which redirects) are created from the `routes` entries on first deploy
 (the zone must be on the same Cloudflare account).
 
 ```bash
-npm run deploy:prod        # build with CLOUDFLARE_ENV=prod, apply migrations, deploy
+npm run deploy:prod        # cf build --mode prod, apply migrations, cf deploy --prebuilt --mode prod
 curl https://opsec.cubityfir.st/api/auth/login -o /dev/null -w "%{redirect_url}\n"   # must point at the identity provider
 ```
 
-`npm run deploy` (no `:prod`) deploys the **top-level template**: open access, a fresh `opsec-db`, no
-Annex binding. Because the template and `env.prod` share the Worker name `opsec`, running it against
+`npm run deploy` (no `:prod`) deploys the **default-mode template**: open access, a fresh `opsec-db`, no
+Annex binding. Because the template and mode `prod` share the Worker name `opsec`, running it against
 this account silently switches production to open access and an empty database (sign-in then fails
 with "Internal error"). Only use it on a self-hosted account.
 
@@ -41,10 +41,10 @@ The same trap applies to the dashboard's automatic builds, whose defaults are `n
 | Setting | Value |
 |---|---|
 | Build command | `npm run ci:build` (runs `build:prod`) |
-| Deploy command | `npm run ci:deploy` (applies D1 migrations with `--env prod`, then `npx wrangler deploy`) |
+| Deploy command | `npm run ci:deploy` (applies D1 migrations to `nexus-db` with `cf d1 migrations apply`, then `cf deploy --prebuilt --mode prod`) |
 
-The build emits `dist/opsec/wrangler.json` already flattened to `env.prod`, and `npx wrangler deploy`
-picks it up through `.wrangler/deploy/config.json`. Secrets (`SESSION_SECRET`, `OIDC_CLIENT_SECRET`,
+The build writes `.cloudflare/output` and records mode `prod` in it; the deploy uploads that build and
+refuses one recorded in any other mode, so a template build can never reach this Worker that way. Secrets (`SESSION_SECRET`, `OIDC_CLIENT_SECRET`,
 `AI_API_KEY`) live on the Worker and survive deploys.
 
 ## Schema changes
