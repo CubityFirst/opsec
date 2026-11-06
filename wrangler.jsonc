@@ -1,6 +1,13 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   // ---------------------------------------------------------------------------
+  // NOT what builds or deploys the Worker: that is cloudflare.config.ts (cf), where
+  // env.prod below is the `prod` mode. This file is kept for the tools that only read
+  // Wrangler configuration: the Vitest pool (vitest.config.ts), `npm run types`, and the
+  // template's `npx wrangler d1 migrations apply DB --remote` in `npm run deploy`.
+  // Keep bindings, vars and the compatibility date in step with cloudflare.config.ts.
+  // ---------------------------------------------------------------------------
+  // ---------------------------------------------------------------------------
   // Top level = the generic template used by "Deploy to Cloudflare" and by
   // anyone self-hosting: a workers.dev URL, resources provisioned on first
   // deploy, and OPEN ACCESS (AUTH_MODE "open"). Add your own authentication

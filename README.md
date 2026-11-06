@@ -32,7 +32,7 @@ It runs as a single Cloudflare Worker with D1 for data and R2 for files, and cos
 
 ## Deploy your own
 
-The **Deploy to Cloudflare** button above forks this repository and creates the Worker, a D1 database and an R2 bucket, runs the migrations and deploys it to a `workers.dev` URL. From your own machine instead: clone, `npm install`, `npx wrangler login`, `npm run deploy`.
+The **Deploy to Cloudflare** button above forks this repository and creates the Worker, a D1 database and an R2 bucket, runs the migrations and deploys it to a `workers.dev` URL. From your own machine instead: clone, `npm install`, `npx cf auth login` and `npx wrangler login` (the template still applies its migrations with Wrangler, which looks the new database up by name), `npm run deploy`.
 
 > **A fresh install has no authentication.** `AUTH_MODE` defaults to `open`: every visitor is treated as the owner with admin rights, so an open instance on a public URL is an open address book. Before you put anything real in it, do one of:
 >
@@ -47,7 +47,7 @@ Then open **Account → Ask provider** to point Ask at a model (none is configur
 npm install
 cp .dev.vars.example .dev.vars   # then fill in OIDC_CLIENT_SECRET and a random SESSION_SECRET
 npm run db:migrate:local         # apply migrations to the local D1
-npm run dev                      # Vite + Worker at http://localhost:5173 (local D1/R2 under .wrangler/state)
+npm run dev                      # Vite + Worker at http://localhost:5173 (local D1/R2 under .cloudflare/state)
 npm run seed                     # optional sample data
 ```
 
@@ -57,10 +57,12 @@ For local OIDC sign-in, register `http://localhost:5173/api/auth/callback` with 
 |---|---|
 | `npm test` | API tests in workerd against an isolated D1 + R2 |
 | `npm run typecheck` | Typecheck all projects |
-| `npm run build` | Typecheck and build client + Worker into `dist/` |
+| `npm run build` | Typecheck and build client + Worker into `.cloudflare/output` (`cf build`) |
 | `npm run db:generate` | Generate a SQL migration from `src/worker/db/schema.ts` |
 | `npm run db:migrate:local` / `db:migrate:remote` | Apply migrations to local / production D1 |
 | `npm run types` | Regenerate `worker-configuration.d.ts` after editing `wrangler.jsonc` |
+
+The Worker is configured by `cloudflare.config.ts` ([cf](https://developers.cloudflare.com/cf/)). `wrangler.jsonc` is kept in step for the Vitest pool and `npm run types`, which only read Wrangler configuration.
 
 Stack: Hono on Workers, D1 via Drizzle, R2, React 19 + Vite + Tailwind v4 + shadcn/ui + TanStack Query.
 
