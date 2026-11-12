@@ -65,7 +65,7 @@ export function RelationshipsTab() {
       ) : (
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           {groups.map(([category, items]) => (
-            <Card key={category}>
+            <Card key={category} className="gap-2">
               <CardHeader>
                 <CardTitle className="text-base">{capitalize(category)}</CardTitle>
               </CardHeader>
@@ -108,7 +108,8 @@ function RelationshipRow({ rel, contact }: { rel: RelationshipOut; contact: Cont
               <div className="min-w-0">
                 <div className="flex items-center gap-2">
                   <span className="truncate font-medium hover:underline">{rel.otherContact.displayName}</span>
-                  <KindBadge kind={rel.otherContact.kind} />
+                  {/* The group heading already says pet / organisation where it matters. */}
+                  {rel.otherContact.kind === "organization" && <KindBadge kind={rel.otherContact.kind} />}
                   {rel.otherContact.deceased && <DeceasedBadge />}
                 </div>
                 <div className="truncate text-xs text-muted-foreground">

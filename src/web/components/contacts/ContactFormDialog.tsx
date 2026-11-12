@@ -20,7 +20,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { errorMessage } from "@/lib/api";
 import { observanceLabel } from "@shared/religion";
-import { KIND_LABELS, capitalize, formatBirthday } from "@/lib/format";
+import { KIND_LABELS, METHOD_TYPE_LABELS, formatBirthday } from "@/lib/format";
 import { useCreateContact, useUpdateContact } from "@/lib/queries/contacts";
 import { BirthdayInput } from "./BirthdayInput";
 import { ContactPicker } from "./ContactPicker";
@@ -203,14 +203,14 @@ export function ContactFormDialog({
           </DialogHeader>
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <div className="flex flex-col gap-1.5">
+            <div className="flex flex-col gap-1.5 sm:col-span-2">
               <Label htmlFor="kind">Kind</Label>
               <Controller
                 control={control}
                 name="kind"
                 render={({ field }) => (
                   <Select value={field.value} onValueChange={field.onChange}>
-                    <SelectTrigger id="kind" className="w-full">
+                    <SelectTrigger id="kind" className="w-full sm:w-[calc(50%-0.5rem)]">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -223,10 +223,6 @@ export function ContactFormDialog({
                   </Select>
                 )}
               />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="nickname">Nickname</Label>
-              <Input id="nickname" {...register("nickname")} />
             </div>
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="firstName">{nameLabel}</Label>
@@ -245,6 +241,10 @@ export function ContactFormDialog({
                 <Input id="animalType" placeholder="e.g. Dog, Cockapoo, Tortoise" {...register("animalType")} />
               </div>
             )}
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="nickname">Nickname</Label>
+              <Input id="nickname" {...register("nickname")} />
+            </div>
             <div className="flex min-w-0 flex-col gap-1.5 sm:col-span-2">
               <Label htmlFor="birthday">{kind === "organization" ? "Founded" : "Birthday"}</Label>
               <Controller
@@ -423,7 +423,7 @@ export function ContactFormDialog({
                           <SelectContent>
                             {CONTACT_METHOD_TYPES.map((t) => (
                               <SelectItem key={t} value={t}>
-                                {capitalize(t)}
+                                {METHOD_TYPE_LABELS[t]}
                               </SelectItem>
                             ))}
                           </SelectContent>

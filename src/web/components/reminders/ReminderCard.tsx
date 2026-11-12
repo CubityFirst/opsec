@@ -90,7 +90,7 @@ export function ReminderCard({ reminder, showContact = false, compact = false }:
             <Button
               variant="outline"
               size="icon-sm"
-              className={cn("mt-0.5 shrink-0 rounded-full", due.due && "border-amber-500/60")}
+              className={cn("mt-0.5 shrink-0 rounded-full", due.overdue ? "border-rose-500/60 dark:border-rose-400/60" : due.due && "border-amber-500/60 dark:border-amber-400/60")}
               title={doneLabel}
               aria-label={doneLabel}
               disabled={complete.isPending}
@@ -99,7 +99,7 @@ export function ReminderCard({ reminder, showContact = false, compact = false }:
               <CheckIcon className="size-4 opacity-0 transition-opacity hover:opacity-100" />
             </Button>
           ) : (
-            <span className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400" title="Done" aria-label="Done" role="img">
+            <span className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground" title="Done" aria-label="Done" role="img">
               <CheckIcon className="size-4" />
             </span>
           )}
@@ -112,30 +112,24 @@ export function ReminderCard({ reminder, showContact = false, compact = false }:
                 </span>
               )}
             </div>
-            <div className="flex flex-wrap items-center gap-x-2 text-xs text-muted-foreground">
+            <div className="meta-dots flex flex-wrap items-center text-xs text-muted-foreground">
               {showContact && reminder.contact && (
-                <>
-                  <Link to={`/contacts/${reminder.contact.id}`} className="flex items-center gap-1.5 font-medium text-foreground hover:underline">
-                    <ContactAvatar contact={reminder.contact} className="size-4" /> {reminder.contact.displayName}
-                  </Link>
-                  <span aria-hidden>·</span>
-                </>
+                <Link to={`/contacts/${reminder.contact.id}`} className="flex items-center gap-1.5 font-medium text-foreground hover:underline">
+                  <ContactAvatar contact={reminder.contact} className="size-4" /> {reminder.contact.displayName}
+                </Link>
               )}
               {open ? (
-                <span className={cn("flex items-center gap-1", due.overdue ? "font-medium text-rose-600 dark:text-rose-400" : due.due && "font-medium text-amber-600 dark:text-amber-400")}>
+                <span className={cn("flex items-center gap-1", due.overdue ? "font-medium text-rose-700 dark:text-rose-400" : due.due && "font-medium text-amber-700 dark:text-amber-400")}>
                   <BellIcon className="size-3" /> {formatDate(reminder.dueOn)} ({due.text})
                 </span>
               ) : (
                 <span>done {formatDate(reminder.completedAt)}</span>
               )}
               {repeating && reminder.completedCount > 0 && (
-                <>
-                  <span aria-hidden>·</span>
-                  <span>
-                    done {reminder.completedCount} {reminder.completedCount === 1 ? "time" : "times"}
-                    {reminder.lastCompletedOn ? `, last ${formatDate(reminder.lastCompletedOn)}` : ""}
-                  </span>
-                </>
+                <span>
+                  done {reminder.completedCount} {reminder.completedCount === 1 ? "time" : "times"}
+                  {reminder.lastCompletedOn ? `, last ${formatDate(reminder.lastCompletedOn)}` : ""}
+                </span>
               )}
             </div>
           </div>
@@ -168,7 +162,7 @@ export function ReminderCard({ reminder, showContact = false, compact = false }:
             </DropdownMenu>
           </div>
         </div>
-        {!compact && reminder.notes && <MarkdownBody className="text-sm text-muted-foreground">{reminder.notes}</MarkdownBody>}
+        {!compact && reminder.notes && <MarkdownBody className="pl-10 text-sm text-muted-foreground">{reminder.notes}</MarkdownBody>}
       </CardContent>
 
       <ReminderDialog reminder={reminder} contact={showContact ? undefined : (reminder.contact ?? undefined)} open={editOpen} onOpenChange={setEditOpen} />

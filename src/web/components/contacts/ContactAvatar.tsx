@@ -1,3 +1,4 @@
+import { PawPrintIcon } from "lucide-react";
 import type { ContactRef } from "@shared/types";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { initials } from "@/lib/format";
@@ -13,7 +14,7 @@ export function ContactAvatar({
   return (
     <Avatar className={cn("size-8", className)}>
       {contact.avatarUrl && <AvatarImage src={contact.avatarUrl} alt={contact.displayName} className="object-cover" />}
-      <AvatarFallback className="text-[0.7em] font-medium uppercase">{contact.kind === "pet" ? "🐾" : initials(contact.displayName)}</AvatarFallback>
+      <AvatarFallback className="text-[0.7em] font-medium uppercase">{contact.kind === "pet" ? <PawPrintIcon className="size-[1.1em]" aria-hidden /> : initials(contact.displayName)}</AvatarFallback>
     </Avatar>
   );
 }

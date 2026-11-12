@@ -89,26 +89,34 @@ export function ApiTokensCard() {
         {tokens.data && tokens.data.length > 0 && (
           <ul className="flex flex-col divide-y rounded-md border text-sm">
             {tokens.data.map((t) => (
-              <li key={t.id} className="flex items-start gap-3 px-3 py-2.5">
-                <span className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary" aria-hidden>
-                  <KeyRoundIcon className="size-4" />
-                </span>
-                <div className="min-w-0 flex-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="truncate font-medium">{t.name}</span>
-                    <Badge variant={t.scope === "write" ? "default" : "secondary"}>{SCOPE_LABELS[t.scope]}</Badge>
+              <li key={t.id} className="flex flex-col gap-3 p-3">
+                <div className="flex items-start gap-3">
+                  <span className="mt-0.5 hidden size-8 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground sm:flex" aria-hidden>
+                    <KeyRoundIcon className="size-4" />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex min-w-0 items-center gap-2">
+                      <span className="truncate font-medium">{t.name}</span>
+                      <Badge variant="outline" className="shrink-0 text-muted-foreground">
+                        {SCOPE_LABELS[t.scope]}
+                      </Badge>
+                    </div>
+                    <div className="meta-dots flex flex-wrap text-xs text-muted-foreground">
+                      <code className="font-mono">{t.prefix}…</code>
+                      <span className="whitespace-nowrap">Created {formatRelative(t.createdAt)}</span>
+                      <span className="whitespace-nowrap">{t.lastUsedAt ? `last used ${formatRelative(t.lastUsedAt)}` : "never used"}</span>
+                    </div>
                   </div>
-                  <div className="flex flex-wrap items-center gap-x-2 text-xs text-muted-foreground">
-                    <code className="font-mono">{t.prefix}…</code>
-                    <span aria-hidden>·</span>
-                    <span>created {formatRelative(t.createdAt)}</span>
-                    <span aria-hidden>·</span>
-                    <span>{t.lastUsedAt ? `last used ${formatRelative(t.lastUsedAt)}` : "never used"}</span>
-                  </div>
+                  {confirming !== t.id && (
+                    <Button type="button" size="icon-sm" variant="ghost" className="-mr-1 shrink-0 text-muted-foreground" aria-label={`Revoke ${t.name}`} title="Revoke" onClick={() => setConfirming(t.id)}>
+                      <Trash2Icon />
+                    </Button>
+                  )}
                 </div>
-                <div className="flex shrink-0 items-center gap-1">
-                  {confirming === t.id ? (
-                    <>
+                {confirming === t.id && (
+                  <div className="flex flex-col gap-2 rounded-md border border-destructive/40 p-2.5 sm:ml-11 sm:flex-row sm:items-center">
+                    <p className="flex-1 text-xs text-muted-foreground">Revoke this token? Anything using it stops working at once.</p>
+                    <div className="flex gap-2">
                       <Button
                         type="button"
                         size="sm"
@@ -124,18 +132,14 @@ export function ApiTokensCard() {
                           })
                         }
                       >
-                        Confirm revoke
+                        Revoke token
                       </Button>
                       <Button type="button" size="sm" variant="ghost" onClick={() => setConfirming(null)}>
                         Cancel
                       </Button>
-                    </>
-                  ) : (
-                    <Button type="button" size="sm" variant="ghost" aria-label={`Revoke ${t.name}`} onClick={() => setConfirming(t.id)}>
-                      <Trash2Icon /> Revoke
-                    </Button>
-                  )}
-                </div>
+                    </div>
+                  </div>
+                )}
               </li>
             ))}
           </ul>
@@ -143,20 +147,20 @@ export function ApiTokensCard() {
         {tokens.data && tokens.data.length === 0 && !created && <p className="text-sm text-muted-foreground">No tokens yet.</p>}
 
         <form
-          className="flex flex-wrap items-end gap-2"
+          className="grid gap-3 sm:grid-cols-[1fr_auto_auto] sm:items-end sm:gap-2"
           onSubmit={(e) => {
             e.preventDefault();
             if (name.trim()) onCreate();
           }}
         >
-          <div className="grid min-w-48 flex-1 gap-1.5">
+          <div className="grid content-start gap-1.5">
             <Label htmlFor="token-name">Name</Label>
-            <Input id="token-name" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Claude Code on laptop" maxLength={60} />
+            <Input id="token-name" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Claude on laptop" maxLength={60} />
           </div>
-          <div className="grid gap-1.5">
+          <div className="grid content-start gap-1.5">
             <Label htmlFor="token-scope">Scope</Label>
             <Select value={scope} onValueChange={(v) => setScope(v as ApiTokenScope)}>
-              <SelectTrigger id="token-scope" className="w-44">
+              <SelectTrigger id="token-scope" className="w-full sm:w-40">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -168,7 +172,7 @@ export function ApiTokensCard() {
               </SelectContent>
             </Select>
           </div>
-          <Button type="submit" size="sm" disabled={!name.trim() || create.isPending}>
+          <Button type="submit" disabled={!name.trim() || create.isPending}>
             <PlusIcon /> Create token
           </Button>
         </form>

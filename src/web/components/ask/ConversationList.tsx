@@ -80,13 +80,13 @@ export function ConversationList({
                   <div
                     key={c.id}
                     className={cn(
-                      "group flex items-center rounded-md text-sm hover:bg-accent hover:text-accent-foreground",
+                      "group flex items-start rounded-md text-sm hover:bg-accent hover:text-accent-foreground",
                       c.id === currentId && "bg-accent font-medium text-accent-foreground",
                     )}
                   >
                     <button
                       type="button"
-                      className="min-w-0 flex-1 truncate px-2 py-1.5 text-left"
+                      className="line-clamp-2 min-w-0 flex-1 px-2 py-1.5 text-left leading-snug [overflow-wrap:anywhere]"
                       title={`${c.title}\n${formatDateTime(c.updatedAt)}`}
                       aria-current={c.id === currentId ? "page" : undefined}
                       onClick={() => onOpen(c.id)}

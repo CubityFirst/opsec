@@ -24,6 +24,7 @@ import { errorMessage } from "@/lib/api";
 import { useAuthUser } from "@/lib/queries/auth";
 import { useCreateTag, useDeleteTag, useTags, useUpdateTag } from "@/lib/queries/tags";
 import { ErrorState } from "./ContactsPage";
+import { PageHeader } from "@/components/layout/PageHeader";
 
 const SWATCHES = ["#ef4444", "#f97316", "#eab308", "#22c55e", "#14b8a6", "#3b82f6", "#8b5cf6", "#ec4899", "#64748b"];
 
@@ -47,16 +48,17 @@ export function TagsPage() {
   };
 
   return (
-    <div className="flex flex-col gap-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Tags</h1>
-          <p className="text-sm text-muted-foreground">Group contacts however you like: family, book club, ex-colleagues.</p>
-        </div>
-        <Button onClick={() => setEditing({ open: true })}>
-          <PlusIcon /> New tag
-        </Button>
-      </div>
+    // Two short columns: the whole page (header and table) keeps a narrower width.
+    <div className="flex max-w-2xl flex-col gap-6">
+      <PageHeader
+        title="Tags"
+        description="Group contacts however you like: family, book club, ex-colleagues."
+        actions={
+          <Button onClick={() => setEditing({ open: true })}>
+            <PlusIcon /> New tag
+          </Button>
+        }
+      />
 
       {query.isError ? (
         <ErrorState message={errorMessage(query.error)} onRetry={() => query.refetch()} />

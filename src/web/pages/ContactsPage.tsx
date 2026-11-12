@@ -1,6 +1,6 @@
 import { MentionText } from "@/components/MentionText";
 import { plainMentions } from "@shared/mentions";
-import { ArchiveIcon, CheckIcon, ChevronLeftIcon, ChevronRightIcon, Columns3Icon, PlusIcon, RotateCcwIcon, SearchIcon } from "lucide-react";
+import { ArchiveIcon, ArrowDownUpIcon, CheckIcon, ChevronLeftIcon, ChevronRightIcon, Columns3Icon, PlusIcon, RotateCcwIcon, SearchIcon } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { Link, useLocation, useNavigate, useSearchParams } from "react-router";
 import type { ContactKind } from "@shared/schemas/common";
@@ -36,6 +36,7 @@ import { useAuthUser, useUpdatePreferences } from "@/lib/queries/auth";
 import { useContacts } from "@/lib/queries/contacts";
 import { useTags } from "@/lib/queries/tags";
 import { useDebounce } from "@/lib/useDebounce";
+import { PageHeader } from "@/components/layout/PageHeader";
 
 const PAGE = 50;
 const ALL = "__all__";
@@ -121,23 +122,24 @@ export function ContactsPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Contacts</h1>
-          <p className="text-sm text-muted-foreground">{query.data ? `${total} ${total === 1 ? "contact" : "contacts"}` : " "}</p>
-        </div>
-        <Button onClick={() => navigate({ pathname: "/contacts/new", search: location.search })}>
-          <PlusIcon /> New contact
-        </Button>
-      </div>
+      <PageHeader
+        title="Contacts"
+        description={query.data ? `${total} ${total === 1 ? "contact" : "contacts"}` : " "}
+        actions={
+          <Button onClick={() => navigate({ pathname: "/contacts/new", search: location.search })}>
+            <PlusIcon /> New contact
+          </Button>
+        }
+      />
 
-      <div className="flex flex-wrap items-end gap-3">
-        <div className="relative min-w-56 flex-1">
+      {/* Phone: search, then the filters two by two. Tablet: search, then one row of filters. Wide: all on one line. */}
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.5fr)_minmax(0,1fr)_auto] xl:flex xl:items-end xl:gap-3">
+        <div className="relative col-span-2 min-w-56 flex-1 sm:col-span-full">
           <SearchIcon className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
-          <Input className="pl-8" placeholder="Search any name, nickname, phone, email, tag…" value={search} onChange={(e) => setSearch(e.target.value)} />
+          <Input className="pl-8" placeholder="Search names, phones, emails, tags…" value={search} onChange={(e) => setSearch(e.target.value)} />
         </div>
         <Select value={kind ?? ALL} onValueChange={(v) => setParam("kind", v)}>
-          <SelectTrigger className="w-36" aria-label="Kind">
+          <SelectTrigger className="w-full xl:w-36" aria-label="Kind">
             <SelectValue placeholder="All kinds" />
           </SelectTrigger>
           <SelectContent>
@@ -150,7 +152,7 @@ export function ContactsPage() {
           </SelectContent>
         </Select>
         <Select value={tag ?? ALL} onValueChange={(v) => setParam("tag", v)}>
-          <SelectTrigger className="w-40" aria-label="Tag">
+          <SelectTrigger className="w-full xl:w-40" aria-label="Tag">
             <SelectValue placeholder="Any tag" />
           </SelectTrigger>
           <SelectContent>
@@ -163,17 +165,20 @@ export function ContactsPage() {
           </SelectContent>
         </Select>
         <Select value={sort} onValueChange={(v) => setParam("sort", v === "name" ? undefined : v)}>
-          <SelectTrigger className="w-40" aria-label="Sort">
-            <SelectValue />
+          <SelectTrigger className="w-full justify-start xl:w-44 [&>svg:last-child]:ml-auto" aria-label="Sort">
+            <ArrowDownUpIcon className="text-muted-foreground" />
+            <span className="min-w-0 truncate">
+              <SelectValue />
+            </span>
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="name">Sort: name</SelectItem>
-            <SelectItem value="lastContacted">Sort: last spoke</SelectItem>
-            <SelectItem value="updated">Sort: recently updated</SelectItem>
+            <SelectItem value="name">Name</SelectItem>
+            <SelectItem value="lastContacted">Last spoke</SelectItem>
+            <SelectItem value="updated">Recently updated</SelectItem>
           </SelectContent>
         </Select>
         <Select value={status} onValueChange={(v) => setParam("status", v === "active" ? undefined : v)}>
-          <SelectTrigger className="w-36" aria-label="Status">
+          <SelectTrigger className="w-full xl:w-36" aria-label="Status">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -186,7 +191,10 @@ export function ContactsPage() {
             <SelectItem value="deceased">† Deceased</SelectItem>
           </SelectContent>
         </Select>
-        <ColumnsMenu columns={columns} onChange={(next) => updatePreferences.mutate({ contactColumns: orderedColumns(next) })} />
+        {/* On a phone the table is down to names and the last word, so there are no columns to pick. */}
+        <div className="hidden sm:block">
+          <ColumnsMenu columns={columns} onChange={(next) => updatePreferences.mutate({ contactColumns: orderedColumns(next) })} />
+        </div>
       </div>
 
       {selected.size > 0 && (
@@ -205,11 +213,18 @@ export function ContactsPage() {
       ) : query.data.items.length === 0 ? (
         <EmptyState hasFilters={!!(q || kind || tag || archived || deceased)} />
       ) : (
-        <div className="overflow-x-auto rounded-xl border">
-          <Table>
+        // A size container: columns appear as the table itself gets wider (the sidebar
+        // makes the screen width a poor guide), and a narrow table uses a fixed layout
+        // so long names truncate instead of pushing the row wider than the screen.
+        <div className="@container overflow-x-auto rounded-xl border">
+          <Table className="table-fixed @md:table-auto">
             <TableHeader>
               <TableRow>
-                <TableHead className="w-[40%]">Name</TableHead>
+                <TableHead className="@md:w-[40%]">
+                  Name
+                  {/* A narrow table folds Last spoke into the name row; say what the right-hand times are. */}
+                  {columns.includes("lastSpoke") && <span className="float-right font-normal text-muted-foreground @md:hidden">Last spoke</span>}
+                </TableHead>
                 {columns.map((c) => (
                   <TableHead key={c} className={COLUMN_CLASS[c]}>
                     {CONTACT_COLUMN_LABELS[c]}
@@ -251,15 +266,15 @@ export function ContactsPage() {
   );
 }
 
-/** Breakpoints below which a column is not worth the width, whatever the preference says. */
+/** Table widths (container queries on the table, not the screen) below which a column is not worth the room, whatever the preference says. */
 const COLUMN_CLASS: Record<ContactColumn, string> = {
-  country: "hidden sm:table-cell",
-  tags: "hidden md:table-cell",
-  contact: "hidden lg:table-cell",
-  lastSpoke: "",
-  birthday: "hidden md:table-cell",
-  job: "hidden lg:table-cell",
-  added: "hidden lg:table-cell",
+  lastSpoke: "hidden @md:table-cell",
+  country: "hidden @2xl:table-cell",
+  tags: "hidden @3xl:table-cell",
+  birthday: "hidden @4xl:table-cell",
+  contact: "hidden @5xl:table-cell",
+  job: "hidden @5xl:table-cell",
+  added: "hidden @5xl:table-cell",
 };
 
 /** Picks the optional columns of the table; the choice is saved on the user, not in this browser. */
@@ -269,8 +284,8 @@ function ColumnsMenu({ columns, onChange }: { columns: ContactColumn[]; onChange
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="outline">
-          <Columns3Icon /> Columns
+        <Button variant="outline" aria-label="Columns" title="Columns">
+          <Columns3Icon /> <span className="hidden xl:inline">Columns</span>
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-52">
@@ -338,10 +353,11 @@ function ContactRow({
             </span>
           </button>
           <Link to={`/contacts/${contact.id}`} className="min-w-0 flex-1">
-            <div className="flex items-center gap-2">
-              <span className="truncate font-medium">{contact.displayName}</span>
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+              <span className="font-medium [overflow-wrap:anywhere]">{contact.displayName}</span>
               {!shows("country") && <CountryFlag country={contact.originCountry} className="shrink-0 text-base" />}
-              <KindBadge kind={contact.kind} />
+              {/* People are the default; only the other kinds are worth a badge. */}
+              {contact.kind !== "person" && <KindBadge kind={contact.kind} />}
               {contact.deceasedAt && <DeceasedBadge on={contact.deceasedOn} />}
               {contact.archivedAt && (
                 <span className="text-xs text-muted-foreground">
@@ -361,10 +377,15 @@ function ContactRow({
               return meta.length > 0 ? <div className="truncate text-xs text-muted-foreground">{meta.join(" · ")}</div> : null;
             })()}
           </Link>
+          {shows("lastSpoke") && (
+            // A narrow table drops the Last spoke column; the age of the last word still fits beside the name.
+            <span className="shrink-0 text-xs text-muted-foreground @md:hidden">{last ? formatRelative(last.occurredAt) : "No data"}</span>
+          )}
         </div>
       </TableCell>
       {columns.map((c) => (
-        <TableCell key={c} className={cn(COLUMN_CLASS[c], c !== "lastSpoke" && "text-sm text-muted-foreground")}>
+        // Last spoke takes a share of the width and truncates its summary (max-w-0 is the table-cell way to let it).
+        <TableCell key={c} className={cn(COLUMN_CLASS[c], c === "lastSpoke" ? "w-[30%] max-w-0" : "text-sm text-muted-foreground")}>
           {c === "tags" && (
             <div className="flex flex-wrap gap-1">
               {contact.tags.map((t) => (

@@ -26,7 +26,7 @@ export function BirthdayInput({
   const update = (patch: Partial<typeof parts>) => onChange(composeBirthday({ ...parts, ...patch }));
 
   return (
-    <div className="grid min-w-0 grid-cols-[minmax(3.5rem,4.5rem)_minmax(0,1fr)_minmax(4rem,5.5rem)_auto] gap-2">
+    <div className="grid min-w-0 grid-cols-[minmax(3.5rem,4.5rem)_minmax(0,1.5fr)_minmax(4rem,1fr)_auto] gap-2">
       <Input
         id={id}
         type="number"

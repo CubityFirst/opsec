@@ -1,11 +1,11 @@
-import { MentionText } from "@/components/MentionText";
+import { plainMentions } from "@shared/mentions";
 import { ArrowLeftIcon } from "lucide-react";
-import { Link, useNavigate, useParams } from "react-router";
+import { useNavigate, useParams } from "react-router";
 import { InteractionCard } from "@/components/interactions/InteractionCard";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ApiError, errorMessage } from "@/lib/api";
-import { INTERACTION_LABELS, formatDateTime } from "@/lib/format";
+import { INTERACTION_LABELS } from "@/lib/format";
 import { useInteraction } from "@/lib/queries/interactions";
 import { ErrorState } from "./ContactsPage";
 
@@ -19,33 +19,19 @@ export function InteractionPage() {
     const notFound = query.error instanceof ApiError && query.error.status === 404;
     return <ErrorState message={notFound ? "This interaction no longer exists." : errorMessage(query.error)} onRetry={notFound ? undefined : () => query.refetch()} />;
   }
-  if (query.isPending) return <Skeleton className="h-40 w-full max-w-3xl" />;
+  if (query.isPending) return <Skeleton className="h-40 w-full" />;
 
   const i = query.data;
   return (
     <div className="flex max-w-3xl flex-col gap-4">
-      <div className="flex items-center gap-2">
-        <Button variant="ghost" size="sm" onClick={() => (window.history.length > 1 ? navigate(-1) : navigate("/"))}>
-          <ArrowLeftIcon /> Back
-        </Button>
-      </div>
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">
-          <MentionText text={i.summary} />
-        </h1>
-        <p className="text-sm text-muted-foreground">
-          {INTERACTION_LABELS[i.type]} · {formatDateTime(i.occurredAt)} · with{" "}
-          {i.participants.map((p, idx) => (
-            <span key={p.id}>
-              {idx > 0 && ", "}
-              <Link to={`/contacts/${p.id}`} className="font-medium text-foreground hover:underline">
-                {p.displayName}
-              </Link>
-            </span>
-          ))}
-        </p>
-      </div>
-      <InteractionCard interaction={i} currentContactId="" />
+      <Button variant="ghost" size="sm" className="-ml-2.5 self-start" onClick={() => (window.history.length > 1 ? navigate(-1) : navigate("/"))}>
+        <ArrowLeftIcon /> Back
+      </Button>
+      {/* The card says it all (type, date, title, people); the heading is for the document outline. */}
+      <h1 className="sr-only">
+        {INTERACTION_LABELS[i.type]}: {plainMentions(i.summary)}
+      </h1>
+      <InteractionCard interaction={i} currentContactId="" fullDate />
     </div>
   );
 }

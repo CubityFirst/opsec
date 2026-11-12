@@ -109,12 +109,31 @@
     --chart-5: oklch(0.269 0 0);
     --sidebar: oklch(0.205 0 0);
     --sidebar-foreground: oklch(0.985 0 0);
-    --sidebar-primary: oklch(0.488 0.243 264.376);
-    --sidebar-primary-foreground: oklch(0.985 0 0);
+    --sidebar-primary: oklch(0.922 0 0);
+    --sidebar-primary-foreground: oklch(0.205 0 0);
     --sidebar-accent: oklch(0.269 0 0);
     --sidebar-accent-foreground: oklch(0.985 0 0);
     --sidebar-border: oklch(1 0 0 / 10%);
     --sidebar-ring: oklch(0.556 0 0);
+}
+
+/* A wrapping row of meta items separated by middots: the dot belongs to the item
+   after it, so a line never ends on a dangling dot. */
+@utility meta-dots {
+  column-gap: 0.6rem;
+  overflow-x: clip;
+  overflow-clip-margin: 0;
+  & > * {
+    position: relative;
+  }
+  & > * + *::before {
+    content: "\00b7";
+    content: "\00b7" / "";
+    position: absolute;
+    inset-inline-start: -0.4rem;
+    color: var(--muted-foreground);
+    font-weight: 400;
+  }
 }
 
 @layer base {

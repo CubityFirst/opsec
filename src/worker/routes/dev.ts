@@ -49,7 +49,7 @@ app.post("/dev/seed", async (c) => {
     methods: [
       { type: "phone", label: "mobile", value: "+44 7700 900123", isPrimary: true },
       { type: "email", label: "personal", value: "alice@example.com", isPrimary: true },
-      { type: "address", label: "home", value: JSON.stringify({ line1: "12 Elm Street", city: "Bristol", postcode: "BS1 4DJ", country: "UK" }) },
+      { type: "address", label: "home", value: "12 Elm Street, Bristol BS1 4DJ", coordinates: { lat: 51.4545, lng: -2.5879 } },
     ],
     tagNames: ["friend", "climbing"],
   });

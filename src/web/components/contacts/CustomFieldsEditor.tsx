@@ -83,7 +83,7 @@ export function CustomFieldsEditor({ contact }: { contact: ContactDetail }) {
             </Button>
           </div>
         ) : entries.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No custom fields. Use these for anything the standard fields miss: shoe size, favourite wine, allergies…</p>
+          <p className="text-sm text-muted-foreground">No custom fields yet: anything the standard fields miss{contact.kind === "person" ? ", like shoe size or allergies" : contact.kind === "pet" ? ", like breed or microchip number" : ", like company number or opening hours"}.</p>
         ) : (
           <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm">
             {entries.map(([k, v]) => (

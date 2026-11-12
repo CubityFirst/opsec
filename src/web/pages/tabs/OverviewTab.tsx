@@ -1,5 +1,5 @@
 import { MentionText } from "@/components/MentionText";
-import { CakeIcon, CompassIcon, GlobeIcon, HandshakeIcon, MessageSquarePlusIcon, PencilIcon, PlusIcon, StarIcon, Trash2Icon } from "lucide-react";
+import { CakeIcon, CalendarIcon, CalendarPlusIcon, CompassIcon, HistoryIcon, GlobeIcon, HandshakeIcon, MessageSquarePlusIcon, PencilIcon, PlusIcon, StarIcon, Trash2Icon } from "lucide-react";
 import { useState } from "react";
 import { MarkdownBody } from "@/components/MarkdownBody";
 import { Link, useOutletContext } from "react-router";
@@ -28,7 +28,7 @@ import { useLifeEvents } from "@/lib/queries/life-events";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { errorMessage } from "@/lib/api";
-import { INTERACTION_LABELS, capitalize, formatDate, formatRelative, formatBirthday } from "@/lib/format";
+import { INTERACTION_LABELS, METHOD_TYPE_LABELS, formatDate, formatRelative, formatBirthday } from "@/lib/format";
 import { describeSocial } from "@shared/social";
 import { SocialIcon } from "@/components/contacts/SocialIcon";
 import { useDeleteMethod } from "@/lib/queries/methods";
@@ -92,46 +92,50 @@ export function OverviewTab() {
   const last = contact.lastInteraction;
 
   return (
-    <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1.4fr_1fr]">
-      <div className="flex flex-col gap-6">
-        <Card>
+    // Below lg both columns dissolve into one list ordered by what matters on a
+    // phone (when you last spoke, how to reach them, who they are); above lg the
+    // two columns come back with the summary cards on the right.
+    <div className="flex flex-col gap-6 lg:grid lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] lg:items-start">
+      <div className="contents lg:flex lg:flex-col lg:gap-6">
+        <Card className="order-2 lg:order-none">
           <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle className="text-base">Phone &amp; email</CardTitle>
+            <CardTitle className="text-base">{contact.kind === "person" ? "Phone & email" : "Contact details"}</CardTitle>
             <Button variant="outline" size="sm" onClick={() => setMethodDialog({ open: true, initialType: "phone" })}>
               <PlusIcon /> Add
             </Button>
           </CardHeader>
           <CardContent>
             {details.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No phone or email yet.</p>
+              <p className="text-sm text-muted-foreground">Nothing yet.</p>
             ) : (
               <ul className="divide-y">
                 {details.map((m) => {
                   const href = methodHref(m);
                   return (
-                    <li key={m.id} className="flex items-center gap-3 py-2">
-                      <span className="flex w-3.5 shrink-0 items-center justify-center" aria-hidden={!m.isPrimary}>
-                        {m.isPrimary && <StarIcon className="size-3.5 fill-amber-400 text-amber-400" aria-label="Primary" />}
-                      </span>
-                      <div className="w-20 shrink-0 text-xs text-muted-foreground">
-                        {capitalize(m.type)}
-                        {m.label && <div className="truncate">{m.label}</div>}
+                    <li key={m.id} className="flex items-center gap-3 py-2.5 first:pt-0 last:pb-0">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                          <span className="truncate">{[METHOD_TYPE_LABELS[m.type], m.label && m.label.toLowerCase() !== METHOD_TYPE_LABELS[m.type].toLowerCase() ? m.label : null].filter(Boolean).join(" · ")}</span>
+                          {m.isPrimary && <StarIcon className="size-3 shrink-0 fill-current" aria-label="Primary" />}
+                        </div>
+                        <div className="text-sm whitespace-pre-line [overflow-wrap:anywhere]">
+                          {href ? (
+                            <a href={href} target={m.type === "url" ? "_blank" : undefined} rel="noreferrer" className="hover:underline">
+                              {m.value}
+                            </a>
+                          ) : (
+                            m.value
+                          )}
+                        </div>
                       </div>
-                      <div className="min-w-0 flex-1 text-sm whitespace-pre-line">
-                        {href ? (
-                          <a href={href} target={m.type === "url" ? "_blank" : undefined} rel="noreferrer" className="hover:underline">
-                            {m.value}
-                          </a>
-                        ) : (
-                          m.value
-                        )}
+                      <div className="-mr-1.5 flex shrink-0 items-center">
+                        <Button variant="ghost" size="icon-sm" aria-label="Edit" title="Edit" onClick={() => setMethodDialog({ open: true, method: m })}>
+                          <PencilIcon />
+                        </Button>
+                        <Button variant="ghost" size="icon-sm" aria-label="Remove" title="Remove" onClick={() => void onDeleteMethod(m)}>
+                          <Trash2Icon />
+                        </Button>
                       </div>
-                      <Button variant="ghost" size="icon-sm" aria-label="Edit" onClick={() => setMethodDialog({ open: true, method: m })}>
-                        <PencilIcon />
-                      </Button>
-                      <Button variant="ghost" size="icon-sm" aria-label="Remove" onClick={() => void onDeleteMethod(m)}>
-                        <Trash2Icon />
-                      </Button>
                     </li>
                   );
                 })}
@@ -140,7 +144,7 @@ export function OverviewTab() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="order-4 lg:order-none">
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="text-base">Social</CardTitle>
             <Button variant="outline" size="sm" onClick={() => setMethodDialog({ open: true, initialType: "social" })}>
@@ -149,13 +153,13 @@ export function OverviewTab() {
           </CardHeader>
           <CardContent>
             {socials.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No social profiles yet. Paste a profile URL to add one.</p>
+              <p className="text-sm text-muted-foreground">No profiles yet. Paste a profile URL to add one.</p>
             ) : (
               <ul className="divide-y">
                 {socials.map((m) => {
                   const s = describeSocial(m.label, m.value);
                   return (
-                    <li key={m.id} className="group flex items-center gap-3 py-2">
+                    <li key={m.id} className="group flex items-center gap-3 py-2.5 first:pt-0 last:pb-0">
                       <SocialIcon platformKey={s.platform.key} className="size-5 shrink-0" brand />
                       <div className="min-w-0 flex-1">
                         <div className="text-xs text-muted-foreground">{s.platform.name}</div>
@@ -167,12 +171,14 @@ export function OverviewTab() {
                           <div className="truncate text-sm">{s.handle}</div>
                         )}
                       </div>
-                      <Button variant="ghost" size="icon-sm" aria-label="Edit" onClick={() => setMethodDialog({ open: true, method: m })}>
-                        <PencilIcon />
-                      </Button>
-                      <Button variant="ghost" size="icon-sm" aria-label="Remove" onClick={() => void onDeleteMethod(m)}>
-                        <Trash2Icon />
-                      </Button>
+                      <div className="-mr-1.5 flex shrink-0 items-center">
+                        <Button variant="ghost" size="icon-sm" aria-label="Edit" title="Edit" onClick={() => setMethodDialog({ open: true, method: m })}>
+                          <PencilIcon />
+                        </Button>
+                        <Button variant="ghost" size="icon-sm" aria-label="Remove" title="Remove" onClick={() => void onDeleteMethod(m)}>
+                          <Trash2Icon />
+                        </Button>
+                      </div>
                     </li>
                   );
                 })}
@@ -181,7 +187,7 @@ export function OverviewTab() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="order-7 lg:order-none">
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="text-base">Life events</CardTitle>
             <Button variant="outline" size="sm" onClick={() => setLifeOpen(true)}>
@@ -192,7 +198,7 @@ export function OverviewTab() {
             {lifeEvents.isPending ? (
               <p className="text-sm text-muted-foreground">Loading…</p>
             ) : (lifeEvents.data?.items.length ?? 0) === 0 ? (
-              <p className="text-sm text-muted-foreground">No life events yet: work &amp; education, family &amp; relationships, home &amp; living, health &amp; wellness, travel &amp; experiences.</p>
+              <p className="text-sm text-muted-foreground">{contact.kind === "person" ? "No life events yet: jobs, moves, weddings, trips." : contact.kind === "pet" ? "No life events yet: adoption, moves, vet milestones." : "No life events yet: founding, moves, mergers."}</p>
             ) : (
               <div className="flex flex-col gap-2">
                 {lifeEvents.data!.items.slice(0, 5).map((l) => (
@@ -206,44 +212,8 @@ export function OverviewTab() {
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle className="text-base">
-              Reminders
-              {reminders.data && reminderItems.length > 0 && (
-                <span className="ml-2 text-xs font-normal text-muted-foreground">
-                  {openReminders.length} open · {doneReminders.length} done
-                </span>
-              )}
-            </CardTitle>
-            <Button variant="outline" size="sm" onClick={() => setReminderOpen(true)}>
-              <PlusIcon /> Set a reminder
-            </Button>
-          </CardHeader>
-          <CardContent>
-            {reminders.isPending ? (
-              <p className="text-sm text-muted-foreground">Loading…</p>
-            ) : reminderItems.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No reminders about {contact.displayName}. Set one for a call to make, a date to remember, or something that comes round every month.</p>
-            ) : (
-              <div className="flex flex-col gap-2">
-                {openReminders.map((r) => (
-                  <ReminderCard key={r.id} reminder={r} compact />
-                ))}
-                {(allDoneReminders ? doneReminders : doneReminders.slice(0, 2)).map((r) => (
-                  <ReminderCard key={r.id} reminder={r} compact />
-                ))}
-                {doneReminders.length > 2 && (
-                  <button type="button" className="self-start text-xs text-muted-foreground underline" onClick={() => setAllDoneReminders((v) => !v)}>
-                    {allDoneReminders ? "Show fewer" : `Show ${doneReminders.length - 2} more done`}
-                  </button>
-                )}
-              </div>
-            )}
-          </CardContent>
-        </Card>
 
-        <Card>
+        <Card className="order-8 lg:order-none">
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="text-base">
               Gifts
@@ -257,7 +227,7 @@ export function OverviewTab() {
             {gifts.isPending ? (
               <p className="text-sm text-muted-foreground">Loading…</p>
             ) : giftItems.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No gifts with {contact.displayName} yet. Jot down ideas for later, and record what you have given and received.</p>
+              <p className="text-sm text-muted-foreground">No gifts yet: ideas for later, and what changed hands.</p>
             ) : (
               <div className="flex flex-col gap-2">
                 {giftIdeas.map((g) => (
@@ -277,21 +247,21 @@ export function OverviewTab() {
         </Card>
 
         {contact.kind !== "pet" && (
-          <Card>
+          <Card className="order-9 lg:order-none">
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle className="text-base">
                 Bets
                 {bets.data && betItems.length > 0 && <span className="ml-2 text-xs font-normal text-muted-foreground">{describeRecord(bets.data.record)}</span>}
               </CardTitle>
               <Button variant="outline" size="sm" onClick={() => setBetOpen(true)}>
-                <PlusIcon /> Make a bet
+                <PlusIcon /> Add
               </Button>
             </CardHeader>
             <CardContent>
               {bets.isPending ? (
                 <p className="text-sm text-muted-foreground">Loading…</p>
               ) : betItems.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No bets with {contact.displayName} yet. Write down a prediction, a wager and the day you will know who was right.</p>
+                <p className="text-sm text-muted-foreground">No bets yet: a prediction, a wager and the day you will know.</p>
               ) : (
                 <div className="flex flex-col gap-2">
                   {openBets.map((b) => (
@@ -311,7 +281,7 @@ export function OverviewTab() {
           </Card>
         )}
 
-        <Card>
+        <Card className="order-10 lg:order-none">
           <CardHeader>
             <CardTitle className="text-base">Notes</CardTitle>
           </CardHeader>
@@ -319,18 +289,20 @@ export function OverviewTab() {
             {contact.notes ? (
               <MarkdownBody className="prose prose-sm max-w-none text-foreground dark:prose-invert [&_h1]:text-lg [&_h2]:text-base [&_p]:mb-2">{contact.notes}</MarkdownBody>
             ) : (
-              <p className="text-sm text-muted-foreground">No notes. Use Edit to add some (markdown works).</p>
+              <p className="text-sm text-muted-foreground">No notes yet. Use Edit to add some (markdown works).</p>
             )}
           </CardContent>
         </Card>
 
-        <CustomFieldsEditor contact={contact} />
+        <div className="order-11 lg:order-none">
+          <CustomFieldsEditor contact={contact} />
+        </div>
       </div>
 
-      <div className="flex flex-col gap-6">
-        <Card>
+      <div className="contents lg:flex lg:flex-col lg:gap-6">
+        <Card className="order-1 lg:order-none">
           <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle className="text-base">Last spoke</CardTitle>
+            <CardTitle className="text-base">{contact.kind === "person" ? "Last spoke" : "Last interaction"}</CardTitle>
             <Button size="sm" onClick={() => setLogOpen(true)}>
               <MessageSquarePlusIcon /> Log interaction
             </Button>
@@ -352,14 +324,14 @@ export function OverviewTab() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="order-3 lg:order-none">
           <CardHeader>
             <CardTitle className="text-base">About</CardTitle>
           </CardHeader>
           <CardContent>
             <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-sm">
               <dt className="flex items-center gap-1 text-muted-foreground">
-                <CakeIcon className="size-3.5" /> {contact.kind === "organization" ? "Founded" : "Birthday"}
+                {contact.kind === "organization" ? <CalendarIcon className="size-3.5" /> : <CakeIcon className="size-3.5" />} {contact.kind === "organization" ? "Founded" : "Birthday"}
               </dt>
               <dd>
                 {contact.birthday ? (
@@ -433,9 +405,13 @@ export function OverviewTab() {
                   </div>
                 )}
               </dd>
-              <dt className="text-muted-foreground">Added</dt>
+              <dt className="flex items-center gap-1 text-muted-foreground">
+                <CalendarPlusIcon className="size-3.5" /> Added
+              </dt>
               <dd>{formatDate(contact.createdAt)}</dd>
-              <dt className="text-muted-foreground">Updated</dt>
+              <dt className="flex items-center gap-1 text-muted-foreground">
+                <HistoryIcon className="size-3.5" /> Updated
+              </dt>
               <dd>{formatRelative(contact.updatedAt)}</dd>
             </dl>
             <button type="button" onClick={openEdit} className="mt-3 text-xs text-muted-foreground hover:text-foreground hover:underline">
@@ -444,7 +420,46 @@ export function OverviewTab() {
           </CardContent>
         </Card>
 
-        <ContactLocationsCard contact={contact} addresses={addresses} />
+        <div className="order-5 lg:order-none">
+          <ContactLocationsCard contact={contact} addresses={addresses} />
+        </div>
+
+        <Card className="order-6 lg:order-none">
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle className="text-base">
+              Reminders
+              {reminders.data && reminderItems.length > 0 && (
+                <span className="ml-2 text-xs font-normal text-muted-foreground">
+                  {openReminders.length} open · {doneReminders.length} done
+                </span>
+              )}
+            </CardTitle>
+            <Button variant="outline" size="sm" onClick={() => setReminderOpen(true)}>
+              <PlusIcon /> Add
+            </Button>
+          </CardHeader>
+          <CardContent>
+            {reminders.isPending ? (
+              <p className="text-sm text-muted-foreground">Loading…</p>
+            ) : reminderItems.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No reminders yet: a call to make, a date to remember, something monthly.</p>
+            ) : (
+              <div className="flex flex-col gap-2">
+                {openReminders.map((r) => (
+                  <ReminderCard key={r.id} reminder={r} compact />
+                ))}
+                {(allDoneReminders ? doneReminders : doneReminders.slice(0, 2)).map((r) => (
+                  <ReminderCard key={r.id} reminder={r} compact />
+                ))}
+                {doneReminders.length > 2 && (
+                  <button type="button" className="self-start text-xs text-muted-foreground underline" onClick={() => setAllDoneReminders((v) => !v)}>
+                    {allDoneReminders ? "Show fewer" : `Show ${doneReminders.length - 2} more done`}
+                  </button>
+                )}
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </div>
 
       <ContactFieldDialog contact={contact} group={fieldEdit} onOpenChange={setFieldEdit} />

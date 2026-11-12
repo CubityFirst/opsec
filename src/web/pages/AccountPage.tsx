@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAccessIdentity } from "@/lib/queries/access";
 import { useAuthUser, useLogout } from "@/lib/queries/auth";
+import { PageHeader } from "@/components/layout/PageHeader";
 
 export function AccountPage() {
   const user = useAuthUser();
@@ -52,16 +53,16 @@ export function AccountPage() {
 
   return (
     <div className="flex max-w-2xl flex-col gap-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Account</h1>
-        <p className="text-sm text-muted-foreground">
-          {!open
+      <PageHeader
+        title="Account"
+        description={
+          !open
             ? `Signed in with ${user.providerLabel}.`
             : behindAccess
               ? "Open access: no sign-in of its own, gated by Cloudflare Access."
-              : "Open access: this instance has no sign-in."}
-        </p>
-      </div>
+              : "Open access: this instance has no sign-in."
+        }
+      />
 
       {open && behindAccess && (
         <Card>

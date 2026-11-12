@@ -10,6 +10,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { errorMessage } from "@/lib/api";
 import { useReminders } from "@/lib/queries/reminders";
+import { PageHeader } from "@/components/layout/PageHeader";
 
 type Bucket = { key: string; title: string; items: ReminderOut[] };
 
@@ -42,15 +43,15 @@ export function RemindersPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Reminders</h1>
-          <p className="text-sm text-muted-foreground">Things to do, once or on a schedule, about the people in your life or nobody in particular.</p>
-        </div>
-        <Button onClick={() => setNewOpen(true)}>
-          <PlusIcon className="size-4" /> New reminder
-        </Button>
-      </div>
+      <PageHeader
+        title="Reminders"
+        description="Things to do, once or on a schedule, about the people in your life or nobody in particular."
+        actions={
+          <Button onClick={() => setNewOpen(true)}>
+            <PlusIcon /> New reminder
+          </Button>
+        }
+      />
 
       <Tabs value={status} onValueChange={(v) => setParams(v === "open" ? {} : { status: v })}>
         <TabsList>

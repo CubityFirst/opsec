@@ -1,5 +1,5 @@
 import { format, formatDistanceToNowStrict, isValid, parseISO } from "date-fns";
-import { parsePartialDate, type ContactKind, type InteractionType } from "@shared/schemas/common";
+import { parsePartialDate, type ContactKind, type ContactMethodType, type InteractionType } from "@shared/schemas/common";
 
 export function formatRelative(iso: string | null | undefined): string {
   if (!iso) return "no data";
@@ -89,6 +89,15 @@ export function initials(name: string): string {
   if (parts.length === 1) return parts[0]!.slice(0, 2).toUpperCase();
   return (parts[0]![0]! + parts[parts.length - 1]![0]!).toUpperCase();
 }
+
+export const METHOD_TYPE_LABELS: Record<ContactMethodType, string> = {
+  phone: "Phone",
+  email: "Email",
+  address: "Address",
+  social: "Social",
+  url: "Website",
+  other: "Other",
+};
 
 export const KIND_LABELS: Record<ContactKind, string> = {
   person: "Person",

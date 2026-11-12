@@ -96,6 +96,8 @@ export function MapView({
       map.on("blur", () => map.scrollWheelZoom.disable());
     }
     L.tileLayer(TILE_URL, { maxZoom: 19, attribution: ATTRIBUTION }).addTo(map);
+    // Plain-text prefix: Leaflet's default carries a coloured flag, and the UI is monochrome.
+    map.attributionControl.setPrefix('<a href="https://leafletjs.com" target="_blank" rel="noreferrer">Leaflet</a>');
     map.setView([30, 0], 2);
     const areas = L.layerGroup().addTo(map);
     const layer = L.layerGroup().addTo(map);

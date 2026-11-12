@@ -48,9 +48,9 @@ export function ContactLocationsCard({ contact, addresses }: { contact: ContactR
 
   return (
     <Card>
-      <CardHeader className="flex flex-row items-center justify-between">
+      <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-2">
         <CardTitle className="text-base">Locations</CardTitle>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <Button variant="outline" size="sm" onClick={() => setAddress({ open: true })}>
             <MapPinPlusIcon /> Add address
           </Button>
@@ -67,25 +67,29 @@ export function ContactLocationsCard({ contact, addresses }: { contact: ContactR
         {addresses.length > 0 && (
           <ul className="divide-y">
             {addresses.map((m) => (
-              <li key={m.id} className="flex items-center gap-3 py-2">
-                <span className="flex w-3.5 shrink-0 items-center justify-center" aria-hidden={!m.isPrimary}>
-                  {m.isPrimary && <StarIcon className="size-3.5 fill-amber-400 text-amber-400" aria-label="Primary" />}
-                </span>
-                <div className="w-20 shrink-0 truncate text-xs text-muted-foreground">{m.label ?? "Address"}</div>
-                <div className="min-w-0 flex-1 text-sm whitespace-pre-line">{m.value}</div>
-                {m.coordinates && (
-                  <Button asChild variant="ghost" size="icon-sm" aria-label="Show on map" title="Show on map">
-                    <Link to={`/map?focus=method:${m.id}`}>
-                      <MapPinIcon />
-                    </Link>
+              <li key={m.id} className="flex items-start gap-3 py-2.5 first:pt-0 last:pb-0">
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                    <span className="truncate">{m.label ?? "Address"}</span>
+                    {m.isPrimary && <StarIcon className="size-3 shrink-0 fill-current" aria-label="Primary" />}
+                  </div>
+                  <div className="text-sm whitespace-pre-line [overflow-wrap:anywhere]">{m.value}</div>
+                </div>
+                <div className="-mr-1.5 flex shrink-0 items-center">
+                  {m.coordinates && (
+                    <Button asChild variant="ghost" size="icon-sm" aria-label="Show on map" title="Show on map">
+                      <Link to={`/map?focus=method:${m.id}`}>
+                        <MapPinIcon />
+                      </Link>
+                    </Button>
+                  )}
+                  <Button variant="ghost" size="icon-sm" aria-label="Edit address" title="Edit" onClick={() => setAddress({ open: true, method: m })}>
+                    <PencilIcon />
                   </Button>
-                )}
-                <Button variant="ghost" size="icon-sm" aria-label="Edit address" onClick={() => setAddress({ open: true, method: m })}>
-                  <PencilIcon />
-                </Button>
-                <Button variant="ghost" size="icon-sm" aria-label="Remove address" onClick={() => void onDelete(m)}>
-                  <Trash2Icon />
-                </Button>
+                  <Button variant="ghost" size="icon-sm" aria-label="Remove address" title="Remove" onClick={() => void onDelete(m)}>
+                    <Trash2Icon />
+                  </Button>
+                </div>
               </li>
             ))}
           </ul>
@@ -122,7 +126,7 @@ export function ContactLocationsCard({ contact, addresses }: { contact: ContactR
               {[pins.data.counts.contacts > 0 && plural(pins.data.counts.contacts, "address"), pins.data.counts.interactions > 0 && plural(pins.data.counts.interactions, "interaction")]
                 .filter(Boolean)
                 .join(" · ")}
-              {" · "}Right-click the map to log or pin something there.
+              {" · "}Right-click <span className="whitespace-nowrap">(or long-press)</span> the map to log or pin something there.
             </p>
           </div>
         )}

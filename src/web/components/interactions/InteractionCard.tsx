@@ -29,11 +29,14 @@ export function InteractionCard({
   interaction,
   currentContactId,
   hoverActions = false,
+  fullDate = false,
 }: {
   interaction: InteractionOut;
   currentContactId: string;
   /** Show the edit and delete buttons only while the card is hovered or one of them has focus (devices that can hover; always shown on touch screens). */
   hoverActions?: boolean;
+  /** Always show the absolute date (the interaction's own page), not only from sm up. */
+  fullDate?: boolean;
 }) {
   const [editOpen, setEditOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -52,16 +55,17 @@ export function InteractionCard({
   return (
     <Card className="group gap-3 py-4">
       <CardContent className="flex flex-col gap-2 px-4">
-        <div className="flex items-start gap-2">
+        <div className="flex items-center gap-2">
           <Badge variant="outline">{INTERACTION_LABELS[interaction.type]}</Badge>
-          <span className="text-xs text-muted-foreground" title={formatDateTime(interaction.occurredAt)}>
-            {formatRelative(interaction.occurredAt)} · {formatDateTime(interaction.occurredAt)}
+          <span className="min-w-0 truncate text-xs text-muted-foreground" title={formatDateTime(interaction.occurredAt)}>
+            {formatRelative(interaction.occurredAt)}
+            <span className={cn(!fullDate && "hidden sm:inline")}> · {formatDateTime(interaction.occurredAt)}</span>
           </span>
-          <div className={cn("ml-auto flex gap-0.5", hoverActions && "transition-opacity [@media(hover:hover)]:opacity-0 group-hover:opacity-100 focus-within:opacity-100")}>
-            <Button variant="ghost" size="icon-xs" aria-label="Edit interaction" onClick={() => setEditOpen(true)}>
+          <div className={cn("-my-1 -mr-1.5 ml-auto flex shrink-0 gap-0.5", hoverActions && "transition-opacity [@media(hover:hover)]:opacity-0 group-hover:opacity-100 focus-within:opacity-100")}>
+            <Button variant="ghost" size="icon-sm" aria-label="Edit interaction" title="Edit" onClick={() => setEditOpen(true)}>
               <PencilIcon />
             </Button>
-            <Button variant="ghost" size="icon-xs" aria-label="Delete interaction" onClick={() => setDeleteOpen(true)}>
+            <Button variant="ghost" size="icon-sm" aria-label="Delete interaction" title="Delete" onClick={() => setDeleteOpen(true)}>
               <Trash2Icon />
             </Button>
           </div>

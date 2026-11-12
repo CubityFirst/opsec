@@ -59,7 +59,7 @@ export function LifeEventCard({ lifeEvent, compact = false }: { lifeEvent: LifeE
     <Card className={cn(compact && "py-3")}>
       <CardContent className={cn("flex flex-col gap-2", compact && "px-4")}>
         <div className="flex items-start gap-3">
-          <span className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+          <span className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground">
             <LifeEventIcon category={lifeEvent.category} className="size-4" />
           </span>
           <div className="min-w-0 flex-1">
@@ -69,16 +69,16 @@ export function LifeEventCard({ lifeEvent, compact = false }: { lifeEvent: LifeE
             </div>
             <div className="text-xs text-muted-foreground">{formatEventDate(lifeEvent.occurredOn)}</div>
           </div>
-          <div className="flex shrink-0 gap-1">
-            <Button variant="ghost" size="icon-sm" aria-label="Edit" onClick={() => setEditOpen(true)}>
+          <div className="-my-1 -mr-1.5 flex shrink-0 gap-0.5">
+            <Button variant="ghost" size="icon-sm" aria-label="Edit" title="Edit" onClick={() => setEditOpen(true)}>
               <PencilIcon />
             </Button>
-            <Button variant="ghost" size="icon-sm" aria-label="Delete" onClick={() => setDeleteOpen(true)}>
+            <Button variant="ghost" size="icon-sm" aria-label="Delete" title="Delete" onClick={() => setDeleteOpen(true)}>
               <Trash2Icon />
             </Button>
           </div>
         </div>
-        {lifeEvent.body && !compact && <MarkdownBody className="text-sm text-muted-foreground">{lifeEvent.body}</MarkdownBody>}
+        {lifeEvent.body && !compact && <MarkdownBody className="pl-11 text-sm text-muted-foreground">{lifeEvent.body}</MarkdownBody>}
       </CardContent>
 
       <LifeEventDialog contactId={lifeEvent.contactId} lifeEvent={lifeEvent} open={editOpen} onOpenChange={setEditOpen} />

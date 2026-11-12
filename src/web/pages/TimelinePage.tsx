@@ -1,4 +1,4 @@
-import { CalendarRangeIcon, ChevronLeftIcon, ChevronRightIcon, DicesIcon, GiftIcon } from "lucide-react";
+import { CalendarRangeIcon, CheckIcon, ChevronLeftIcon, ChevronRightIcon, DicesIcon, GiftIcon } from "lucide-react";
 import { useMemo } from "react";
 import { Link, useSearchParams } from "react-router";
 import { TIMELINE_KINDS, TIMELINE_KIND_LABELS, type TimelineKind } from "@shared/schemas/timeline";
@@ -7,7 +7,6 @@ import type { ContactRef, TimelineItem } from "@shared/types";
 import { MentionText } from "@/components/MentionText";
 import { ContactAvatar } from "@/components/contacts/ContactAvatar";
 import { LifeEventIcon, formatEventDate } from "@/components/life-events/LifeEventCard";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -17,6 +16,7 @@ import { INTERACTION_LABELS } from "@/lib/format";
 import { INTERACTION_ICONS } from "@/lib/interaction-icons";
 import { useTimeline } from "@/lib/queries/timeline";
 import { cn } from "@/lib/utils";
+import { PageHeader } from "@/components/layout/PageHeader";
 
 const MONTH_RE = /^\d{4}-(0[1-9]|1[0-2])$/;
 
@@ -107,17 +107,20 @@ function People({ people }: { people: ContactRef[] }) {
   );
 }
 
-function Row({ icon, time, children, aside }: { icon: React.ReactNode; time?: string; children: React.ReactNode; aside?: React.ReactNode }) {
+/** One entry: a small meta line (time, kind, extras), the title on its own line, then the people. */
+function Row({ icon, time, kind, extra, title, aside }: { icon: React.ReactNode; time?: string; kind: string; extra?: React.ReactNode; title: React.ReactNode; aside?: React.ReactNode }) {
   return (
-    <li className="flex items-start gap-3 py-2.5">
+    <li className="flex items-start gap-3 py-3">
       <span className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground [&>svg]:size-3.5" aria-hidden>
         {icon}
       </span>
       <div className="flex min-w-0 flex-1 flex-col gap-1">
-        <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 text-sm">
-          {time && <span className="text-xs tabular-nums text-muted-foreground">{time}</span>}
-          {children}
+        <div className="meta-dots flex flex-wrap items-center text-xs text-muted-foreground">
+          {time && <span className="tabular-nums">{time}</span>}
+          <span>{kind}</span>
+          {extra && <span>{extra}</span>}
         </div>
+        <div className="text-sm font-medium [overflow-wrap:anywhere]">{title}</div>
         {aside}
       </div>
     </li>
@@ -130,52 +133,49 @@ function Item({ item }: { item: TimelineItem }) {
       const i = item.interaction;
       const Icon = INTERACTION_ICONS[i.type];
       return (
-        <Row icon={<Icon />} time={timeOf(i.occurredAt)} aside={i.participants.length > 0 && <People people={i.participants} />}>
-          <Badge variant="outline" className="font-normal">
-            {INTERACTION_LABELS[i.type]}
-          </Badge>
-          <Link to={`/interactions/${i.id}`} className="font-medium hover:underline">
-            <MentionText text={i.summary} />
-          </Link>
-        </Row>
+        <Row
+          icon={<Icon />}
+          time={timeOf(i.occurredAt)}
+          kind={INTERACTION_LABELS[i.type]}
+          title={
+            <Link to={`/interactions/${i.id}`} className="hover:underline">
+              <MentionText text={i.summary} />
+            </Link>
+          }
+          aside={i.participants.length > 0 && <People people={i.participants} />}
+        />
       );
     }
     case "lifeEvent": {
       const l = item.lifeEvent;
       return (
-        <Row icon={<LifeEventIcon category={l.category} />} aside={<People people={[item.contact]} />}>
-          <Badge variant="secondary" className="font-normal">
-            {LIFE_EVENT_CATEGORY_LABELS[l.category]}
-          </Badge>
-          <span className="font-medium">{l.title}</span>
-          {l.occurredOn.length < 10 && <span className="text-xs text-muted-foreground">{formatEventDate(l.occurredOn)}</span>}
-        </Row>
+        <Row
+          icon={<LifeEventIcon category={l.category} />}
+          kind={LIFE_EVENT_CATEGORY_LABELS[l.category]}
+          extra={l.occurredOn.length < 10 ? formatEventDate(l.occurredOn) : undefined}
+          title={l.title}
+          aside={<People people={[item.contact]} />}
+        />
       );
     }
     case "gift": {
       const g = item.gift;
       return (
-        <Row icon={<GiftIcon />} aside={<People people={[g.contact]} />}>
-          <Badge variant="secondary" className="font-normal">
-            {g.status === "received" ? "Gift received" : "Gift given"}
-          </Badge>
-          <span className="font-medium">{g.name}</span>
-          {g.occasion && <span className="text-xs text-muted-foreground">{g.occasion}</span>}
-        </Row>
+        <Row icon={<GiftIcon />} kind={g.status === "received" ? "Gift received" : "Gift given"} extra={g.occasion ?? undefined} title={g.name} aside={<People people={[g.contact]} />} />
       );
     }
     case "bet": {
       const b = item.bet;
       const outcome = b.outcome === "me" ? "you were right" : b.outcome === "them" ? "they were right" : b.outcome === "void" ? "called off" : null;
       return (
-        <Row icon={<DicesIcon />} time={item.event === "settled" ? timeOf(item.at) : undefined} aside={<People people={[b.contact]} />}>
-          <Badge variant="secondary" className="font-normal">
-            {item.event === "settled" ? "Bet settled" : "Bet made"}
-          </Badge>
-          <span className="font-medium">{b.prediction}</span>
-          {item.event === "settled" && outcome && <span className="text-xs text-muted-foreground">{outcome}</span>}
-          {item.event === "made" && b.wager && <span className="text-xs text-muted-foreground">for {b.wager}</span>}
-        </Row>
+        <Row
+          icon={<DicesIcon />}
+          time={item.event === "settled" ? timeOf(item.at) : undefined}
+          kind={item.event === "settled" ? "Bet settled" : "Bet made"}
+          extra={item.event === "settled" ? (outcome ?? undefined) : b.wager ? `for ${b.wager}` : undefined}
+          title={b.prediction}
+          aside={<People people={[b.contact]} />}
+        />
       );
     }
   }
@@ -208,12 +208,9 @@ export function TimelinePage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Timeline</h1>
-        <p className="text-sm text-muted-foreground">Everything that happened in a month, across everyone: interactions, life events, gifts and bets.</p>
-      </div>
+      <PageHeader title="Timeline" description="Everything that happened in a month, across everyone: interactions, life events, gifts and bets." />
 
-      <div className="flex flex-wrap items-center gap-3">
+      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
         <div className="flex items-center gap-1">
           <Button variant="outline" size="icon-sm" aria-label="Previous month" onClick={() => update({ month: shiftMonth(month, -1) })}>
             <ChevronLeftIcon />
@@ -228,13 +225,22 @@ export function TimelinePage() {
             </Button>
           )}
         </div>
-        <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label="Show">
+        <div className="grid grid-cols-2 gap-1.5 sm:flex sm:flex-wrap sm:items-center" role="group" aria-label="Show">
           {TIMELINE_KINDS.map((k) => {
             const on = kinds.includes(k);
             return (
-              <Button key={k} type="button" size="sm" variant={on ? "secondary" : "outline"} aria-pressed={on} onClick={() => toggleKind(k)} className={cn(!on && "text-muted-foreground")}>
+              <Button
+                key={k}
+                type="button"
+                size="sm"
+                variant={on ? "secondary" : "outline"}
+                aria-pressed={on}
+                onClick={() => toggleKind(k)}
+                className={cn("justify-start", !on && "text-muted-foreground")}
+              >
+                {on ? <CheckIcon /> : <span className="size-4" aria-hidden />}
                 {TIMELINE_KIND_LABELS[k]}
-                {counts && <span className="ml-1 tabular-nums opacity-70">{counts[k]}</span>}
+                {counts && <span className="ml-auto pl-1 tabular-nums opacity-70">{counts[k]}</span>}
               </Button>
             );
           })}

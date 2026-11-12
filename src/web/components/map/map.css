@@ -6,8 +6,18 @@
   background: var(--muted);
 }
 
+/* Leaflet blends tiles with plus-lighter to hide seams; inside the filtered pane below that
+   blend shows the seams instead (hairlines on high-DPI screens), so tiles paint normally. */
+.leaflet-container .leaflet-tile-pane img.leaflet-tile {
+  mix-blend-mode: normal;
+}
+
+/* Monochrome basemap, like the rest of the UI; pins and areas stay on top in the theme's own colours. */
+.leaflet-tile-pane {
+  filter: grayscale(1) contrast(1.05);
+}
 .dark .leaflet-tile-pane {
-  filter: invert(1) hue-rotate(180deg) brightness(0.95) contrast(0.9);
+  filter: grayscale(1) invert(1) brightness(0.9) contrast(0.95);
 }
 
 .leaflet-bar a,
@@ -25,12 +35,12 @@
   border-color: var(--border);
 }
 
-.leaflet-control-attribution {
+.leaflet-container .leaflet-control-attribution {
   background: color-mix(in oklab, var(--background) 85%, transparent);
   color: var(--muted-foreground);
   font-size: 10px;
 }
-.leaflet-control-attribution a {
+.leaflet-container .leaflet-control-attribution a {
   color: var(--foreground);
 }
 

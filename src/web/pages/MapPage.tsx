@@ -15,6 +15,7 @@ import { Switch } from "@/components/ui/switch";
 import { errorMessage } from "@/lib/api";
 import { useContact } from "@/lib/queries/contacts";
 import { useMapPins } from "@/lib/queries/map";
+import { PageHeader } from "@/components/layout/PageHeader";
 
 const MapView = lazy(() => import("@/components/map/MapView").then((m) => ({ default: m.MapView })));
 
@@ -71,13 +72,19 @@ export function MapPage() {
     );
 
   return (
-    <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Map</h1>
-          <p className="text-sm text-muted-foreground">Where the people in your life live, and where things happened. Right-click (or long-press) a spot to log or pin something there.</p>
-        </div>
-        <div className="flex flex-wrap items-center gap-4">
+    // Fills the screen below the header (main's padding, plus the phone top bar below md) so the map takes what is left.
+    <div className="flex h-[calc(100svh-5.25rem)] flex-col gap-4 md:h-[calc(100svh-4rem)]">
+      <div className="flex flex-col gap-3">
+        <PageHeader
+          title="Map"
+          description={
+            <>
+              Where the people in your life live, and where things happened. Right-click <span className="whitespace-nowrap">(or long-press)</span> a spot to log or pin
+              something there.
+            </>
+          }
+        />
+        <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
           <div className="flex items-center gap-2">
             <Switch id="layer-contacts" checked={layers.contacts} onCheckedChange={(v) => setLayers((l) => ({ ...l, contacts: v }))} />
             <Label htmlFor="layer-contacts">Contacts{counts ? ` (${counts.contacts})` : ""}</Label>
@@ -108,9 +115,9 @@ export function MapPage() {
         </div>
       )}
 
-      <div className="relative">
-        <Suspense fallback={<Skeleton className="h-[calc(100svh-15rem)] min-h-80 w-full rounded-lg" />}>
-          <MapView pins={shown} focusId={focus} onFocusHandled={clearFocus} fitKey={contactId ?? "all"} className="h-[calc(100svh-15rem)] min-h-80" onContextMenu={setMenu}>
+      <div className="relative min-h-80 flex-1">
+        <Suspense fallback={<Skeleton className="h-full w-full rounded-lg" />}>
+          <MapView pins={shown} focusId={focus} onFocusHandled={clearFocus} fitKey={contactId ?? "all"} className="h-full" onContextMenu={setMenu}>
             <MapContextMenu
               target={menu}
               contact={contactId ? contact.data : undefined}

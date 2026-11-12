@@ -18,7 +18,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { errorMessage } from "@/lib/api";
-import { capitalize } from "@/lib/format";
+import { METHOD_TYPE_LABELS } from "@/lib/format";
 import { useAddMethod, useUpdateMethod } from "@/lib/queries/methods";
 import { SocialIcon } from "./SocialIcon";
 
@@ -127,7 +127,7 @@ export function ContactMethodDialog({
                     <SelectContent>
                       {CONTACT_METHOD_TYPES.map((t) => (
                         <SelectItem key={t} value={t}>
-                          {capitalize(t)}
+                          {METHOD_TYPE_LABELS[t]}
                         </SelectItem>
                       ))}
                     </SelectContent>
