@@ -173,7 +173,7 @@ app.get("/manifest.webmanifest", async (c) => {
   }
 });
 
-// Static assets normally never reach the Worker (see `assets` in wrangler.jsonc);
+// Static assets normally never reach the Worker (see `assets` in cloudflare.config.ts);
 // this is a belt-and-braces fallback for environments without the binding. An
 // unknown /api route is a JSON 404, never the SPA shell the assets binding would
 // hand back under single-page-application not-found handling.

@@ -23,7 +23,7 @@ interface StoredAi {
 }
 
 function secretKey(env: SecretEnv): string {
-  if (!env.SESSION_SECRET) throw new ApiError(400, "bad_request", "SESSION_SECRET is not set, so provider keys cannot be stored. Run `npx wrangler secret put SESSION_SECRET` (any long random string), or use a key-less provider (BYOK gateway / local server).");
+  if (!env.SESSION_SECRET) throw new ApiError(400, "bad_request", "SESSION_SECRET is not set, so provider keys cannot be stored. Run `npx wrangler secret put SESSION_SECRET --name opsec` (any long random string), or use a key-less provider (BYOK gateway / local server).");
   return env.SESSION_SECRET;
 }
 

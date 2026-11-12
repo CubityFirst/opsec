@@ -25,7 +25,7 @@ export interface SessionUser {
 export type AuthMode = "open" | "oidc";
 
 /**
- * Unset or "open" is open access (see wrangler.jsonc); "oidc" enables sign-in. Any
+ * Unset or "open" is open access (see cloudflare.config.ts); "oidc" enables sign-in. Any
  * other value is a misconfiguration and fails closed with a 500 rather than
  * silently opening the instance.
  */
@@ -67,7 +67,7 @@ export const NOT_ALLOWED_MESSAGE = "This account is not allowed to use opsec▮.
 /** The cookie-signing secret; oidc mode cannot run without it. */
 export function sessionSecret(env: Pick<AppVars, "SESSION_SECRET">): string {
   if (!env.SESSION_SECRET) {
-    throw new ApiError(500, "internal", "Sign-in is not configured: SESSION_SECRET is missing. Set it with `npx wrangler secret put SESSION_SECRET` (any long random string).");
+    throw new ApiError(500, "internal", "Sign-in is not configured: SESSION_SECRET is missing. Set it with `npx wrangler secret put SESSION_SECRET --name opsec` (any long random string).");
   }
   if (env.SESSION_SECRET.length < 32) {
     throw new ApiError(500, "internal", "SESSION_SECRET is too short: use at least 32 characters (e.g. `openssl rand -base64 48`).");

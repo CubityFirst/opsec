@@ -38,7 +38,7 @@ export function getOidcConfig(env: WorkerEnv): Promise<client.Configuration> {
   // Fail here, with a clear message, rather than deep inside the token exchange.
   if (typeof env.OIDC_CLIENT_SECRET !== "string" || env.OIDC_CLIENT_SECRET.length === 0) {
     return Promise.reject(
-      new ApiError(500, "internal", "Sign-in is not configured: OIDC_CLIENT_SECRET is missing. Set it with `npx wrangler secret put OIDC_CLIENT_SECRET` (or in .dev.vars locally)."),
+      new ApiError(500, "internal", "Sign-in is not configured: OIDC_CLIENT_SECRET is missing. Set it with `npx wrangler secret put OIDC_CLIENT_SECRET --name opsec` (or in .dev.vars locally)."),
     );
   }
   const key = `${env.OIDC_ISSUER}|${env.OIDC_CLIENT_ID}`;

@@ -16,13 +16,13 @@ The backend speaks the **OpenAI Chat Completions** wire format, so any compatibl
 | `AI_EXTRA_HEADERS` | secret, optional JSON object | Extra headers, e.g. `{"cf-aig-authorization":"Bearer <token>"}` |
 | `TIMEZONE` | var, optional | IANA zone you live in (`Europe/London`), so "9am" in a question means 9am there. The Ask tab sends the browser's zone with every question and only falls back to this; MCP clients have nothing else, so set it if you use them. Unset = UTC |
 
-Set vars in `cloudflare.config.ts` (and `wrangler.jsonc`, kept in step for the tests), secrets with `npx wrangler secret put <NAME>`; locally put all of them in `.dev.vars`. These are the deployment defaults.
+Set vars in `cloudflare.config.ts`, secrets with `npx wrangler secret put <NAME> --name opsec`; locally put all of them in `.dev.vars`. These are the deployment defaults.
 
 **Changing the provider on the fly:** admins get an **Ask provider** card on the Account page. Pick a preset (Cloudflare AI Gateway, OpenAI, Anthropic, OpenRouter, llama.cpp, custom), fill in the base URL, model, key and any extra headers or request fields, press **Test** to run a one-token completion against the unsaved values, then **Save**. Saved settings take effect on the next question without a redeploy and override the vars above; **Use deployment settings** removes them again. They live in the `app_settings` table; the API key and extra headers are encrypted with AES-GCM under a key derived from `SESSION_SECRET` and are never returned to the browser (the UI only shows whether they are set). Rotating `SESSION_SECRET` therefore also invalidates the stored secrets; re-enter them.
 
 Presets:
 
-1. **Cloudflare AI Gateway compat + BYOK (default in `wrangler.jsonc`)** — base `https://gateway.ai.cloudflare.com/v1/<account>/opsec/compat`, model `{provider}/{model}` such as `openai/gpt-5.6-luna` (current default) or `anthropic/claude-sonnet-5`, key `none`, headers `{"cf-aig-authorization":"Bearer <AI Gateway Run token>"}`. Setup steps below. Note for `gpt-5.6-luna`: OpenAI rejects function tools on `/chat/completions` unless `reasoning_effort` is `none` (the alternative is the Responses API, which Ask does not speak), so the default sets `AI_EXTRA_BODY={"reasoning_effort":"none"}`; drop that field when using another model.
+1. **Cloudflare AI Gateway compat + BYOK (default in mode `prod` of `cloudflare.config.ts`)** — base `https://gateway.ai.cloudflare.com/v1/<account>/opsec/compat`, model `{provider}/{model}` such as `openai/gpt-5.6-luna` (current default) or `anthropic/claude-sonnet-5`, key `none`, headers `{"cf-aig-authorization":"Bearer <AI Gateway Run token>"}`. Setup steps below. Note for `gpt-5.6-luna`: OpenAI rejects function tools on `/chat/completions` unless `reasoning_effort` is `none` (the alternative is the Responses API, which Ask does not speak), so the default sets `AI_EXTRA_BODY={"reasoning_effort":"none"}`; drop that field when using another model.
 2. **AI Gateway → Anthropic compat** — base `https://gateway.ai.cloudflare.com/v1/<account>/opsec/anthropic/v1`, model `claude-sonnet-5`, same headers. Use this if the compat endpoint does not pass tool calls or images through.
 3. **Anthropic direct** — base `https://api.anthropic.com/v1`, model `claude-sonnet-5`, key = your Anthropic API key.
 4. **llama.cpp** — base `http://host:8080/v1`, key `none`, `AI_EXTRA_BODY={"parallel_tool_calls":true}` if the model supports it. Start `llama-server --jinja` with a tool-capable chat template (and `--mmproj` for images). A deployed Worker needs a tunnel (e.g. `cloudflared`) to reach a LAN box; `npm run dev` can use `localhost` directly.
@@ -38,8 +38,8 @@ Wrangler has no AI Gateway commands, so the gateway side is done in the Cloudfla
 4. **Give the Worker the gateway token.** From the repo, paste the value at the prompt (never into a chat, shell history or commit):
 
    ```sh
-   npx wrangler secret put AI_EXTRA_HEADERS   # {"cf-aig-authorization":"Bearer <AI Gateway Run token>"}
-   npx wrangler secret put AI_API_KEY         # none
+   npx wrangler secret put AI_EXTRA_HEADERS --name opsec   # {"cf-aig-authorization":"Bearer <AI Gateway Run token>"}
+   npx wrangler secret put AI_API_KEY --name opsec         # none
    ```
 
    Secrets apply immediately; no redeploy is needed. For local dev put the same two lines in `.dev.vars` (see `.dev.vars.example`).

@@ -2,8 +2,43 @@ import { cloudflareTest, readD1Migrations } from "@cloudflare/vitest-pool-worker
 import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { defineConfig } from "vitest/config";
+import cloudflareConfig from "./cloudflare.config.ts";
+
+/**
+ * The Worker as cloudflare.config.ts declares it, in mode "test" (the template branch: no
+ * custom domains, no Annex, no .dev.vars secrets). The pool cannot read that file itself,
+ * so its entrypoint, compatibility settings and storage bindings are passed on here;
+ * vars, secrets and the two service bindings come from `miniflare` below.
+ */
+async function workerFromConfig() {
+  const { worker } = await cloudflareConfig({ mode: "test", isPreview: false });
+  const d1Databases: Record<string, string> = {};
+  const r2Buckets: Record<string, string> = {};
+  for (const [name, binding] of Object.entries(worker.env)) {
+    switch (binding.type) {
+      case "d1":
+        d1Databases[name] = binding.name ?? name;
+        break;
+      case "r2":
+        r2Buckets[name] = binding.name ?? name;
+        break;
+      case "assets":
+        break; // replaced by the ASSETS service binding below
+      default:
+        throw new Error(`vitest.config.ts: binding ${name} (${binding.type}) needs a test equivalent`);
+    }
+  }
+  return {
+    main: worker.entrypoint,
+    compatibilityDate: worker.compatibilityDate,
+    compatibilityFlags: [...worker.compatibilityFlags],
+    d1Databases,
+    r2Buckets,
+  };
+}
 
 export default defineConfig(async () => {
+  const { main, ...workerOptions } = await workerFromConfig();
   const migrations = await readD1Migrations(fileURLToPath(new URL("./drizzle", import.meta.url)));
   const manifest = await readFile(fileURLToPath(new URL("./public/manifest.webmanifest", import.meta.url)), "utf8");
   return {
@@ -14,8 +49,9 @@ export default defineConfig(async () => {
     },
     plugins: [
       cloudflareTest({
-        wrangler: { configPath: "./wrangler.jsonc" },
+        main,
         miniflare: {
+          ...workerOptions,
           bindings: {
             TEST_MIGRATIONS: migrations,
             ENVIRONMENT: "test",
