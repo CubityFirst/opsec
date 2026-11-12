@@ -29,10 +29,15 @@ import { SettleBetDialog } from "./SettleBetDialog";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
+/** The outcome as it reads mid-sentence: "I was right", "they were right", "void". */
+export function outcomePhrase(outcome: BetOutcome): string {
+  return outcome === "me" ? "I was right" : outcome === "them" ? "they were right" : outcome === "void" ? "void" : String(outcome);
+}
+
 /** Icon and tint for the status circle: dice while open, the outcome once settled. */
 const OUTCOME_STYLE: Record<BetOutcome, { icon: LucideIcon; circle: string }> = {
   me: { icon: ThumbsUpIcon, circle: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400" },
-  them: { icon: ThumbsDownIcon, circle: "bg-rose-500/15 text-rose-600 dark:text-rose-400" },
+  them: { icon: ThumbsDownIcon, circle: "bg-rose-500/15 text-rose-700 dark:text-rose-400" },
   void: { icon: BanIcon, circle: "bg-muted text-muted-foreground" },
 };
 
@@ -112,27 +117,23 @@ export function BetCard({ bet, showContact = false, compact = false }: { bet: Be
               <span className="font-medium">{bet.prediction}</span>
               {bet.wager && <Badge variant="secondary">{bet.wager}</Badge>}
             </div>
-            <div className="flex flex-wrap items-center gap-x-2 text-xs text-muted-foreground">
+            <div className="meta-dots flex flex-wrap items-center text-xs text-muted-foreground">
               {showContact && (
-                <>
-                  <span>
-                    with{" "}
-                    <Link to={`/contacts/${bet.contact.id}`} className="font-medium text-foreground hover:underline">
-                      {bet.contact.displayName}
-                    </Link>
-                  </span>
-                  <span aria-hidden>·</span>
-                </>
+                <span>
+                  with{" "}
+                  <Link to={`/contacts/${bet.contact.id}`} className="font-medium text-foreground hover:underline">
+                    {bet.contact.displayName}
+                  </Link>
+                </span>
               )}
-              <span>made {formatDate(bet.madeOn)}</span>
-              <span aria-hidden>·</span>
+              <span>Made {formatDate(bet.madeOn)}</span>
               {open ? (
-                <span className={cn("flex items-center gap-1", review.due && "font-medium text-amber-600 dark:text-amber-400")}>
+                <span className={cn("flex items-center gap-1", review.due && "font-medium text-amber-700 dark:text-amber-400")}>
                   <CalendarCheckIcon className="size-3" /> {formatDate(bet.reviewOn)} ({review.text})
                 </span>
               ) : (
                 <span>
-                  {BET_OUTCOME_LABELS[bet.outcome!].toLowerCase()} · settled {formatDate(bet.settledAt)}
+                  {outcomePhrase(bet.outcome!)}, settled {formatDate(bet.settledAt)}
                 </span>
               )}
             </div>
@@ -171,9 +172,9 @@ export function BetCard({ bet, showContact = false, compact = false }: { bet: Be
             </DropdownMenu>
           </div>
         </div>
-        {!compact && bet.details && <MarkdownBody className="text-sm text-muted-foreground">{bet.details}</MarkdownBody>}
+        {!compact && bet.details && <MarkdownBody className="pl-11 text-sm text-muted-foreground">{bet.details}</MarkdownBody>}
         {bet.settledNote && (
-          <p className={cn("text-sm", compact ? "line-clamp-2 text-muted-foreground" : "rounded-md bg-muted px-3 py-2")}>
+          <p className={cn("ml-11 text-sm", compact ? "line-clamp-2 text-muted-foreground" : "rounded-md bg-muted px-3 py-2")}>
             <span className="text-muted-foreground">How it fell: </span>
             {bet.settledNote}
           </p>

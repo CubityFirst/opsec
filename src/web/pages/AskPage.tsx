@@ -1,6 +1,6 @@
 import { ArrowDownIcon, HistoryIcon, ImagePlusIcon, RotateCcwIcon, SendIcon, SquareIcon, XIcon } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useSearchParams } from "react-router";
+import { Link, useSearchParams } from "react-router";
 import { mentionMarkdown } from "@shared/mentions";
 import { ASK_IMAGES_MAX_TOTAL_BYTES, ASK_MAX_IMAGES } from "@shared/schemas/ask";
 import { toast } from "sonner";
@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { prepareImage, type PreparedImage } from "@/lib/image";
 import { useAsk, useAskConfig } from "@/lib/queries/ask";
+import { PageHeader } from "@/components/layout/PageHeader";
 
 export function AskPage() {
   const ask = useAsk();
@@ -134,21 +135,33 @@ export function AskPage() {
   const suggestions = !streaming && !loading && lastTurn?.role === "assistant" ? (lastTurn.suggestions ?? []) : [];
 
   return (
-    <div className="flex h-[calc(100svh-4rem)] gap-6 md:h-[calc(100svh-6rem)]">
-      <ConversationList currentId={currentId} onOpen={goTo} onNew={() => goTo(null)} onDeleted={onDeleted} className="hidden w-60 shrink-0 md:flex" />
-      <div className="flex min-w-0 flex-1 flex-col gap-4">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h1 className="text-2xl font-semibold tracking-tight">Ask</h1>
-            <p className="text-sm text-muted-foreground">
-              Ask about your people, history and relationships. {config.data ? `Answering with ${config.data.label}.` : ""}
-            </p>
-          </div>
-          <div className="flex items-center gap-2">
+    // Fills the screen below the page padding (and the phone top bar below md); the transcript scrolls inside.
+    <div className="flex h-[calc(100svh-5.25rem)] flex-col gap-4 md:h-[calc(100svh-4rem)]">
+      <PageHeader
+        title="Ask"
+        description={
+          <>
+            Ask about your people, history and relationships.{" "}
+            {config.data &&
+              (config.data.model ? (
+                `Answering with ${config.data.label}.`
+              ) : (
+                <>
+                  No AI provider is set up yet:{" "}
+                  <Link to="/account" className="whitespace-nowrap text-foreground underline underline-offset-3">
+                    choose one in Account
+                  </Link>
+                  .
+                </>
+              ))}
+          </>
+        }
+        actions={
+          <>
             <Sheet open={historyOpen} onOpenChange={setHistoryOpen}>
               <SheetTrigger asChild>
-                <Button variant="outline" size="sm" className="md:hidden">
-                  <HistoryIcon /> History
+                <Button variant="outline" size="sm" className="lg:hidden" aria-label="Conversation history">
+                  <HistoryIcon /> <span className="hidden sm:inline">History</span>
                 </Button>
               </SheetTrigger>
               <SheetContent side="right" className="w-72 p-3">
@@ -157,13 +170,16 @@ export function AskPage() {
               </SheetContent>
             </Sheet>
             {ask.turns.length > 0 && (
-              <Button variant="outline" size="sm" className="md:hidden" onClick={() => goTo(null)}>
+              <Button variant="outline" size="sm" className="lg:hidden" onClick={() => goTo(null)}>
                 <RotateCcwIcon /> New
               </Button>
             )}
-          </div>
-        </div>
-
+          </>
+        }
+      />
+      <div className="flex min-h-0 flex-1 gap-6">
+      <ConversationList currentId={currentId} onOpen={goTo} onNew={() => goTo(null)} onDeleted={onDeleted} className="hidden w-60 shrink-0 lg:flex" />
+      <div className="flex min-w-0 flex-1 flex-col gap-4">
         <div className="relative min-h-0 flex-1">
           <div ref={listRef} onScroll={onListScroll} className="h-full overflow-y-auto rounded-xl border p-4">
             {loading ? (
@@ -239,7 +255,7 @@ export function AskPage() {
             placeholder={
               suggestions.length > 0
                 ? "Or type a different answer."
-                : "Ask a question… @ to mention a contact · Enter to send, Shift+Enter for a new line · paste images to attach them"
+                : "Ask a question… (@ to mention someone)"
             }
             onChange={setQuestion}
             mentionStyle="plain"
@@ -275,7 +291,8 @@ export function AskPage() {
                 e.target.value = "";
               }}
             />
-            <span className="flex-1" />
+            <span className="hidden min-w-0 flex-1 truncate text-center text-xs text-muted-foreground sm:block">Enter to send · Shift+Enter for a new line</span>
+            <span className="flex-1 sm:hidden" />
             {streaming ? (
               <Button type="button" variant="outline" size="sm" onClick={ask.stop}>
                 <SquareIcon /> Stop
@@ -287,6 +304,7 @@ export function AskPage() {
             )}
           </div>
         </form>
+      </div>
       </div>
     </div>
   );

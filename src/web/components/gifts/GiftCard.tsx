@@ -29,9 +29,10 @@ import { GiveGiftDialog } from "./GiveGiftDialog";
 
 /** Icon and tint for the status circle. */
 const STATUS_STYLE: Record<GiftStatus, { icon: LucideIcon; circle: string }> = {
-  idea: { icon: LightbulbIcon, circle: "bg-amber-500/15 text-amber-600 dark:text-amber-400" },
-  given: { icon: PackageCheckIcon, circle: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400" },
-  received: { icon: PackageOpenIcon, circle: "bg-sky-500/15 text-sky-600 dark:text-sky-400" },
+  // Monochrome: the icon tells the states apart; colour is kept for things that need attention.
+  idea: { icon: LightbulbIcon, circle: "bg-muted text-muted-foreground" },
+  given: { icon: PackageCheckIcon, circle: "bg-muted text-foreground" },
+  received: { icon: PackageOpenIcon, circle: "bg-muted text-foreground" },
 };
 
 /** "2 ideas · 3 given · 1 received" */
@@ -88,39 +89,40 @@ export function GiftCard({ gift, showContact = false, compact = false }: { gift:
           )}
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
-              <span className="font-medium">{gift.name}</span>
+              {/* The link icon travels with the name so it never wraps onto a line of its own. */}
+              <span className="font-medium">
+                {gift.name}
+                {gift.url && (
+                  <a href={gift.url} target="_blank" rel="noreferrer" className="ml-1.5 inline-flex align-[-0.1em] text-muted-foreground hover:text-foreground" title={gift.url} aria-label="Open link">
+                    <ExternalLinkIcon className="size-3.5" />
+                  </a>
+                )}
+              </span>
               {gift.price && <Badge variant="secondary">{gift.price}</Badge>}
-              {gift.url && (
-                <a href={gift.url} target="_blank" rel="noreferrer" className="text-muted-foreground hover:text-foreground" title={gift.url} aria-label="Open link">
-                  <ExternalLinkIcon className="size-3.5" />
-                </a>
-              )}
             </div>
-            <div className="flex flex-wrap items-center gap-x-2 text-xs text-muted-foreground">
+            <div className="meta-dots flex flex-wrap items-center text-xs text-muted-foreground">
               {showContact && (
-                <>
-                  <span>
-                    {gift.status === "received" ? "from" : "for"}{" "}
-                    <Link to={`/contacts/${gift.contact.id}`} className="font-medium text-foreground hover:underline">
-                      {gift.contact.displayName}
-                    </Link>
-                  </span>
-                  <span aria-hidden>·</span>
-                </>
+                <span>
+                  {gift.status === "received" ? "from" : "for"}{" "}
+                  <Link to={`/contacts/${gift.contact.id}`} className="font-medium text-foreground hover:underline">
+                    {gift.contact.displayName}
+                  </Link>
+                </span>
               )}
-              {idea ? <span>idea</span> : <span>{gift.status} {formatDate(gift.givenOn)}</span>}
-              {gift.occasion && (
-                <>
-                  <span aria-hidden>·</span>
-                  <span>{gift.occasion}</span>
-                </>
-              )}
+              {idea ? <span>Idea</span> : <span>{gift.status === "given" ? "Given" : "Received"} {formatDate(gift.givenOn)}</span>}
+              {gift.occasion && <span>{gift.occasion}</span>}
             </div>
+            {/* On a phone the action goes under the details so it does not squeeze the name. */}
+            {idea && (
+              <Button variant="outline" size="sm" className="mt-2 sm:hidden" onClick={() => setGiveOpen(true)}>
+                Mark given
+              </Button>
+            )}
           </div>
           <div className="flex shrink-0 items-center gap-1">
             {idea && (
-              <Button variant="outline" size="sm" onClick={() => setGiveOpen(true)}>
-                Given
+              <Button variant="outline" size="sm" className="hidden sm:inline-flex" onClick={() => setGiveOpen(true)}>
+                Mark given
               </Button>
             )}
             <DropdownMenu>

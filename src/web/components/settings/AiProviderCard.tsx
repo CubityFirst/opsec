@@ -136,7 +136,7 @@ export function AiProviderCard() {
         </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
-        <div className="grid gap-1.5">
+        <div className="grid content-start gap-1.5">
           <Label htmlFor="ai-preset">Preset</Label>
           <Select value={preset} onValueChange={applyPreset}>
             <SelectTrigger id="ai-preset" className="w-full">
@@ -153,24 +153,24 @@ export function AiProviderCard() {
           {presetInfo?.notes && <p className="text-xs text-muted-foreground">{presetInfo.notes}</p>}
         </div>
 
-        <div className="grid gap-1.5">
+        <div className="grid content-start gap-1.5">
           <Label htmlFor="ai-base-url">Base URL</Label>
           <Input id="ai-base-url" value={form.baseUrl} onChange={(e) => set({ baseUrl: e.target.value })} placeholder="https://host/v1" spellCheck={false} />
           <p className="text-xs text-muted-foreground">Requests go to {"{base}"}/chat/completions.</p>
         </div>
 
         <div className="grid gap-4 sm:grid-cols-2">
-          <div className="grid gap-1.5">
+          <div className="grid content-start gap-1.5">
             <Label htmlFor="ai-model">Model</Label>
-            <Input id="ai-model" value={form.model} onChange={(e) => set({ model: e.target.value })} placeholder="model name as the provider expects it" spellCheck={false} />
+            <Input id="ai-model" value={form.model} onChange={(e) => set({ model: e.target.value })} placeholder="e.g. gpt-4.1-mini" spellCheck={false} />
           </div>
-          <div className="grid gap-1.5">
+          <div className="grid content-start gap-1.5">
             <Label htmlFor="ai-label">Label</Label>
             <Input id="ai-label" value={form.label} onChange={(e) => set({ label: e.target.value })} placeholder="shown in the Ask header" />
           </div>
         </div>
 
-        <div className="grid gap-1.5">
+        <div className="grid content-start gap-1.5">
           <Label htmlFor="ai-api-key">API key</Label>
           <Input
             id="ai-api-key"
@@ -188,7 +188,7 @@ export function AiProviderCard() {
           )}
         </div>
 
-        <div className="grid gap-1.5">
+        <div className="grid content-start gap-1.5">
           <Label htmlFor="ai-extra-headers">Extra headers (JSON object)</Label>
           <Textarea
             id="ai-extra-headers"
@@ -210,7 +210,7 @@ export function AiProviderCard() {
           )}
         </div>
 
-        <div className="grid gap-1.5">
+        <div className="grid content-start gap-1.5">
           <Label htmlFor="ai-extra-body">Extra request fields (JSON object)</Label>
           <Textarea
             id="ai-extra-body"

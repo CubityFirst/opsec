@@ -20,6 +20,7 @@ import { useGifts } from "@/lib/queries/gifts";
 import { useRecentInteractions } from "@/lib/queries/interactions";
 import { useReminders } from "@/lib/queries/reminders";
 import { cn } from "@/lib/utils";
+import { PageHeader } from "@/components/layout/PageHeader";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 /** How long a silence has to last before the dashboard mentions it. */
@@ -35,13 +36,42 @@ function daysUntilBirthday(birthday: string | null, now: Date): number | null {
   return Math.round((next.getTime() - today.getTime()) / DAY_MS);
 }
 
-function ContactRow({ contact, meta }: { contact: ContactSummary; meta: string }) {
+/** One line of a dashboard panel: avatar, a title with an optional second line, and a short trailing status. */
+function PanelRow({
+  to,
+  leading,
+  title,
+  sub,
+  trailing,
+  tone,
+}: {
+  to: string;
+  leading: React.ReactNode;
+  title: string;
+  sub?: string;
+  trailing?: string;
+  /** Colour for the trailing status: overdue / due today are the only highlights. */
+  tone?: "overdue" | "due";
+}) {
   return (
     <li>
-      <Link to={`/contacts/${contact.id}`} className="flex items-center gap-3 rounded-md px-1 py-1.5 hover:bg-accent">
-        <ContactAvatar contact={contact} className="size-8" />
-        <span className="min-w-0 flex-1 truncate text-sm font-medium">{contact.displayName}</span>
-        <span className="shrink-0 text-xs text-muted-foreground">{meta}</span>
+      <Link to={to} className="-mx-1 flex items-start gap-3 rounded-md px-1 py-1.5 hover:bg-accent">
+        {leading}
+        <span className="min-w-0 flex-1 self-center">
+          <span className="block text-sm leading-snug font-medium text-pretty [overflow-wrap:anywhere]">{title}</span>
+          {sub && <span className="block truncate text-xs text-muted-foreground">{sub}</span>}
+        </span>
+        {trailing && (
+          <span
+            className={cn(
+              "shrink-0 text-right text-xs whitespace-nowrap",
+              sub ? "mt-0.5" : "self-center",
+              tone === "overdue" ? "font-medium text-rose-700 dark:text-rose-400" : tone === "due" ? "font-medium text-amber-700 dark:text-amber-400" : "text-muted-foreground",
+            )}
+          >
+            {trailing}
+          </span>
+        )}
       </Link>
     </li>
   );
@@ -60,8 +90,8 @@ function SidePanel({
   children: React.ReactNode;
 }) {
   return (
-    <Card>
-      <CardHeader className="pb-2">
+    <Card className="gap-3">
+      <CardHeader>
         <CardTitle className="flex items-center gap-2 text-base">
           <Icon className="size-4 text-muted-foreground" /> {title}
         </CardTitle>
@@ -189,20 +219,18 @@ export function DashboardPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Dashboard</h1>
-          <p className="text-sm text-muted-foreground">
-            What has been happening with the people in your life.
-          </p>
-        </div>
-        <Button onClick={() => setLogOpen(true)}>
-          <PlusIcon className="size-4" /> Log interaction
-        </Button>
-      </div>
+      <PageHeader
+        title="Dashboard"
+        description="What has been happening with the people in your life."
+        actions={
+          <Button onClick={() => setLogOpen(true)}>
+            <PlusIcon /> Log interaction
+          </Button>
+        }
+      />
 
-      <div className="grid gap-6 lg:grid-cols-[1fr_20rem] lg:items-start">
-        <section className="order-2 flex flex-col gap-3 lg:order-1">
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-6 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start">
+        <section className="order-2 flex min-w-0 flex-col gap-3 lg:order-1">
           <h2 className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
             <MessageSquareIcon className="size-4" /> Recent interactions
           </h2>
@@ -237,7 +265,7 @@ export function DashboardPage() {
         </section>
 
         {/* First on narrow screens so it is not buried under the list; pinned on wide ones. */}
-        <aside className="order-1 flex flex-col gap-4 lg:sticky lg:top-6 lg:order-2">
+        <aside className="order-1 flex min-w-0 flex-col gap-4 lg:sticky lg:top-6 lg:order-2">
           <SidePanel title="Reminders" icon={BellIcon}>
             {dueReminders.isPending ? (
               <Skeleton className="h-16 w-full" />
@@ -254,22 +282,23 @@ export function DashboardPage() {
                   {dueReminders.data!.items.map((r) => {
                     const d = describeDue(r.dueOn, now);
                     return (
-                      <li key={r.id}>
-                        <Link to={r.contact ? `/contacts/${r.contact.id}` : "/reminders"} className="flex items-center gap-3 rounded-md px-1 py-1.5 hover:bg-accent">
-                          {r.contact ? (
+                      <PanelRow
+                        key={r.id}
+                        to={r.contact ? `/contacts/${r.contact.id}` : "/reminders"}
+                        leading={
+                          r.contact ? (
                             <ContactAvatar contact={r.contact} className="size-8" />
                           ) : (
-                            <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+                            <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground">
                               <BellIcon className="size-4" />
                             </span>
-                          )}
-                          <span className="min-w-0 flex-1">
-                            <span className="block truncate text-sm font-medium">{r.title}</span>
-                            {r.contact && <span className="block truncate text-xs text-muted-foreground">about {r.contact.displayName}</span>}
-                          </span>
-                          <span className={cn("shrink-0 text-xs", d.overdue ? "font-medium text-rose-600 dark:text-rose-400" : d.due ? "font-medium text-amber-600 dark:text-amber-400" : "text-muted-foreground")}>{d.text}</span>
-                        </Link>
-                      </li>
+                          )
+                        }
+                        title={r.title}
+                        sub={r.contact ? `about ${r.contact.displayName}` : undefined}
+                        trailing={d.text}
+                        tone={d.overdue ? "overdue" : d.due ? "due" : undefined}
+                      />
                     );
                   })}
                 </ul>
@@ -289,19 +318,15 @@ export function DashboardPage() {
                 {dueBets.data!.items.map((b) => {
                   const r = describeReview(b.reviewOn, now);
                   return (
-                    <li key={b.id}>
-                      <Link to={`/contacts/${b.contact.id}`} className="flex items-center gap-3 rounded-md px-1 py-1.5 hover:bg-accent">
-                        <ContactAvatar contact={b.contact} className="size-8" />
-                        <span className="min-w-0 flex-1">
-                          <span className="block truncate text-sm font-medium">{b.prediction}</span>
-                          <span className="block truncate text-xs text-muted-foreground">
-                            with {b.contact.displayName}
-                            {b.wager ? ` · ${b.wager}` : ""}
-                          </span>
-                        </span>
-                        <span className={cn("shrink-0 text-xs", r.due ? "font-medium text-amber-600 dark:text-amber-400" : "text-muted-foreground")}>{r.text}</span>
-                      </Link>
-                    </li>
+                    <PanelRow
+                      key={b.id}
+                      to={`/contacts/${b.contact.id}`}
+                      leading={<ContactAvatar contact={b.contact} className="size-8" />}
+                      title={b.prediction}
+                      sub={`with ${b.contact.displayName}${b.wager ? ` · ${b.wager}` : ""}`}
+                      trailing={r.text}
+                      tone={r.due ? "due" : undefined}
+                    />
                   );
                 })}
               </ul>
@@ -320,8 +345,19 @@ export function DashboardPage() {
               <ul className="flex flex-col">
                 {birthdays.map(({ c, days }) => {
                   const n = ideaCounts.get(c.id) ?? 0;
-                  const when = days === 0 ? "today" : days === 1 ? "tomorrow" : `in ${days} days · ${formatBirthday(c.birthday ?? null, now).split(" (")[0]}`;
-                  return <ContactRow key={c.id} contact={c} meta={n ? `${when} · ${n} gift ${n === 1 ? "idea" : "ideas"}` : when} />;
+                  const when = days === 0 ? "today" : days === 1 ? "tomorrow" : `in ${days} days`;
+                  const date = formatBirthday(c.birthday ?? null, now).split(" (")[0];
+                  return (
+                    <PanelRow
+                      key={c.id}
+                      to={`/contacts/${c.id}`}
+                      leading={<ContactAvatar contact={c} className="size-8" />}
+                      title={c.displayName}
+                      sub={n ? `${date} · ${n} gift ${n === 1 ? "idea" : "ideas"}` : date}
+                      trailing={when}
+                      tone={days === 0 ? "due" : undefined}
+                    />
+                  );
                 })}
               </ul>
             )}
@@ -349,7 +385,14 @@ export function DashboardPage() {
             ) : (
               <ul className="flex flex-col">
                 {outOfTouch.map(({ c, never }) => (
-                  <ContactRow key={c.id} contact={c} meta={never ? "never spoken" : formatRelative(c.lastInteraction?.occurredAt)} />
+                  <PanelRow
+                    key={c.id}
+                    to={`/contacts/${c.id}`}
+                    leading={<ContactAvatar contact={c} className="size-8" />}
+                    title={c.displayName}
+                    sub={never ? "Nothing logged yet" : `Last: ${c.lastInteraction?.summary ?? "interaction"}`}
+                    trailing={never ? "never" : formatRelative(c.lastInteraction?.occurredAt)}
+                  />
                 ))}
               </ul>
             )}

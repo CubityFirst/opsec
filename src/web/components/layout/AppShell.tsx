@@ -147,7 +147,7 @@ export function AppShell() {
             </SheetTrigger>
             <SheetContent side="left" className="w-64 p-3">
               <SheetTitle className="sr-only">Navigation</SheetTitle>
-              <div className="flex flex-col gap-6 pt-6">
+              <div className="flex h-full flex-col gap-6 pt-6">
                 <Brand />
                 <NavItems onNavigate={() => setMobileOpen(false)} />
                 <div className="mt-auto flex items-center gap-1">

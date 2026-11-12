@@ -75,19 +75,19 @@ export function BrandingCard() {
         </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
-        <div className="grid gap-1.5">
+        <div className="grid content-start gap-1.5">
           <Label htmlFor="brand-name">Name</Label>
           <Input id="brand-name" value={form.name} onChange={(e) => set({ name: e.target.value })} placeholder={DEFAULT_BRANDING.name} maxLength={40} />
           <p className="text-xs text-muted-foreground">Shown in the sidebar and wherever the app names itself.</p>
         </div>
 
         <div className="grid gap-4 sm:grid-cols-2">
-          <div className="grid gap-1.5">
+          <div className="grid content-start gap-1.5">
             <Label htmlFor="brand-title">Browser tab title</Label>
             <Input id="brand-title" value={form.title} onChange={(e) => set({ title: e.target.value })} placeholder={preview.name} maxLength={80} />
             <p className="text-xs text-muted-foreground">Blank uses the name.</p>
           </div>
-          <div className="grid gap-1.5">
+          <div className="grid content-start gap-1.5">
             <Label htmlFor="brand-short-name">Short name</Label>
             <Input
               id="brand-short-name"
@@ -100,7 +100,7 @@ export function BrandingCard() {
           </div>
         </div>
 
-        <div className="grid gap-1.5">
+        <div className="grid content-start gap-1.5">
           <Label htmlFor="brand-tagline">Sign-in tagline</Label>
           <Input
             id="brand-tagline"

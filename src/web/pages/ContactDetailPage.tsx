@@ -204,7 +204,8 @@ function Header({ contact, editOpen, setEditOpen }: { contact: ContactDetail; ed
   };
 
   return (
-    <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
+    // Avatar beside the name at every width; the actions drop to their own row on a phone.
+    <div className="grid grid-cols-[auto_minmax(0,1fr)] items-start gap-x-4 gap-y-3 sm:grid-cols-[auto_minmax(0,1fr)_auto]">
       <button
         type="button"
         className="group relative shrink-0 self-start rounded-full outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
@@ -212,7 +213,7 @@ function Header({ contact, editOpen, setEditOpen }: { contact: ContactDetail; ed
         aria-label={contact.avatarFullUrl ? "View full photo" : "Add photo"}
         disabled={upload.isPending}
       >
-        <ContactAvatar contact={contact} className="size-20 text-2xl" />
+        <ContactAvatar contact={contact} className="size-14 text-xl sm:size-20 sm:text-2xl" />
         <span className="absolute inset-0 flex items-center justify-center rounded-full bg-black/50 text-white opacity-0 transition-opacity group-hover:opacity-100">
           {contact.avatarFullUrl ? <ExpandIcon className="size-5" /> : <CameraIcon className="size-5" />}
         </span>
@@ -255,15 +256,15 @@ function Header({ contact, editOpen, setEditOpen }: { contact: ContactDetail; ed
         </DialogContent>
       </Dialog>
 
-      <div className="flex min-w-0 flex-1 flex-col gap-2">
+      <div className="flex min-w-0 flex-col gap-2">
         <div className="flex flex-wrap items-center gap-2">
-          <h1 className="text-2xl font-semibold tracking-tight">
+          <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">
             {contact.displayName}
             {contact.nickname && <span className="ml-2 text-lg font-normal text-muted-foreground">“{contact.nickname}”</span>}
             {contact.pronouns && <span className="ml-2 text-sm font-normal text-muted-foreground">{contact.pronouns}</span>}
             {contact.animalType && <span className="ml-2 text-sm font-normal text-muted-foreground">{contact.animalType}</span>}
           </h1>
-          <KindBadge kind={contact.kind} />
+          {contact.kind !== "person" && <KindBadge kind={contact.kind} />}
           {contact.deceasedAt && <DeceasedBadge on={contact.deceasedOn} />}
           {!contact.keepInTouch && (
             <span className="flex items-center gap-1 text-xs text-muted-foreground" title="Left out of the dashboard's Out of touch list">
@@ -289,7 +290,7 @@ function Header({ contact, editOpen, setEditOpen }: { contact: ContactDetail; ed
         <TagPicker contact={contact} />
       </div>
 
-      <div className="flex items-center gap-1 self-start">
+      <div className="col-span-2 flex flex-wrap items-center gap-1 sm:col-span-1 sm:justify-end">
         {contact.primaryPhone && (
           <Tooltip>
             <TooltipTrigger asChild>

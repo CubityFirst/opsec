@@ -1,11 +1,12 @@
 import { ArchiveIcon, AtSignIcon, BellIcon, BellOffIcon, CheckIcon, DicesIcon, FileIcon, GiftIcon, HeartCrackIcon, LinkIcon, MilestoneIcon, PencilIcon, PlusIcon, RotateCcwIcon, SparklesIcon, TagIcon, Trash2Icon, type LucideIcon } from "lucide-react";
 import { Link } from "react-router";
-import { BET_OUTCOME_LABELS, type BetOutcome } from "@shared/schemas/bet";
+import type { BetOutcome } from "@shared/schemas/bet";
 import { GIFT_STATUS_LABELS, type GiftStatus } from "@shared/schemas/gift";
 import type { ActivityEventOut } from "@shared/types";
 import { BrandName } from "@/components/BrandName";
 import { MentionText } from "@/components/MentionText";
-import { formatDateTime, formatRelative } from "@/lib/format";
+import { formatDate, formatDateTime, formatRelative } from "@/lib/format";
+import { outcomePhrase } from "@/components/bets/BetCard";
 
 type Payload = Record<string, unknown>;
 const str = (p: Payload, k: string) => (typeof p[k] === "string" ? (p[k] as string) : "");
@@ -36,7 +37,7 @@ export function describeEvent(e: ActivityEventOut): { icon: LucideIcon; text: Re
     case "contact.unarchived":
       return { icon: ArchiveIcon, text: <>Restored from archive</> };
     case "contact.deceased":
-      return { icon: HeartCrackIcon, text: <>Marked as deceased{str(p, "on") ? ` (${str(p, "on")})` : ""}</> };
+      return { icon: HeartCrackIcon, text: <>Marked as deceased{str(p, "on") ? ` (${day(str(p, "on"))})` : ""}</> };
     case "contact.undeceased":
       return { icon: HeartCrackIcon, text: <>Deceased mark removed</> };
     case "contact_method.added":
@@ -62,12 +63,12 @@ export function describeEvent(e: ActivityEventOut): { icon: LucideIcon; text: Re
     case "life_event.deleted":
       return { icon: Trash2Icon, text: <>Removed life event “{str(p, "title")}”</> };
     case "bet.created":
-      return { icon: DicesIcon, text: <>Made a bet: “{str(p, "prediction")}”{str(p, "wager") ? ` for ${str(p, "wager")}` : ""}, review on {str(p, "reviewOn")}</> };
+      return { icon: DicesIcon, text: <>Made a bet: “{str(p, "prediction")}”{str(p, "wager") ? ` for ${str(p, "wager")}` : ""}, review on {day(str(p, "reviewOn"))}</> };
     case "bet.updated":
       return { icon: PencilIcon, text: <>Edited bet “{str(p, "prediction")}” ({changeSummary(p.changes)})</> };
     case "bet.settled": {
       const outcome = str(p, "outcome") as BetOutcome;
-      return { icon: DicesIcon, text: <>Settled bet “{str(p, "prediction")}”: {BET_OUTCOME_LABELS[outcome]?.toLowerCase() ?? outcome}{str(p, "note") ? ` — ${str(p, "note")}` : ""}</> };
+      return { icon: DicesIcon, text: <>Settled bet “{str(p, "prediction")}”: {outcomePhrase(outcome)}{str(p, "note") ? ` — ${str(p, "note")}` : ""}</> };
     }
     case "bet.reopened":
       return { icon: RotateCcwIcon, text: <>Reopened bet “{str(p, "prediction")}”</> };
@@ -76,24 +77,24 @@ export function describeEvent(e: ActivityEventOut): { icon: LucideIcon; text: Re
     case "gift.created": {
       const status = str(p, "status") as GiftStatus;
       const label = status === "idea" ? "Gift idea" : status === "given" ? "Gave a gift" : "Received a gift";
-      return { icon: GiftIcon, text: <>{label}: “{str(p, "name")}”{str(p, "occasion") ? ` for ${str(p, "occasion")}` : ""}{str(p, "givenOn") ? ` on ${str(p, "givenOn")}` : ""}</> };
+      return { icon: GiftIcon, text: <>{label}: “{str(p, "name")}”{str(p, "occasion") ? ` for ${str(p, "occasion")}` : ""}{str(p, "givenOn") ? ` on ${day(str(p, "givenOn"))}` : ""}</> };
     }
     case "gift.updated":
       return { icon: PencilIcon, text: <>Edited gift “{str(p, "name")}” ({changeSummary(p.changes)})</> };
     case "gift.given":
-      return { icon: GiftIcon, text: <>Gave “{str(p, "name")}”{str(p, "occasion") ? ` for ${str(p, "occasion")}` : ""} on {str(p, "on")}</> };
+      return { icon: GiftIcon, text: <>Gave “{str(p, "name")}”{str(p, "occasion") ? ` for ${str(p, "occasion")}` : ""} on {day(str(p, "on"))}</> };
     case "gift.reverted":
       return { icon: RotateCcwIcon, text: <>Gift “{str(p, "name")}” is an idea again (was {(GIFT_STATUS_LABELS[str(p, "previousStatus") as GiftStatus] ?? str(p, "previousStatus")).toLowerCase()})</> };
     case "gift.deleted":
       return { icon: Trash2Icon, text: <>Removed gift “{str(p, "name")}”</> };
     case "reminder.created":
-      return { icon: BellIcon, text: <>Set a reminder: “{str(p, "title")}”, due {str(p, "dueOn")}{str(p, "repeat") ? `, ${str(p, "repeat")}` : ""}</> };
+      return { icon: BellIcon, text: <>Set a reminder: “{str(p, "title")}”, due {day(str(p, "dueOn"))}{str(p, "repeat") ? `, ${str(p, "repeat")}` : ""}</> };
     case "reminder.updated":
       return { icon: PencilIcon, text: <>Edited reminder “{str(p, "title")}” ({changeSummary(p.changes)})</> };
     case "reminder.completed":
-      return { icon: CheckIcon, text: <>Done: “{str(p, "title")}”{str(p, "nextDueOn") ? ` (next ${str(p, "nextDueOn")})` : ""}</> };
+      return { icon: CheckIcon, text: <>Done: “{str(p, "title")}”{str(p, "nextDueOn") ? ` (next ${day(str(p, "nextDueOn"))})` : ""}</> };
     case "reminder.skipped":
-      return { icon: BellOffIcon, text: <>Skipped reminder “{str(p, "title")}” for {str(p, "on")}{str(p, "nextDueOn") ? ` (next ${str(p, "nextDueOn")})` : ""}</> };
+      return { icon: BellOffIcon, text: <>Skipped reminder “{str(p, "title")}” for {day(str(p, "on"))}{str(p, "nextDueOn") ? ` (next ${day(str(p, "nextDueOn"))})` : ""}</> };
     case "reminder.reopened":
       return { icon: RotateCcwIcon, text: <>Reopened reminder “{str(p, "title")}”</> };
     case "reminder.deleted":
@@ -138,15 +139,24 @@ export function describeEvent(e: ActivityEventOut): { icon: LucideIcon; text: Re
   }
 }
 
+/** A date that never splits across lines ("16 Nov 2026" with no-break spaces). */
+function day(iso: string): string {
+  return formatDate(iso).replace(/ /g, "\u00a0");
+}
+
 export function ActivityEventItem({ event }: { event: ActivityEventOut }) {
   const { icon: Icon, text } = describeEvent(event);
   return (
-    <div className="flex items-center gap-2 px-1 text-sm text-muted-foreground">
-      <Icon className="size-3.5 shrink-0" />
-      <span className="min-w-0 flex-1 truncate">{text}</span>
-      <span className="shrink-0 text-xs" title={formatDateTime(event.createdAt)}>
-        {formatRelative(event.createdAt)}
-      </span>
+    // The description wraps rather than truncating (it is often the whole point),
+    // and the time follows it inline so it never ends up a screen-width away.
+    <div className="flex items-start gap-2.5 px-1 text-sm text-muted-foreground">
+      <Icon className="mt-[0.2rem] size-3.5 shrink-0" />
+      <p className="min-w-0 flex-1 text-foreground/80 [overflow-wrap:anywhere]">
+        {text}
+        <span className="ml-2 text-xs whitespace-nowrap text-muted-foreground" title={formatDateTime(event.createdAt)}>
+          {formatRelative(event.createdAt)}
+        </span>
+      </p>
     </div>
   );
 }
