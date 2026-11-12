@@ -3,7 +3,7 @@ import type { SessionUser } from "./lib/session";
 
 /**
  * Vars and secrets the Worker reads. All optional: a fresh "Deploy to Cloudflare"
- * install sets only the few in the top level of wrangler.jsonc, and the code treats
+ * install sets none of them (the template mode of cloudflare.config.ts), and the code treats
  * anything missing as unset. Merged into the generated `Env` so typing does not
  * depend on which vars a particular machine's config or .dev.vars declare.
  */

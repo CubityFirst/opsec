@@ -32,14 +32,14 @@ It runs as a single Cloudflare Worker with D1 for data and R2 for files, and cos
 
 ## Deploy your own
 
-The **Deploy to Cloudflare** button above forks this repository and creates the Worker, a D1 database and an R2 bucket, runs the migrations and deploys it to a `workers.dev` URL. From your own machine instead: clone, `npm install`, `npx cf auth login` and `npx wrangler login` (the template still applies its migrations with Wrangler, which looks the new database up by name), `npm run deploy`.
+The **Deploy to Cloudflare** button above forks this repository and creates the Worker, a D1 database and an R2 bucket, runs the migrations and deploys it to a `workers.dev` URL. From your own machine instead: clone, `npm install`, `npx cf auth login`, `npm run deploy` (`cf deploy` creates the database and bucket on the first run; `scripts/migrate-remote.mjs` finds the database by name and applies the migrations).
 
 > **A fresh install has no authentication.** `AUTH_MODE` defaults to `open`: every visitor is treated as the owner with admin rights, so an open instance on a public URL is an open address book. Before you put anything real in it, do one of:
 >
 > 1. **Put a gate in front**, e.g. [Cloudflare Access](https://developers.cloudflare.com/cloudflare-one/policies/access/) on the Worker's hostname. No code changes; the app notices Access and says so on the Account page.
 > 2. **Turn on OpenID Connect sign-in**: vars `AUTH_MODE=oidc`, `OIDC_ISSUER`, `OIDC_CLIENT_ID`, `AUTH_PROVIDER_LABEL`, `ACCESS_ALLOWED_EMAILS`; secrets `OIDC_CLIENT_SECRET`, `SESSION_SECRET`; redirect URI `https://<your host>/api/auth/callback`. See [docs/deploying.md](docs/deploying.md#authentication).
 
-Then open **Account → Ask provider** to point Ask at a model (none is configured by default). Storing an API key there needs the `SESSION_SECRET` secret (`npx wrangler secret put SESSION_SECRET`); key-less providers do not. See [docs/ask.md](docs/ask.md).
+Then open **Account → Ask provider** to point Ask at a model (none is configured by default). Storing an API key there needs the `SESSION_SECRET` secret (`npx wrangler secret put SESSION_SECRET --name opsec`); key-less providers do not. See [docs/ask.md](docs/ask.md).
 
 ## Development
 
@@ -60,9 +60,9 @@ For local OIDC sign-in, register `http://localhost:5173/api/auth/callback` with 
 | `npm run build` | Typecheck and build client + Worker into `.cloudflare/output` (`cf build`) |
 | `npm run db:generate` | Generate a SQL migration from `src/worker/db/schema.ts` |
 | `npm run db:migrate:local` / `db:migrate:remote` | Apply migrations to local / production D1 |
-| `npm run types` | Regenerate `worker-configuration.d.ts` after editing `wrangler.jsonc` |
+| `npm run types` | Regenerate the Worker's `Env` types (`.cloudflare/types`) from `cloudflare.config.ts`; `typecheck` and `build` do it too |
 
-The Worker is configured by `cloudflare.config.ts` ([cf](https://developers.cloudflare.com/cf/)). `wrangler.jsonc` is kept in step for the Vitest pool and `npm run types`, which only read Wrangler configuration.
+The Worker is configured by `cloudflare.config.ts` ([cf](https://developers.cloudflare.com/cf/)), the only Worker config in the repository: the Vitest pool and the generated types read it too. Wrangler is still a dev dependency for `npx wrangler tail` and `npx wrangler secret put`, which take `--name opsec`.
 
 Stack: Hono on Workers, D1 via Drizzle, R2, React 19 + Vite + Tailwind v4 + shadcn/ui + TanStack Query.
 

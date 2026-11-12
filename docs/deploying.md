@@ -20,7 +20,7 @@ The author's instance (mode `prod` in `cloudflare.config.ts`) signs in through A
 One-time: the D1 database `nexus-db` and R2 bucket `nexus-files` already exist and are
 referenced in `cloudflare.config.ts` (Cloudflare cannot rename them; they keep the project's old
 name). The Worker is `opsec`. The custom domains `opsec.cubityfir.st`, `opsec.nexus`, and the legacy
-`nexus.cubityfir.st` (which redirects) are created from the `routes` entries on first deploy
+`nexus.cubityfir.st` (which redirects) are created from the `domains` list on first deploy
 (the zone must be on the same Cloudflare account).
 
 ```bash

@@ -1,5 +1,5 @@
 import { bindings, defineConfig } from "cf/config";
-import { readFileSync } from "node:fs";
+import { devVarNames } from "./scripts/dev-vars.mjs";
 
 // -----------------------------------------------------------------------------
 // The default mode is the generic template used by "Deploy to Cloudflare" and by
@@ -24,9 +24,16 @@ import { readFileSync } from "node:fs";
 //     passes .dev.vars values to declared secrets, while Wrangler passed them all;
 //     declaring them in the template itself would make them required on deploy.
 //
-// wrangler.jsonc is still in the repository for the tools that only read it: the
-// Vitest pool (vitest.config.ts) and `npm run types` (worker-configuration.d.ts).
-// Keep the two files in step when you change a binding or the compatibility date.
+// This file is the only Worker configuration in the repository (there is no
+// wrangler.jsonc). The tools that used to read Wrangler's file are fed from it:
+//   - Env types: `cf workers types` writes .cloudflare/types/index.d.ts (`npm run types`,
+//     and every typecheck / build script runs it first).
+//   - Tests: vitest.config.ts evaluates this config (mode "test", the template branch)
+//     and hands its entrypoint, compatibility settings and bindings to the Vitest pool.
+//   - The template's remote D1 migrations: scripts/migrate-remote.mjs looks the database
+//     up by the name declared here (cf only takes IDs).
+// Keep this file free of node:* imports: the Worker's TypeScript project (no Node types)
+// type-checks it through the generated .cloudflare/types.
 // -----------------------------------------------------------------------------
 
 /** Settings shared by every mode. Bindings are not shared: each mode declares its own. */
@@ -46,21 +53,6 @@ const base = {
 
 /** Local-only ID for the template's D1 under `cf dev`; never deployed. Keep in step with `db:migrate:local`. */
 const LOCAL_D1_ID = "00000000-0000-4000-8000-00000000d1d1";
-
-/** Names set in .dev.vars.development or .dev.vars (the first that exists, as the Vite plugin reads them). */
-function devVarNames(): string[] {
-	for (const file of [".dev.vars.development", ".dev.vars"]) {
-		let text: string;
-		try {
-			// Relative to the working directory, like the Vite plugin's envDir (the project root).
-			text = readFileSync(file, "utf8");
-		} catch {
-			continue;
-		}
-		return [...text.matchAll(/^\s*(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=/gm)].map((m) => m[1]!);
-	}
-	return [];
-}
 
 export default defineConfig((ctx) => {
 	switch (ctx.mode) {
@@ -120,7 +112,7 @@ export default defineConfig((ctx) => {
 					//   TIMEZONE             IANA zone you live in (e.g. "Europe/London"); Ask uses the browser's zone
 					//                        first, MCP clients only have this one. Unset = UTC.
 					//   ENVIRONMENT          "development" only in local .dev.vars (opens the /api/dev/* seed routes)
-					// Secrets (`npx wrangler secret put ...`): SESSION_SECRET (needed to encrypt stored provider keys,
+					// Secrets (`npx wrangler secret put <NAME> --name opsec`): SESSION_SECRET (needed to encrypt stored provider keys,
 					// and for oidc mode), OIDC_CLIENT_SECRET (oidc mode), AI_API_KEY, AI_EXTRA_HEADERS (optional).
 					env: {
 						...(local ? Object.fromEntries(devVarNames().map((name) => [name, bindings.secret()])) : {}),
