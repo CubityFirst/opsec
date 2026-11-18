@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { DEFAULT_CONTACT_COLUMNS } from "@shared/contact-columns";
 import type { ApiErrorBody, AuthUser } from "@shared/types";
 import { signSession } from "../src/worker/lib/session";
+import { providerFetch } from "../src/worker/services/oidc";
 import { api, apiAs, createContact, json } from "./helpers";
 
 describe("auth", () => {
@@ -98,9 +99,44 @@ describe("auth", () => {
     expect(res.headers.get("location")).toContain("auth_error=");
   });
 
-  it("logout clears the cookie", async () => {
+  it("sends issuer-host requests through the IDP service binding", async () => {
+    // The fake IDP binding (vitest.config.ts) tags its answers; a public fetch would not carry the header.
+    const res = await providerFetch(env)("https://auth.cubityfir.st/.well-known/openid-configuration", { method: "GET", headers: {}, body: undefined, redirect: "manual" });
+    expect(res.headers.get("x-test-idp")).toBe("1");
+    expect(((await res.json()) as { issuer: string }).issuer).toBe("https://auth.cubityfir.st");
+  });
+
+  it("login redirects to the discovered authorization endpoint with PKCE, state and nonce", async () => {
+    const res = await api("/api/auth/login?next=/contacts", { anonymous: true, redirect: "manual" });
+    expect(res.status).toBe(302);
+    const url = new URL(res.headers.get("location")!);
+    expect(`${url.origin}${url.pathname}`).toBe("https://auth.cubityfir.st/oauth/authorize");
+    expect(url.searchParams.get("client_id")).toBe("test-client");
+    expect(url.searchParams.get("redirect_uri")).toBe("http://opsec.test/api/auth/callback");
+    expect(url.searchParams.get("code_challenge_method")).toBe("S256");
+    for (const p of ["code_challenge", "state", "nonce"]) expect(url.searchParams.get(p)).toBeTruthy();
+    expect(res.headers.get("set-cookie")).toContain("opsec_oidc_tx=");
+  });
+
+  it("logout clears the session and hands back the provider's end-session URL", async () => {
     const res = await api("/api/auth/logout", { method: "POST" });
     expect(res.status).toBe(200);
-    expect(res.headers.get("set-cookie")).toContain("opsec_session=;");
+    const setCookie = res.headers.get("set-cookie") ?? "";
+    expect(setCookie).toContain("opsec_session=;");
+    expect(setCookie).toContain("opsec_id_token=;");
+    const { logoutUrl } = (await res.json()) as { logoutUrl: string | null };
+    const url = new URL(logoutUrl!);
+    expect(`${url.origin}${url.pathname}`).toBe("https://auth.cubityfir.st/oauth/logout");
+    expect(url.searchParams.get("post_logout_redirect_uri")).toBe("http://opsec.test");
+    expect(url.searchParams.get("client_id")).toBe("test-client");
+    // No id_token kept from sign-in: the provider will ask before signing out.
+    expect(url.searchParams.has("id_token_hint")).toBe(false);
+  });
+
+  it("logout passes the id_token from sign-in as id_token_hint", async () => {
+    const session = await signSession({ sub: "test-admin", email: null, emailVerified: false, name: null, picture: null, roles: ["admin"] }, env.SESSION_SECRET);
+    const res = await api("/api/auth/logout", { method: "POST", headers: { cookie: `opsec_session=${session}; opsec_id_token=header.payload.signature` } });
+    const { logoutUrl } = (await res.json()) as { logoutUrl: string };
+    expect(new URL(logoutUrl).searchParams.get("id_token_hint")).toBe("header.payload.signature");
   });
 });

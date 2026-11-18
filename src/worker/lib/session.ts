@@ -9,6 +9,12 @@ import { ApiError } from "./errors";
 export const SESSION_COOKIE = "opsec_session";
 /** Short-lived cookie holding the PKCE verifier, state and nonce between /login and /callback. */
 export const TX_COOKIE = "opsec_oidc_tx";
+/**
+ * The provider's raw id_token from the last sign-in, kept only to send as `id_token_hint` on
+ * RP-initiated logout so the provider ends its own session without a confirm page. Scoped to
+ * /api/auth, so it rides only on auth routes; never read for identity (the session cookie is).
+ */
+export const ID_TOKEN_COOKIE = "opsec_id_token";
 export const SESSION_TTL_SECONDS = 7 * 24 * 60 * 60;
 export const TX_TTL_SECONDS = 10 * 60;
 
@@ -133,8 +139,18 @@ export function setSessionCookie(c: Context, token: string) {
   setCookie(c, SESSION_COOKIE, token, { httpOnly: true, secure: secure(c), sameSite: "Lax", path: "/", maxAge: SESSION_TTL_SECONDS });
 }
 
+/** Also drops the id_token kept for sign-out: it belongs to the session it came with. */
 export function clearSessionCookie(c: Context) {
   deleteCookie(c, SESSION_COOKIE, { path: "/" });
+  deleteCookie(c, ID_TOKEN_COOKIE, { path: "/api/auth" });
+}
+
+export function setIdTokenCookie(c: Context, idToken: string) {
+  setCookie(c, ID_TOKEN_COOKIE, idToken, { httpOnly: true, secure: secure(c), sameSite: "Lax", path: "/api/auth", maxAge: SESSION_TTL_SECONDS });
+}
+
+export function readIdTokenCookie(c: Context): string | undefined {
+  return getCookie(c, ID_TOKEN_COOKIE);
 }
 
 export function setTxCookie(c: Context, token: string) {

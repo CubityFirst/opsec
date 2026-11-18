@@ -13,7 +13,9 @@ Config for `oidc` mode: vars `OIDC_ISSUER`, `OIDC_CLIENT_ID`, `AUTH_PROVIDER_LAB
 
 In `open` mode behind [Cloudflare Access](https://developers.cloudflare.com/cloudflare-one/policies/access/), the app probes `/cdn-cgi/access/get-identity`, which Cloudflare only serves on hostnames covered by an Access application; when that answers, the Account page drops the open-access warning and names the identity that let you in instead. Access visitors still share the single owner account, so the policy is what decides who gets in.
 
-The author's instance (mode `prod` in `cloudflare.config.ts`) signs in through Annex, a private provider on the same Cloudflare zone. Because a Worker's fetch to a same-zone hostname skips that hostname's Worker, its token, JWKS and userinfo calls go through a service binding; that binding is optional and only used when present.
+Sign-out clears the session and, when the provider's discovery document advertises an `end_session_endpoint`, sends the browser there (RP-initiated logout) with the id_token from sign-in as `id_token_hint` and `post_logout_redirect_uri` set to the instance's origin with no trailing slash (e.g. `https://opsec.example.com`). Register that exact string as a post-logout redirect URI for the client, or the provider will refuse it. Providers without an end-session endpoint get a local sign-out only.
+
+The author's instance (mode `prod` in `cloudflare.config.ts`) signs in through cubityfir.st (`https://auth.cubityfir.st`, the `cubityfirst-auth` Worker), a private provider on the same Cloudflare zone. Because a Worker's fetch to a same-zone hostname skips that hostname's Worker, its discovery, token, JWKS and userinfo calls go through the `IDP` service binding (`services/oidc.ts`); that binding is optional and only used when present. The binding names the Worker directly and ignores routes, so if the provider ever moves to another Worker the binding has to move with it. Its client needs `https://opsec.cubityfir.st` and `https://opsec.nexus` as post-logout redirect URIs (`auth.cubityfir.st/admin/clients`).
 
 ## The author's instance
 
@@ -29,7 +31,7 @@ curl https://opsec.cubityfir.st/api/auth/login -o /dev/null -w "%{redirect_url}\
 ```
 
 `npm run deploy` (no `:prod`) deploys the **default-mode template**: open access, a fresh `opsec-db`, no
-Annex binding. Because the template and mode `prod` share the Worker name `opsec`, running it against
+`IDP` binding. Because the template and mode `prod` share the Worker name `opsec`, running it against
 this account silently switches production to open access and an empty database (sign-in then fails
 with "Internal error"). Only use it on a self-hosted account.
 
