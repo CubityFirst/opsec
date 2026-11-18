@@ -1,3 +1,4 @@
+import { SIGNED_OUT_PATH } from "@shared/auth";
 import type { WorkerEnv } from "../env";
 import * as client from "openid-client";
 import { ApiError } from "../lib/errors";
@@ -62,11 +63,12 @@ export function redirectUri(requestUrl: string): string {
 }
 
 /**
- * Where the provider sends the browser after RP-initiated logout: this instance's origin, no
- * trailing slash. Register it byte for byte as a post-logout redirect URI for the client.
+ * Where the provider sends the browser after RP-initiated logout: this instance's signed-out
+ * page (`https://<host>/signed-out`). Register it byte for byte as a post-logout redirect URI
+ * for the client.
  */
 export function postLogoutRedirectUri(requestUrl: string): string {
-  return new URL(requestUrl).origin;
+  return `${new URL(requestUrl).origin}${SIGNED_OUT_PATH}`;
 }
 
 export { client };

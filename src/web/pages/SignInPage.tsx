@@ -1,4 +1,5 @@
-import { LogInIcon } from "lucide-react";
+import { CircleCheckIcon, LogInIcon } from "lucide-react";
+import { SIGNED_OUT_PATH } from "@shared/auth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { signInUrl, useAuthInfo } from "@/lib/queries/auth";
@@ -9,10 +10,12 @@ export function SignInPage({ error, onRetry }: { error?: string; onRetry?: () =>
   const branding = useBranding();
   const params = new URLSearchParams(window.location.search);
   const authError = error ?? params.get("auth_error");
-  // Land back where the user was, minus any stale error parameter.
+  // Reached after signing out (the provider's post-logout redirect, or a local sign-out).
+  const signedOut = window.location.pathname === SIGNED_OUT_PATH;
+  // Land back where the user was, minus any stale error parameter; from the signed-out page, home.
   params.delete("auth_error");
   const qs = params.toString();
-  const next = `${window.location.pathname}${qs ? `?${qs}` : ""}`;
+  const next = signedOut ? "/" : `${window.location.pathname}${qs ? `?${qs}` : ""}`;
 
   return (
     <div className="flex min-h-svh items-center justify-center bg-background p-4">
@@ -22,6 +25,11 @@ export function SignInPage({ error, onRetry }: { error?: string; onRetry?: () =>
           {branding.tagline && <CardDescription>{branding.tagline}</CardDescription>}
         </CardHeader>
         <CardContent className="flex flex-col gap-3">
+          {signedOut && !authError && (
+            <p role="status" className="flex items-center gap-2 rounded-md border bg-muted/50 px-3 py-2 text-sm text-muted-foreground">
+              <CircleCheckIcon className="size-4 shrink-0" /> You're signed out.
+            </p>
+          )}
           {authError && (
             <p role="alert" className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
               {authError}

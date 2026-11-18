@@ -2,7 +2,7 @@ import { env } from "cloudflare:test";
 import { describe, expect, it } from "vitest";
 import { DEFAULT_CONTACT_COLUMNS } from "@shared/contact-columns";
 import type { ApiErrorBody, AuthUser } from "@shared/types";
-import { signSession } from "../src/worker/lib/session";
+import { safeNext, signSession } from "../src/worker/lib/session";
 import { providerFetch } from "../src/worker/services/oidc";
 import { api, apiAs, createContact, json } from "./helpers";
 
@@ -127,10 +127,17 @@ describe("auth", () => {
     const { logoutUrl } = (await res.json()) as { logoutUrl: string | null };
     const url = new URL(logoutUrl!);
     expect(`${url.origin}${url.pathname}`).toBe("https://auth.cubityfir.st/oauth/logout");
-    expect(url.searchParams.get("post_logout_redirect_uri")).toBe("http://opsec.test");
+    expect(url.searchParams.get("post_logout_redirect_uri")).toBe("http://opsec.test/signed-out");
     expect(url.searchParams.get("client_id")).toBe("test-client");
     // No id_token kept from sign-in: the provider will ask before signing out.
     expect(url.searchParams.has("id_token_hint")).toBe(false);
+  });
+
+  it("never sends a fresh sign-in back to the signed-out page", () => {
+    expect(safeNext("/signed-out")).toBe("/");
+    expect(safeNext("/signed-out?x=1")).toBe("/");
+    expect(safeNext("/contacts?q=a")).toBe("/contacts?q=a");
+    expect(safeNext("/signed-outside")).toBe("/signed-outside");
   });
 
   it("logout passes the id_token from sign-in as id_token_hint", async () => {

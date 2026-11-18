@@ -53,7 +53,7 @@ errors return `{ error: { code, message, issues? } }`. API tokens (see [Ask and 
 - `POST/DELETE /contacts/:id/avatar` (multipart `file` = cropped avatar, optional `original` = full photo), `POST /interactions/:id/files`, `GET /contacts/:id/files`, `GET /files/:id`, `DELETE /files/:id`
 - `GET /search?q=`, `GET/POST /tags`, `PATCH/DELETE /tags/:id`
 - `GET/POST /calendar-feeds`, `PATCH/DELETE /calendar-feeds/:id`, `POST /calendar-feeds/:id/rotate` (new secret URL); the feed itself is `GET /calendar/<key>.ics` outside `/api` (see [Calendar feeds](#calendar-feeds))
-- `GET /auth/login`, `GET /auth/callback`, `GET /auth/me`, `POST /auth/logout`
+- `GET /auth/login`, `GET /auth/callback`, `GET /auth/me`, `POST /auth/logout` (clears the session; `logoutUrl` is the provider's end-session URL, which returns to `/signed-out`, or `null`)
 - `GET /branding` (public: the sign-in page needs the name), `PUT /branding`, `DELETE /branding` (admin only; DELETE restores the defaults)
 - `POST /dev/seed` (only when `ENVIRONMENT=development`)
 

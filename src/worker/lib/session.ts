@@ -1,6 +1,7 @@
 import type { Context } from "hono";
 import { deleteCookie, getCookie, setCookie } from "hono/cookie";
 import { sign, verify } from "hono/jwt";
+import { SIGNED_OUT_PATH } from "@shared/auth";
 import { withPreferenceDefaults } from "@shared/schemas/preferences";
 import type { AuthUser } from "@shared/types";
 import type { AppVars } from "../env";
@@ -169,9 +170,10 @@ export function readSessionCookie(c: Context): string | undefined {
   return getCookie(c, SESSION_COOKIE);
 }
 
-/** Only allow same-origin relative paths as post-login destinations. */
+/** Only allow same-origin relative paths as post-login destinations, and never the signed-out page. */
 export function safeNext(raw: string | undefined | null): string {
   if (!raw || !raw.startsWith("/") || raw.startsWith("//") || raw.startsWith("/\\")) return "/";
   if (raw.startsWith("/api/")) return "/";
+  if (new URL(raw, "http://x").pathname === SIGNED_OUT_PATH) return "/";
   return raw;
 }
