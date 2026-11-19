@@ -32,6 +32,13 @@ let cached: { key: string; promise: Promise<client.Configuration> } | undefined;
  * Discover the provider (endpoints, JWKS URI, supported algs) from the
  * issuer's well-known document. Cached per isolate; a failed discovery is
  * not cached so a transient outage does not poison the Worker.
+ *
+ * openid-client skips the id_token's JWS signature check by default (OIDC Core
+ * allows that for tokens fetched straight from the token endpoint over TLS);
+ * `enableNonRepudiationChecks` turns it on, as the provider asks. The JWKS is
+ * fetched through `providerFetch` too and cached per isolate for up to five
+ * minutes; a token naming a `kid` the cache lacks forces a re-fetch once the
+ * copy is a minute old, so key rotation needs nothing here.
  */
 export function getOidcConfig(env: WorkerEnv): Promise<client.Configuration> {
   if (!env.OIDC_ISSUER || !env.OIDC_CLIENT_ID) {
@@ -48,6 +55,7 @@ export function getOidcConfig(env: WorkerEnv): Promise<client.Configuration> {
   const promise = client
     .discovery(new URL(env.OIDC_ISSUER), env.OIDC_CLIENT_ID, undefined, client.ClientSecretPost(env.OIDC_CLIENT_SECRET), {
       [client.customFetch]: providerFetch(env),
+      execute: [client.enableNonRepudiationChecks],
     })
     .catch((e) => {
       if (cached?.promise === promise) cached = undefined;

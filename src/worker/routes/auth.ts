@@ -66,8 +66,9 @@ app.get("/auth/login", async (c) => {
 });
 
 /**
- * Exchange the code, verify the id_token (signature via JWKS, iss, aud, exp,
- * nonce — all performed by openid-client), then start our own session.
+ * Exchange the code, verify the id_token (iss, aud, exp, nonce, and the
+ * signature via JWKS because getOidcConfig enables non-repudiation checks — all
+ * performed by openid-client), then start our own session.
  */
 app.get("/auth/callback", async (c) => {
   if (authMode(c.env) === "open") return c.redirect("/");

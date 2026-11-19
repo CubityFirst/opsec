@@ -51,7 +51,7 @@ npm run dev                      # Vite + Worker at http://localhost:5173 (local
 npm run seed                     # optional sample data
 ```
 
-For local OIDC sign-in, register `http://localhost:5173/api/auth/callback` with your provider.
+For local OIDC sign-in, register `http://localhost:5173/api/auth/callback` with your provider, and `http://localhost:5173/signed-out` as a post-logout redirect URI if it supports RP-initiated logout.
 
 | Script | What it does |
 |---|---|

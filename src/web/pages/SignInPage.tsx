@@ -1,5 +1,5 @@
 import { CircleCheckIcon, LogInIcon } from "lucide-react";
-import { SIGNED_OUT_PATH } from "@shared/auth";
+import { isSignedOutPath } from "@shared/auth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { signInUrl, useAuthInfo } from "@/lib/queries/auth";
@@ -11,7 +11,7 @@ export function SignInPage({ error, onRetry }: { error?: string; onRetry?: () =>
   const params = new URLSearchParams(window.location.search);
   const authError = error ?? params.get("auth_error");
   // Reached after signing out (the provider's post-logout redirect, or a local sign-out).
-  const signedOut = window.location.pathname === SIGNED_OUT_PATH;
+  const signedOut = isSignedOutPath(window.location.pathname);
   // Land back where the user was, minus any stale error parameter; from the signed-out page, home.
   params.delete("auth_error");
   const qs = params.toString();

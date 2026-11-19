@@ -3,6 +3,7 @@ import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { defineConfig } from "vitest/config";
 import cloudflareConfig from "./cloudflare.config.ts";
+import { FAKE_ISSUER, createFakeIdp } from "./test/fake-idp.ts";
 
 /**
  * The Worker as cloudflare.config.ts declares it, in mode "test" (the template branch: no
@@ -37,20 +38,26 @@ async function workerFromConfig() {
   };
 }
 
+/**
+ * The service bindings mode "prod" declares (name -> target Worker). Tests get them as
+ * TEST_PROD_SERVICE_BINDINGS so they can pin the binding name the code reads (`IDP`) to the
+ * one the author's instance actually deploys: nothing else ties the two together.
+ */
+async function prodServiceBindings(): Promise<Record<string, string>> {
+  const { worker } = await cloudflareConfig({ mode: "prod", isPreview: false });
+  const out: Record<string, string> = {};
+  for (const [name, binding] of Object.entries(worker.env)) {
+    const b = binding as { type: string; worker?: string };
+    if (b.type === "worker" && b.worker) out[name] = b.worker;
+  }
+  return out;
+}
+
 export default defineConfig(async () => {
   const { main, ...workerOptions } = await workerFromConfig();
   const migrations = await readD1Migrations(fileURLToPath(new URL("./drizzle", import.meta.url)));
-  const issuer = "https://auth.cubityfir.st";
-  const fakeDiscovery = {
-    issuer,
-    authorization_endpoint: `${issuer}/oauth/authorize`,
-    token_endpoint: `${issuer}/oauth/token`,
-    userinfo_endpoint: `${issuer}/oauth/userinfo`,
-    jwks_uri: `${issuer}/oauth/jwks`,
-    end_session_endpoint: `${issuer}/oauth/logout`,
-    response_types_supported: ["code"],
-    code_challenge_methods_supported: ["S256"],
-  };
+  const oidcClient = { clientId: "test-client", clientSecret: "test-secret" };
+  const fakeIdp = await createFakeIdp(oidcClient);
   const manifest = await readFile(fileURLToPath(new URL("./public/manifest.webmanifest", import.meta.url)), "utf8");
   return {
     resolve: {
@@ -67,9 +74,10 @@ export default defineConfig(async () => {
             TEST_MIGRATIONS: migrations,
             ENVIRONMENT: "test",
             SESSION_SECRET: "test-session-secret-at-least-32-characters",
-            OIDC_ISSUER: issuer,
-            OIDC_CLIENT_ID: "test-client",
-            OIDC_CLIENT_SECRET: "test-secret",
+            OIDC_ISSUER: FAKE_ISSUER,
+            OIDC_CLIENT_ID: oidcClient.clientId,
+            OIDC_CLIENT_SECRET: oidcClient.clientSecret,
+            TEST_PROD_SERVICE_BINDINGS: await prodServiceBindings(),
             AUTH_MODE: "oidc",
             AUTH_PROVIDER_LABEL: "Test IdP",
             ACCESS_ALLOWED_EMAILS: "allowed@example.com, Also.Allowed@Example.com",
@@ -83,12 +91,9 @@ export default defineConfig(async () => {
             GEOCODE_FAKE_UPSTREAM: "1",
           },
           serviceBindings: {
-            // Stands in for the identity provider Worker. It serves only the discovery document, so
-            // /auth/login and /auth/logout can build their URLs; nothing here performs a login.
-            IDP: async (req: Request) =>
-              new URL(req.url).pathname === "/.well-known/openid-configuration"
-                ? Response.json(fakeDiscovery, { headers: { "x-test-idp": "1" } })
-                : new Response("not available in tests", { status: 503 }),
+            // Stands in for the identity provider Worker: discovery, JWKS and a token endpoint
+            // issuing signed id_tokens (test/fake-idp.ts), so sign-in runs end to end.
+            IDP: fakeIdp,
             // There is no built client in tests: serve the one asset the Worker reads
             // (the PWA manifest it rebrands) and 404 the rest, as the catch-all would.
             ASSETS: async (req: Request) =>

@@ -5,3 +5,8 @@
  * post-sign-in destination.
  */
 export const SIGNED_OUT_PATH = "/signed-out";
+
+/** True for the signed-out page, with or without a trailing slash. */
+export function isSignedOutPath(pathname: string): boolean {
+  return pathname.replace(/\/+$/, "") === SIGNED_OUT_PATH;
+}
