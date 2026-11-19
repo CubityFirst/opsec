@@ -43,7 +43,7 @@ const base = {
 	// Must not exceed what the test pool's bundled workerd supports (see CLAUDE.md).
 	compatibilityDate: "2026-08-22",
 	compatibilityFlags: ["nodejs_compat"],
-	observability: { enabled: true },
+	observability: { enabled: false },
 	assets: {
 		notFoundHandling: "single-page-application" as const,
 		// Every request hits the Worker first (host redirects, auth); the Worker then serves static files via ASSETS.
