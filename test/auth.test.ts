@@ -2,8 +2,32 @@ import { env } from "cloudflare:test";
 import { describe, expect, it } from "vitest";
 import { DEFAULT_CONTACT_COLUMNS } from "@shared/contact-columns";
 import type { ApiErrorBody, AuthUser } from "@shared/types";
-import { signSession } from "../src/worker/lib/session";
+import { safeNext, signSession } from "../src/worker/lib/session";
+import { providerFetch } from "../src/worker/services/oidc";
+import { FAKE_ISSUER, type FakeAuthCode, fakeAuthCode } from "./fake-idp";
 import { api, apiAs, createContact, json } from "./helpers";
+
+function setCookie(res: Response, name: string): string | undefined {
+  return res.headers.getSetCookie().find((c) => c.startsWith(`${name}=`));
+}
+
+function cookieValue(res: Response, name: string): string | undefined {
+  return setCookie(res, name)?.split(";")[0].slice(name.length + 1);
+}
+
+/** Run /auth/login, then the callback the provider would send back, against the fake IDP. */
+async function signIn(claims: FakeAuthCode["claims"], opts: { badSignature?: boolean; next?: string } = {}): Promise<Response> {
+  const login = await api(`/api/auth/login?next=${encodeURIComponent(opts.next ?? "/contacts")}`, { anonymous: true, redirect: "manual" });
+  const authorize = new URL(login.headers.get("location")!);
+  const code = fakeAuthCode({
+    nonce: authorize.searchParams.get("nonce")!,
+    codeChallenge: authorize.searchParams.get("code_challenge")!,
+    claims,
+    badSignature: opts.badSignature,
+  });
+  const query = new URLSearchParams({ code, state: authorize.searchParams.get("state")!, iss: FAKE_ISSUER });
+  return api(`/api/auth/callback?${query}`, { anonymous: true, redirect: "manual", headers: { cookie: `opsec_oidc_tx=${cookieValue(login, "opsec_oidc_tx")}` } });
+}
 
 describe("auth", () => {
   it("rejects API calls without a session", async () => {
@@ -98,9 +122,95 @@ describe("auth", () => {
     expect(res.headers.get("location")).toContain("auth_error=");
   });
 
-  it("logout clears the cookie", async () => {
+  it("talks to the provider through the IDP binding the author's instance deploys", async () => {
+    // cloudflare.config.ts mode "prod" must bind IDP, the name providerFetch reads, to the provider Worker.
+    expect(env.TEST_PROD_SERVICE_BINDINGS.IDP).toBe("cubityfirst-auth");
+    // The fake IDP binding (vitest.config.ts) tags its answers; a public fetch would not carry the header.
+    const res = await providerFetch(env)(`${FAKE_ISSUER}/.well-known/openid-configuration`, { method: "GET", headers: {}, body: undefined, redirect: "manual" });
+    expect(res.headers.get("x-test-idp")).toBe("1");
+    expect(((await res.json()) as { issuer: string }).issuer).toBe(FAKE_ISSUER);
+  });
+
+  it("login redirects to the discovered authorization endpoint with PKCE, state and nonce", async () => {
+    const res = await api("/api/auth/login?next=/contacts", { anonymous: true, redirect: "manual" });
+    expect(res.status).toBe(302);
+    const url = new URL(res.headers.get("location")!);
+    expect(`${url.origin}${url.pathname}`).toBe(`${FAKE_ISSUER}/oauth/authorize`);
+    expect(url.searchParams.get("client_id")).toBe("test-client");
+    expect(url.searchParams.get("redirect_uri")).toBe("http://opsec.test/api/auth/callback");
+    expect(url.searchParams.get("code_challenge_method")).toBe("S256");
+    for (const p of ["code_challenge", "state", "nonce"]) expect(url.searchParams.get(p)).toBeTruthy();
+    expect(setCookie(res, "opsec_oidc_tx")).toContain("Path=/api/auth");
+  });
+
+  it("signs in end to end and keeps the id_token for sign-out", async () => {
+    const res = await signIn({ sub: "idp-user-1", email: "allowed@example.com", email_verified: true, name: "Signed In", roles: ["user"] });
+    expect(res.status).toBe(302);
+    expect(res.headers.get("location")).toBe("/contacts");
+    expect(setCookie(res, "opsec_oidc_tx")).toMatch(/^opsec_oidc_tx=;/);
+    const session = cookieValue(res, "opsec_session");
+    expect(session).toBeTruthy();
+    const idToken = cookieValue(res, "opsec_id_token")!;
+    expect(idToken.split(".")).toHaveLength(3);
+    const idCookie = setCookie(res, "opsec_id_token")!;
+    for (const attr of ["Path=/api/auth/logout", "HttpOnly", "SameSite=Lax"]) expect(idCookie).toContain(attr);
+
+    const me = await api("/api/auth/me", { anonymous: true, headers: { cookie: `opsec_session=${session}` } });
+    expect(await me.json()).toMatchObject({ sub: "idp-user-1", email: "allowed@example.com", roles: ["user"], isAdmin: false });
+
+    const out = await api("/api/auth/logout", { method: "POST", anonymous: true, headers: { cookie: `opsec_session=${session}; opsec_id_token=${idToken}` } });
+    const { logoutUrl } = (await out.json()) as { logoutUrl: string };
+    expect(new URL(logoutUrl).searchParams.get("id_token_hint")).toBe(idToken);
+  });
+
+  it("refuses an id_token whose signature does not match the provider's keys", async () => {
+    const res = await signIn({ sub: "idp-user-2", email: "allowed@example.com", email_verified: true, name: "Forged", roles: ["admin"] }, { badSignature: true });
+    expect(res.status).toBe(302);
+    expect(res.headers.get("location")).toContain("auth_error=");
+    expect(cookieValue(res, "opsec_session")).toBeFalsy();
+    expect(cookieValue(res, "opsec_id_token")).toBeFalsy();
+  });
+
+  it("logout clears the session and hands back the provider's end-session URL", async () => {
     const res = await api("/api/auth/logout", { method: "POST" });
     expect(res.status).toBe(200);
-    expect(res.headers.get("set-cookie")).toContain("opsec_session=;");
+    expect(setCookie(res, "opsec_session")).toMatch(/^opsec_session=;.*Path=\//);
+    expect(setCookie(res, "opsec_id_token")).toMatch(/^opsec_id_token=;.*Path=\/api\/auth\/logout/);
+    const { logoutUrl } = (await res.json()) as { logoutUrl: string | null };
+    const url = new URL(logoutUrl!);
+    expect(`${url.origin}${url.pathname}`).toBe(`${FAKE_ISSUER}/oauth/logout`);
+    expect(url.searchParams.get("post_logout_redirect_uri")).toBe("http://opsec.test/signed-out");
+    expect(url.searchParams.get("client_id")).toBe("test-client");
+    // No id_token kept from sign-in: the provider will ask before signing out.
+    expect(url.searchParams.has("id_token_hint")).toBe(false);
+  });
+
+  it("only accepts a normalised same-origin path as the post-sign-in destination", async () => {
+    expect(safeNext("/contacts?q=a")).toBe("/contacts?q=a");
+    expect(safeNext("/signed-outside")).toBe("/signed-outside");
+    expect(safeNext("/contacts/./x/../y")).toBe("/contacts/y");
+    const refused = [
+      undefined,
+      "",
+      "contacts",
+      "https://evil.example/",
+      "//evil.example",
+      "/\\evil.example",
+      // Browsers drop tabs and newlines when resolving a Location: these would become //evil.example.
+      "/\t/evil.example",
+      "/\n/evil.example",
+      "/.//evil.example",
+      "/\t/x:999999",
+      "/api",
+      "/api/auth/login",
+      "/x/../api/auth/login",
+      "/signed-out",
+      "/signed-out/",
+      "/signed-out?x=1",
+    ];
+    for (const raw of refused) expect(safeNext(raw), JSON.stringify(raw)).toBe("/");
+    // A destination that cannot be parsed falls back instead of failing the login.
+    const res = await api(`/api/auth/login?next=${encodeURIComponent("/\t/x:999999")}`, { anonymous: true, redirect: "manual" });
+    expect(res.status).toBe(302);
   });
 });

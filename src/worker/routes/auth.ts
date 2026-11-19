@@ -12,10 +12,12 @@ import {
   clearSessionCookie,
   clearTxCookie,
   isAllowed,
+  readIdTokenCookie,
   readSessionCookie,
   readTxCookie,
   safeNext,
   sessionSecret,
+  setIdTokenCookie,
   setSessionCookie,
   setTxCookie,
   signSession,
@@ -26,7 +28,7 @@ import {
   verifyTx,
 } from "../lib/session";
 import { nowIso } from "../lib/time";
-import { OIDC_SCOPE, client, getOidcConfig, redirectUri } from "../services/oidc";
+import { OIDC_SCOPE, client, getOidcConfig, postLogoutRedirectUri, redirectUri } from "../services/oidc";
 
 const app = new Hono<AppEnv>();
 
@@ -64,8 +66,9 @@ app.get("/auth/login", async (c) => {
 });
 
 /**
- * Exchange the code, verify the id_token (signature via JWKS, iss, aud, exp,
- * nonce — all performed by openid-client), then start our own session.
+ * Exchange the code, verify the id_token (iss, aud, exp, nonce, and the
+ * signature via JWKS because getOidcConfig enables non-repudiation checks — all
+ * performed by openid-client), then start our own session.
  */
 app.get("/auth/callback", async (c) => {
   if (authMode(c.env) === "open") return c.redirect("/");
@@ -116,6 +119,7 @@ app.get("/auth/callback", async (c) => {
       .onConflictDoUpdate({ target: schema.users.sub, set: { email, emailVerified, name, picture, roles: user.roles, lastLoginAt: now } });
 
     setSessionCookie(c, await signSession(user, sessionSecret(c.env)));
+    if (tokens.id_token) setIdTokenCookie(c, tokens.id_token);
     return c.redirect(tx.next, 302);
   } catch (e) {
     // Log the class and message only: provider errors can carry the callback params or response body.
@@ -168,14 +172,24 @@ async function loadPreferences(db: AppEnv["Variables"]["db"], sub: string): Prom
   return row?.preferences ?? {};
 }
 
+/**
+ * Clear our session, then hand the browser the provider's end_session_endpoint (RP-initiated
+ * logout) when discovery advertises one. The id_token from sign-in goes along as
+ * `id_token_hint`, which lets the provider end its own session without asking; without it
+ * (a session from before the cookie existed) the provider shows a confirm page instead.
+ * The post-logout URI must be registered for the client, or the provider refuses it.
+ */
 app.post("/auth/logout", async (c) => {
   if (authMode(c.env) === "open") return c.json({ ok: true, logoutUrl: null });
+  const idToken = readIdTokenCookie(c);
   clearSessionCookie(c);
   let logoutUrl: string | null = null;
   try {
     const config = await getOidcConfig(c.env);
     if (config.serverMetadata().end_session_endpoint) {
-      logoutUrl = client.buildEndSessionUrl(config, { post_logout_redirect_uri: new URL(c.req.url).origin }).href;
+      const params: Record<string, string> = { post_logout_redirect_uri: postLogoutRedirectUri(c.req.url) };
+      if (idToken) params.id_token_hint = idToken;
+      logoutUrl = client.buildEndSessionUrl(config, params).href;
     }
   } catch {
     /* provider unreachable: local logout still succeeds */

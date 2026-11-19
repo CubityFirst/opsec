@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { SIGNED_OUT_PATH } from "@shared/auth";
 import type { UserPreferencesUpdate } from "@shared/schemas/preferences";
 import type { AuthUser } from "@shared/types";
 import { ApiError, api } from "../api";
@@ -60,7 +61,8 @@ export function useLogout() {
     mutationFn: () => api.post<{ ok: boolean; logoutUrl: string | null }>("/api/auth/logout"),
     onSuccess: (r) => {
       qc.clear();
-      window.location.assign(r.logoutUrl ?? "/");
+      // The provider's logout page when there is one; it sends the browser back to SIGNED_OUT_PATH.
+      window.location.assign(r.logoutUrl ?? SIGNED_OUT_PATH);
     },
   });
 }

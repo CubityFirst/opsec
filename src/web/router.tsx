@@ -2,6 +2,10 @@ import { createBrowserRouter, Navigate, useParams } from "react-router";
 import { AppShell } from "@/components/layout/AppShell";
 import { RouteErrorPage } from "@/pages/RouteErrorPage";
 
+function RedirectHome() {
+  return <Navigate to="/" replace />;
+}
+
 function RedirectToOverview() {
   const { id } = useParams();
   return <Navigate to={`/contacts/${id}/overview`} replace />;
@@ -41,6 +45,9 @@ export const router = createBrowserRouter([
       { path: "ask", lazy: async () => ({ Component: (await import("./pages/AskPage")).AskPage }) },
       { path: "account", lazy: async () => ({ Component: (await import("./pages/AccountPage")).AccountPage }) },
       { path: "interactions/:id", lazy: async () => ({ Component: (await import("./pages/InteractionPage")).InteractionPage }) },
+      // SIGNED_OUT_PATH (@shared/auth). Signed-out visitors never get here (AuthGate shows the
+      // sign-in card); anyone signed in goes home.
+      { path: "signed-out", Component: RedirectHome },
       { path: "*", lazy: async () => ({ Component: (await import("./pages/NotFoundPage")).NotFoundPage }) },
     ],
   },

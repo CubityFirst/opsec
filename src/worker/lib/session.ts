@@ -1,6 +1,7 @@
 import type { Context } from "hono";
 import { deleteCookie, getCookie, setCookie } from "hono/cookie";
 import { sign, verify } from "hono/jwt";
+import { isSignedOutPath } from "@shared/auth";
 import { withPreferenceDefaults } from "@shared/schemas/preferences";
 import type { AuthUser } from "@shared/types";
 import type { AppVars } from "../env";
@@ -9,6 +10,13 @@ import { ApiError } from "./errors";
 export const SESSION_COOKIE = "opsec_session";
 /** Short-lived cookie holding the PKCE verifier, state and nonce between /login and /callback. */
 export const TX_COOKIE = "opsec_oidc_tx";
+/**
+ * The provider's raw id_token from the last sign-in, kept only to send as `id_token_hint` on
+ * RP-initiated logout so the provider ends its own session without a confirm page. Scoped to
+ * the logout route, the only one that reads it; never used for identity (the session cookie is).
+ */
+export const ID_TOKEN_COOKIE = "opsec_id_token";
+const ID_TOKEN_COOKIE_PATH = "/api/auth/logout";
 export const SESSION_TTL_SECONDS = 7 * 24 * 60 * 60;
 export const TX_TTL_SECONDS = 10 * 60;
 
@@ -129,16 +137,35 @@ function secure(c: Context): boolean {
   return new URL(c.req.url).protocol === "https:";
 }
 
-export function setSessionCookie(c: Context, token: string) {
-  setCookie(c, SESSION_COOKIE, token, { httpOnly: true, secure: secure(c), sameSite: "Lax", path: "/", maxAge: SESSION_TTL_SECONDS });
+/** Attributes shared by setting and deleting a cookie, so a deletion always matches what was set. */
+function cookieAttrs(c: Context, path: string) {
+  return { httpOnly: true, secure: secure(c), sameSite: "Lax", path } as const;
 }
 
+export function setSessionCookie(c: Context, token: string) {
+  setCookie(c, SESSION_COOKIE, token, { ...cookieAttrs(c, "/"), maxAge: SESSION_TTL_SECONDS });
+}
+
+/** Also drops the id_token kept for sign-out: it belongs to the session it came with. */
 export function clearSessionCookie(c: Context) {
-  deleteCookie(c, SESSION_COOKIE, { path: "/" });
+  deleteCookie(c, SESSION_COOKIE, cookieAttrs(c, "/"));
+  deleteCookie(c, ID_TOKEN_COOKIE, cookieAttrs(c, ID_TOKEN_COOKIE_PATH));
+}
+
+/**
+ * Lives as long as the session, not the token: the provider accepts an expired id_token as a
+ * logout hint, so cutting this short would only bring back its confirm page.
+ */
+export function setIdTokenCookie(c: Context, idToken: string) {
+  setCookie(c, ID_TOKEN_COOKIE, idToken, { ...cookieAttrs(c, ID_TOKEN_COOKIE_PATH), maxAge: SESSION_TTL_SECONDS });
+}
+
+export function readIdTokenCookie(c: Context): string | undefined {
+  return getCookie(c, ID_TOKEN_COOKIE);
 }
 
 export function setTxCookie(c: Context, token: string) {
-  setCookie(c, TX_COOKIE, token, { httpOnly: true, secure: secure(c), sameSite: "Lax", path: "/api/auth", maxAge: TX_TTL_SECONDS });
+  setCookie(c, TX_COOKIE, token, { ...cookieAttrs(c, "/api/auth"), maxAge: TX_TTL_SECONDS });
 }
 
 export function readTxCookie(c: Context): string | undefined {
@@ -146,16 +173,31 @@ export function readTxCookie(c: Context): string | undefined {
 }
 
 export function clearTxCookie(c: Context) {
-  deleteCookie(c, TX_COOKIE, { path: "/api/auth" });
+  deleteCookie(c, TX_COOKIE, cookieAttrs(c, "/api/auth"));
 }
 
 export function readSessionCookie(c: Context): string | undefined {
   return getCookie(c, SESSION_COOKIE);
 }
 
-/** Only allow same-origin relative paths as post-login destinations. */
+/**
+ * Post-login destination: a path on this origin, normalised, or "/". Rejects scheme-relative
+ * ("//evil") and backslash ("/\evil") tricks, control characters (browsers drop tabs and
+ * newlines when resolving a Location, so "/\t/evil" would become "//evil"), dot segments that
+ * collapse into another host, API routes and the signed-out page.
+ */
 export function safeNext(raw: string | undefined | null): string {
   if (!raw || !raw.startsWith("/") || raw.startsWith("//") || raw.startsWith("/\\")) return "/";
-  if (raw.startsWith("/api/")) return "/";
-  return raw;
+  if (/[\u0000-\u001f\u007f]/.test(raw)) return "/";
+  const base = "http://x";
+  let url: URL;
+  try {
+    url = new URL(raw, base);
+  } catch {
+    return "/";
+  }
+  if (url.origin !== base || url.pathname.startsWith("//")) return "/";
+  if (url.pathname === "/api" || url.pathname.startsWith("/api/")) return "/";
+  if (isSignedOutPath(url.pathname)) return "/";
+  return url.pathname + url.search;
 }

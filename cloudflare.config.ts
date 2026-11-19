@@ -71,7 +71,7 @@ export default defineConfig((ctx) => {
 					],
 					env: {
 						AUTH_MODE: bindings.text("oidc"),
-						AUTH_PROVIDER_LABEL: bindings.text("Annex"),
+						AUTH_PROVIDER_LABEL: bindings.text("cubityfir.st"),
 						OIDC_ISSUER: bindings.text("https://auth.cubityfir.st"),
 						OIDC_CLIENT_ID: bindings.text("annx_6d092a4c0a09224a32ab96d0"),
 						ACCESS_ALLOWED_EMAILS: bindings.text("cubity@cubityfir.st"),
@@ -86,10 +86,11 @@ export default defineConfig((ctx) => {
 							id: "86818e80-503b-4c67-970a-39d6ca9ab6e0",
 						}),
 						BUCKET: bindings.r2({ name: "nexus-files" }),
-						// Annex (auth.cubityfir.st) is a Worker on the same zone. A plain fetch from this Worker to a
-						// same-zone hostname bypasses that hostname's Worker and hits the origin, so server-to-server
-						// OIDC calls (token, JWKS, userinfo) go through this service binding. See services/oidc.ts.
-						ANNEX: bindings.worker({ worker: "annex-auth" }),
+						// The identity provider (auth.cubityfir.st, Worker `cubityfirst-auth`) is on the same zone. A
+						// plain fetch from this Worker to a same-zone hostname bypasses that hostname's Worker and hits
+						// the origin, so server-to-server OIDC calls (discovery, token, JWKS, userinfo) go through this
+						// service binding. See services/oidc.ts.
+						IDP: bindings.worker({ worker: "cubityfirst-auth" }),
 						ASSETS: bindings.assets(),
 					},
 				},

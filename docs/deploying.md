@@ -9,11 +9,15 @@ Two modes, chosen by the `AUTH_MODE` var:
 - **`open`** (default): no sign-in. Every request runs as a single implicit owner (`sub` = `local`, admin). Use it behind your own gate, or for local development.
 - **`oidc`**: "Sign in with <provider>" using OpenID Connect (Authorization Code + PKCE, `state` and `nonce`, discovery from `OIDC_ISSUER`) via openid-client. Sessions are HS256-signed cookies keyed on the `sub` claim, never on email. Access is limited to accounts with the `admin` role plus verified emails listed in `ACCESS_ALLOWED_EMAILS`; the policy is checked at sign-in and on every request, so revoking someone locks existing cookies out immediately. Destructive routes additionally require the `admin` role. Scopes: `openid profile email roles`.
 
+The id_token's signature is checked against the provider's JWKS (openid-client's `enableNonRepudiationChecks`; the library skips it by default), alongside its issuer, audience, expiry and nonce.
+
 Config for `oidc` mode: vars `OIDC_ISSUER`, `OIDC_CLIENT_ID`, `AUTH_PROVIDER_LABEL`, `ACCESS_ALLOWED_EMAILS`; secrets `OIDC_CLIENT_SECRET`, `SESSION_SECRET`. Redirect URI: `https://<host>/api/auth/callback`.
 
 In `open` mode behind [Cloudflare Access](https://developers.cloudflare.com/cloudflare-one/policies/access/), the app probes `/cdn-cgi/access/get-identity`, which Cloudflare only serves on hostnames covered by an Access application; when that answers, the Account page drops the open-access warning and names the identity that let you in instead. Access visitors still share the single owner account, so the policy is what decides who gets in.
 
-The author's instance (mode `prod` in `cloudflare.config.ts`) signs in through Annex, a private provider on the same Cloudflare zone. Because a Worker's fetch to a same-zone hostname skips that hostname's Worker, its token, JWKS and userinfo calls go through a service binding; that binding is optional and only used when present.
+Sign-out clears the session and, when the provider's discovery document advertises an `end_session_endpoint`, sends the browser there (RP-initiated logout) with the id_token from sign-in as `id_token_hint` and `post_logout_redirect_uri` set to the instance's signed-out page, `https://<host>/signed-out`, which shows the sign-in card with a "You're signed out" note. Register that exact string as a post-logout redirect URI for the client, or the provider will refuse it. Providers without an end-session endpoint get a local sign-out that lands on the same page.
+
+The author's instance (mode `prod` in `cloudflare.config.ts`) signs in through cubityfir.st (`https://auth.cubityfir.st`, the `cubityfirst-auth` Worker), a private provider on the same Cloudflare zone. Because a Worker's fetch to a same-zone hostname skips that hostname's Worker, its discovery, token, JWKS and userinfo calls go through the `IDP` service binding (`services/oidc.ts`); that binding is optional and only used when present. The binding names the Worker directly and ignores routes, so if the provider ever moves to another Worker the binding has to move with it. Its client has `https://opsec.cubityfir.st/signed-out` and `https://opsec.nexus/signed-out` registered as post-logout redirect URIs (`auth.cubityfir.st/admin/clients`), plus the bare origins, which builds from before the signed-out page still send.
 
 ## The author's instance
 
@@ -29,7 +33,7 @@ curl https://opsec.cubityfir.st/api/auth/login -o /dev/null -w "%{redirect_url}\
 ```
 
 `npm run deploy` (no `:prod`) deploys the **default-mode template**: open access, a fresh `opsec-db`, no
-Annex binding. Because the template and mode `prod` share the Worker name `opsec`, running it against
+`IDP` binding. Because the template and mode `prod` share the Worker name `opsec`, running it against
 this account silently switches production to open access and an empty database (sign-in then fails
 with "Internal error"). Only use it on a self-hosted account.
 
